@@ -75,6 +75,8 @@ model User {
   blogPosts           BlogPost[]
   subscription        Subscription?
   partnershipRequests PartnershipRequest[]
+  ambassadorProfile   AmbassadorProfile?
+  activityLogs        ActivityLog[]
 }
 
 model Resource {
@@ -188,4 +190,43 @@ model ContactMessage {
   message   String
   status    ContactStatus @default(new)
   createdAt DateTime      @default(now())
+}
+
+model AmbassadorProfile {
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  country        String?
+  region         String?
+  specialization String?
+  experience     String?
+  students       Int?     @default(0)
+  flag           String?
+  bio            String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AmbassadorApplication {
+  id         String        @id @default(uuid())
+  name       String
+  email      String
+  country    String
+  experience String?
+  bio        String?
+  status     ContentStatus @default(pending)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+}
+
+model ActivityLog {
+  id          String   @id @default(uuid())
+  type        String // e.g., 'user_registered', 'purchase_completed'
+  description String
+  timestamp   DateTime @default(now())
+  userId      String?
+  metadata    Json? // Optional extra data
+
+  user User? @relation(fields: [userId], references: [id])
 }

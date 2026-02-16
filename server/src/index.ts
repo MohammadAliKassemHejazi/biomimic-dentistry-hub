@@ -6,6 +6,11 @@ import authRoutes from './routes/auth.routes';
 import courseRoutes from './routes/course.routes';
 import resourceRoutes from './routes/resource.routes';
 import userRoutes from './routes/user.routes';
+import blogRoutes from './routes/blog.routes';
+import subscriptionRoutes from './routes/subscription.routes';
+import contactRoutes from './routes/contact.routes';
+import ambassadorRoutes from './routes/ambassador.routes';
+import adminRoutes from './routes/admin.routes';
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -19,6 +24,11 @@ app.use('/api/auth', authRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/resources', resourceRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/blog', blogRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
+app.use('/api/contact', contactRoutes);
+app.use('/api/ambassadors', ambassadorRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.get('/', (req: Request, res: Response) => {
   res.send('Server is running');
