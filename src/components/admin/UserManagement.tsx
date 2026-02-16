@@ -1,57 +1,60 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Search, UserPlus, Edit, Trash2, Crown, Star, Users } from 'lucide-react';
+import { Search, Crown, Star, Users, Shield, UserCog } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
-interface Profile {
+interface UserWithRole {
   id: string;
   user_id: string;
   email: string;
-  first_name: string;
-  last_name: string;
-  role: 'user' | 'vip' | 'ambassador' | 'admin';
+  first_name: string | null;
+  last_name: string | null;
+  role: string;
   created_at: string;
 }
 
 const UserManagement = () => {
-  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [users, setUsers] = useState<UserWithRole[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [isCreateUserOpen, setIsCreateUserOpen] = useState(false);
-  const [newUser, setNewUser] = useState({
-    email: '',
-    password: '',
-    firstName: '',
-    lastName: '',
-    role: 'user' as 'user' | 'vip' | 'ambassador' | 'admin'
-  });
+  const [updatingRole, setUpdatingRole] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
-    fetchProfiles();
+    fetchUsers();
   }, []);
 
-  const fetchProfiles = async () => {
+  const fetchUsers = async () => {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
+      setLoading(true);
+      // Use the secure edge function to fetch users with roles
+      // This ensures only admins can access all user data
+      const { data, error } = await supabase.functions.invoke('manage-role', {
+        body: { action: 'list_users_with_roles' }
+      });
 
-      if (error) throw error;
-      setProfiles(data as Profile[] || []);
-    } catch (error: any) {
+      if (error) {
+        console.error('Error fetching users:', error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch users. You may not have admin permissions.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setUsers(data.users || []);
+    } catch (error) {
+      console.error('Error in fetchUsers:', error);
       toast({
         title: "Error",
-        description: error.message,
+        description: "Failed to fetch users",
         variant: "destructive",
       });
     } finally {
@@ -59,211 +62,113 @@ const UserManagement = () => {
     }
   };
 
-  const createUser = async () => {
+  const updateUserRole = async (userId: string, newRole: string) => {
     try {
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: newUser.email,
-        password: newUser.password,
-        user_metadata: {
-          first_name: newUser.firstName,
-          last_name: newUser.lastName,
+      setUpdatingRole(userId);
+      
+      // Use the secure edge function to update roles
+      // This enforces server-side admin check before allowing role changes
+      const { data, error } = await supabase.functions.invoke('manage-role', {
+        body: { 
+          action: 'set_role',
+          targetUserId: userId,
+          role: newRole
         }
       });
 
-      if (authError) throw authError;
-
-      // Update the role in profiles table
-      if (authData.user) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .update({ role: newUser.role })
-          .eq('user_id', authData.user.id);
-
-        if (profileError) throw profileError;
+      if (error) {
+        console.error('Error updating role:', error);
+        toast({
+          title: "Error",
+          description: "Failed to update user role. You may not have admin permissions.",
+          variant: "destructive",
+        });
+        return;
       }
 
-      toast({
-        title: "Success",
-        description: "User created successfully",
-      });
-
-      setNewUser({ email: '', password: '', firstName: '', lastName: '', role: 'user' });
-      setIsCreateUserOpen(false);
-      fetchProfiles();
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const updateUserRole = async (userId: string, newRole: string) => {
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ role: newRole })
-        .eq('user_id', userId);
-
-      if (error) throw error;
+      // Update local state
+      setUsers(users.map(user => 
+        user.user_id === userId ? { ...user, role: newRole } : user
+      ));
 
       toast({
         title: "Success",
-        description: "User role updated successfully",
+        description: `User role updated to ${newRole}`,
       });
-
-      fetchProfiles();
-    } catch (error: any) {
+    } catch (error) {
+      console.error('Error in updateUserRole:', error);
       toast({
         title: "Error",
-        description: error.message,
+        description: "Failed to update user role",
         variant: "destructive",
       });
-    }
-  };
-
-  const deleteUser = async (userId: string) => {
-    if (!confirm("Are you sure you want to delete this user?")) return;
-    
-    try {
-      const { error } = await supabase.auth.admin.deleteUser(userId);
-      
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "User deleted successfully",
-      });
-
-      fetchProfiles();
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+    } finally {
+      setUpdatingRole(null);
     }
   };
 
   const getRoleIcon = (role: string) => {
     switch (role) {
       case 'admin':
-        return <Crown className="h-4 w-4 text-red-500" />;
+        return <Shield className="h-4 w-4 text-destructive" />;
       case 'ambassador':
-        return <Star className="h-4 w-4 text-purple-500" />;
+        return <Crown className="h-4 w-4 text-purple-500" />;
       case 'vip':
         return <Star className="h-4 w-4 text-yellow-500" />;
       default:
-        return <Users className="h-4 w-4 text-gray-500" />;
+        return <Users className="h-4 w-4 text-muted-foreground" />;
     }
   };
 
-  const getRoleBadgeVariant = (role: string) => {
+  const getRoleBadgeVariant = (role: string): 'default' | 'secondary' | 'destructive' | 'outline' => {
     switch (role) {
       case 'admin':
         return 'destructive';
       case 'ambassador':
-        return 'secondary';
-      case 'vip':
-        return 'outline';
-      default:
         return 'default';
+      case 'vip':
+        return 'secondary';
+      default:
+        return 'outline';
     }
   };
 
-  const filteredProfiles = profiles.filter(profile =>
-    profile.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    profile.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    profile.last_name?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredUsers = users.filter(user => {
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      user.email?.toLowerCase().includes(searchLower) ||
+      user.first_name?.toLowerCase().includes(searchLower) ||
+      user.last_name?.toLowerCase().includes(searchLower)
+    );
+  });
+
+  if (loading) {
+    return (
+      <Card>
+        <CardContent className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            User Management
-          </div>
-          <Dialog open={isCreateUserOpen} onOpenChange={setIsCreateUserOpen}>
-            <DialogTrigger asChild>
-              <Button className="flex items-center gap-2">
-                <UserPlus className="h-4 w-4" />
-                Create User
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Create New User</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={newUser.email}
-                    onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-                    placeholder="user@example.com"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={newUser.password}
-                    onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                    placeholder="Password"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="firstName">First Name</Label>
-                  <Input
-                    id="firstName"
-                    value={newUser.firstName}
-                    onChange={(e) => setNewUser({ ...newUser, firstName: e.target.value })}
-                    placeholder="John"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="lastName">Last Name</Label>
-                  <Input
-                    id="lastName"
-                    value={newUser.lastName}
-                    onChange={(e) => setNewUser({ ...newUser, lastName: e.target.value })}
-                    placeholder="Doe"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="role">Role</Label>
-                  <Select value={newUser.role} onValueChange={(value) => setNewUser({ ...newUser, role: value as any })}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="user">User</SelectItem>
-                      <SelectItem value="vip">VIP</SelectItem>
-                      <SelectItem value="ambassador">Ambassador</SelectItem>
-                      <SelectItem value="admin">Admin</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button onClick={createUser} className="w-full">
-                  Create User
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+        <CardTitle className="flex items-center gap-2">
+          <UserCog className="h-5 w-5" />
+          User Management
         </CardTitle>
+        <CardDescription>
+          Manage user roles securely. All role changes are verified server-side.
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <div className="mb-6">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input
-              placeholder="Search users..."
+              placeholder="Search users by name or email..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
@@ -271,44 +176,49 @@ const UserManagement = () => {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="rounded-md border overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>User</TableHead>
+                <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
-                <TableHead>Role</TableHead>
+                <TableHead>Current Role</TableHead>
+                <TableHead>Change Role</TableHead>
                 <TableHead>Joined</TableHead>
-                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredProfiles.map((profile) => (
-                <TableRow key={profile.id}>
-                  <TableCell>
-                    <div>
+              {filteredUsers.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    <Users className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                    No users found
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredUsers.map((user) => (
+                  <TableRow key={user.id}>
+                    <TableCell>
                       <div className="font-medium">
-                        {profile.first_name} {profile.last_name}
+                        {user.first_name || user.last_name 
+                          ? `${user.first_name || ''} ${user.last_name || ''}`.trim()
+                          : 'N/A'}
                       </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>{profile.email}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      {getRoleIcon(profile.role)}
-                      <Badge variant={getRoleBadgeVariant(profile.role)}>
-                        {profile.role.toUpperCase()}
-                      </Badge>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {new Date(profile.created_at).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
+                    </TableCell>
+                    <TableCell>{user.email}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {getRoleIcon(user.role)}
+                        <Badge variant={getRoleBadgeVariant(user.role)}>
+                          {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                        </Badge>
+                      </div>
+                    </TableCell>
+                    <TableCell>
                       <Select
-                        value={profile.role}
-                        onValueChange={(value) => updateUserRole(profile.user_id, value)}
+                        value={user.role}
+                        onValueChange={(value) => updateUserRole(user.user_id, value)}
+                        disabled={updatingRole === user.user_id}
                       >
                         <SelectTrigger className="w-32">
                           <SelectValue />
@@ -320,27 +230,22 @@ const UserManagement = () => {
                           <SelectItem value="admin">Admin</SelectItem>
                         </SelectContent>
                       </Select>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => deleteUser(profile.user_id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+                    </TableCell>
+                    <TableCell>
+                      {new Date(user.created_at).toLocaleDateString()}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </div>
 
-        {filteredProfiles.length === 0 && !loading && (
-          <div className="text-center py-8">
-            <Users className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">No users found matching your criteria.</p>
-          </div>
-        )}
+        <div className="mt-4 flex justify-end">
+          <Button onClick={fetchUsers} variant="outline">
+            Refresh Users
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

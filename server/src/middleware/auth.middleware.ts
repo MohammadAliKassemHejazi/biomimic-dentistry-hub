@@ -1,0 +1,48 @@
+import { Request, Response, NextFunction } from 'express';
+import { verifyToken } from '../utils/jwt';
+import prisma from '../utils/prisma';
+
+// Extend Express Request interface to include user
+declare global {
+  namespace Express {
+    interface Request {
+      user?: any; // Ideally this should be typed properly based on your User model
+    }
+  }
+}
+
+export const authenticate = async (req: Request, res: Response, next: NextFunction) => {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader) {
+    res.status(401).json({ message: 'Authorization header missing' });
+    return;
+  }
+
+  const token = authHeader.split(' ')[1];
+
+  if (!token) {
+    res.status(401).json({ message: 'Token missing' });
+    return;
+  }
+
+  try {
+    const decoded: any = verifyToken(token);
+
+    // Check if user exists in DB
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+    });
+
+    if (!user) {
+      res.status(401).json({ message: 'User not found' });
+      return;
+    }
+
+    req.user = user;
+    next();
+  } catch (error) {
+    res.status(401).json({ message: 'Invalid or expired token' });
+    return;
+  }
+};
