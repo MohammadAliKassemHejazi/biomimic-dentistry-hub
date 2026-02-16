@@ -1,26 +1,448 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+/* @import "shadcn/tailwind.css"; - We are defining our own theme based on the original project */
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@plugin "tailwindcss-animate";
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+@custom-variant dark (&:is(.dark *));
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@theme {
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-primary-light: hsl(var(--primary-light));
+  --color-primary-glow: hsl(var(--primary-glow));
+
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-secondary-light: hsl(var(--secondary-light));
+  --color-secondary-glow: hsl(var(--secondary-glow));
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-accent-light: hsl(var(--accent-light));
+  --color-accent-glow: hsl(var(--accent-glow));
+
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+
+  --color-sidebar: hsl(var(--sidebar-background));
+  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
+  --color-sidebar-primary: hsl(var(--sidebar-primary));
+  --color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
+  --color-sidebar-accent: hsl(var(--sidebar-accent));
+  --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
+  --color-sidebar-border: hsl(var(--sidebar-border));
+  --color-sidebar-ring: hsl(var(--sidebar-ring));
+
+  --color-success: hsl(var(--success));
+  --color-success-foreground: hsl(var(--success-foreground));
+
+  --image-gradient-hero: var(--gradient-hero);
+  --image-gradient-primary: var(--gradient-primary);
+  --image-gradient-secondary: var(--gradient-secondary);
+  --image-gradient-card: var(--gradient-card);
+  --image-gradient-breath: var(--gradient-breath);
+
+  --shadow-soft: var(--shadow-soft);
+  --shadow-medium: var(--shadow-medium);
+  --shadow-strong: var(--shadow-strong);
+  --shadow-glow: var(--shadow-glow);
+  --shadow-glass: var(--glass-shadow);
+  --shadow-leaf: var(--shadow-leaf);
+
+  --animate-float: float 8s ease-in-out infinite;
+  --animate-breathe: breathe 4s ease-in-out infinite;
+  --animate-grow: grow 6s ease-in-out infinite;
+  --animate-pulse-soft: pulse-soft 3s ease-in-out infinite;
+  --animate-fade-in-up: fadeInUp 0.8s ease-out forwards;
+  --animate-fade-in-scale: fadeInScale 0.8s ease-out forwards;
+  --animate-leaf-sway: leafSway 4s ease-in-out infinite;
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+
+  @keyframes accordion-down {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(--radix-accordion-content-height);
+    }
+  }
+  @keyframes accordion-up {
+    from {
+      height: var(--radix-accordion-content-height);
+    }
+    to {
+      height: 0;
+    }
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0px) rotate(0deg); }
+    25% { transform: translateY(-12px) rotate(1deg); }
+    50% { transform: translateY(-8px) rotate(-0.5deg); }
+    75% { transform: translateY(-15px) rotate(0.8deg); }
+  }
+  @keyframes breathe {
+    0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.8; }
+    50% { transform: scale(1.08) rotate(0.5deg); opacity: 1; }
+  }
+  @keyframes grow {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+  }
+  @keyframes pulse-soft {
+    0%, 100% { opacity: 0.7; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.05); }
+  }
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(40px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeInScale {
+    from { opacity: 0; transform: scale(0.8); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  @keyframes leafSway {
+    0%, 100% { transform: rotate(-3deg) translateX(0px); }
+    50% { transform: rotate(3deg) translateX(5px); }
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Nature's Smile Design System - Biomimetic Dentistry */
+@layer base {
+  :root {
+    /* Nature's Smile Color Palette */
+    --background: 120 17% 97%; /* Tooth Pearl #F7F9F8 */
+    --foreground: 201 16% 29%; /* Bio Charcoal #3D4C53 */
+
+    --card: 120 17% 99%; /* Ultra clean white */
+    --card-foreground: 201 16% 29%;
+
+    --popover: 120 17% 99%;
+    --popover-foreground: 201 16% 29%;
+
+    /* Primary: Bio Mint - Fresh, alive, healing */
+    --primary: 143 34% 66%; /* #88C9A1 */
+    --primary-foreground: 0 0% 100%;
+    --primary-light: 143 40% 72%; /* Bio Glow #A0D8B3 */
+    --primary-glow: 143 40% 72%;
+
+    /* Secondary: Enamel Sky - Calm, trustworthy */
+    --secondary: 204 85% 84%; /* #B5E2FA */
+    --secondary-foreground: 201 16% 29%;
+    --secondary-light: 204 85% 90%;
+    --secondary-glow: 204 85% 84%;
+
+    /* Accent: Gum Blush - Warm, human, gentle */
+    --accent: 353 42% 81%; /* #E8B4B8 */
+    --accent-foreground: 201 16% 29%;
+    --accent-light: 353 42% 87%;
+    --accent-glow: 353 42% 81%;
+
+    /* Muted: Forest Whisper variants */
+    --muted: 143 21% 95%;
+    --muted-foreground: 143 21% 45%; /* Forest Whisper #5B8A72 */
+
+    /* Alert colors */
+    --destructive: 0 100% 70%; /* Alert Coral #FF6B6B */
+    --destructive-foreground: 0 0% 98%;
+    --success: 85 39% 53%; /* Success Leaf #6AB04C */
+    --success-foreground: 0 0% 98%;
+
+    --border: 143 21% 90%;
+    --input: 143 21% 90%;
+    --ring: 143 34% 66%;
+
+    --radius: 1rem;
+
+    /* Sidebar - Defaults or mapped */
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Nature's Biomimetic Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-light)));
+    --gradient-secondary: linear-gradient(135deg, hsl(var(--secondary)), hsl(var(--secondary-light)));
+    --gradient-hero: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--secondary)) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(var(--card)) 0%, hsl(143 21% 98%) 100%);
+    --gradient-breath: linear-gradient(45deg, hsl(var(--primary)/0.1), hsl(var(--secondary)/0.1));
+
+    /* Organic glass morphism effects */
+    --glass-bg: hsla(120, 17%, 99%, 0.3);
+    --glass-border: hsla(143, 34%, 66%, 0.2);
+    --glass-shadow: 0 8px 32px 0 hsla(143, 34%, 66%, 0.15);
+
+    /* Natural shadows */
+    --shadow-soft: 0 2px 20px hsla(143, 34%, 66%, 0.08);
+    --shadow-medium: 0 8px 30px hsla(143, 34%, 66%, 0.12);
+    --shadow-strong: 0 20px 40px hsla(143, 34%, 66%, 0.16);
+    --shadow-glow: 0 0 40px hsla(var(--primary-glow), 0.4);
+    --shadow-leaf: 0 4px 25px hsla(143, 21%, 45%, 0.2);
+
+    /* Organic animations */
+    --transition-organic: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    --transition-bounce: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    --transition-breathe: all 2s ease-in-out;
+
+    /* Typography scale */
+    --font-size-xs: 0.75rem;
+    --font-size-sm: 0.875rem;
+    --font-size-base: 1rem;
+    --font-size-lg: 1.125rem;
+    --font-size-xl: 1.25rem;
+    --font-size-2xl: 1.5rem;
+    --font-size-3xl: 1.875rem;
+    --font-size-4xl: 2.25rem;
+    --font-size-5xl: 3rem;
+  }
+
+  /* Dark mode - Nature's Night */
+  .dark {
+    --background: 201 16% 8%; /* Deep bio charcoal */
+    --foreground: 120 17% 95%; /* Light tooth pearl */
+
+    --card: 201 16% 10%;
+    --card-foreground: 120 17% 95%;
+
+    --popover: 201 16% 10%;
+    --popover-foreground: 120 17% 95%;
+
+    --primary: 143 34% 55%; /* Darker bio mint */
+    --primary-foreground: 0 0% 100%;
+    --primary-light: 143 40% 65%;
+    --primary-glow: 143 40% 65%;
+
+    --secondary: 204 85% 75%; /* Darker enamel sky */
+    --secondary-foreground: 201 16% 8%;
+    --secondary-light: 204 85% 80%;
+    --secondary-glow: 204 85% 75%;
+
+    --accent: 353 42% 75%; /* Darker gum blush */
+    --accent-foreground: 201 16% 8%;
+    --accent-light: 353 42% 80%;
+    --accent-glow: 353 42% 75%;
+
+    --muted: 143 21% 15%;
+    --muted-foreground: 143 21% 65%;
+
+    --destructive: 0 100% 65%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 143 21% 20%;
+    --input: 143 21% 20%;
+    --ring: 143 34% 55%;
+
+    /* Dark mode gradients */
+    --gradient-hero: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--secondary)) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(var(--card)) 0%, hsl(201 16% 12%) 100%);
+
+    /* Dark glass morphism */
+    --glass-bg: hsla(201, 16%, 10%, 0.8);
+    --glass-border: hsla(143, 34%, 55%, 0.2);
+    --glass-shadow: 0 8px 32px 0 hsla(0, 0%, 0%, 0.5);
+
+    /* Dark shadows */
+    --shadow-soft: 0 2px 20px hsla(0, 0%, 0%, 0.3);
+    --shadow-medium: 0 8px 30px hsla(0, 0%, 0%, 0.4);
+    --shadow-strong: 0 20px 40px hsla(0, 0%, 0%, 0.5);
+    --shadow-leaf: 0 4px 25px hsla(0, 0%, 0%, 0.4);
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@layer components {
+  /* Organic glass morphism card effects */
+  .glass-card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    border-radius: 1.5rem;
+  }
+
+  /* Bio-inspired button variants */
+  .btn-hero {
+    @apply bg-gradient-to-r from-primary to-primary-light text-primary-foreground font-semibold px-8 py-4 rounded-2xl;
+    box-shadow: var(--shadow-leaf);
+    transition: var(--transition-organic);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn-hero::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, hsla(var(--primary-glow), 0.3), transparent);
+    transition: var(--transition-organic);
+  }
+
+  .btn-hero:hover::before {
+    left: 100%;
+  }
+
+  .btn-hero:hover {
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: var(--shadow-glow);
+  }
+
+  .btn-primary {
+    @apply bg-primary text-primary-foreground font-semibold px-6 py-3 rounded-xl;
+    transition: var(--transition-organic);
+    box-shadow: var(--shadow-soft);
+  }
+
+  .btn-primary:hover {
+    @apply bg-primary-light;
+    transform: translateY(-2px) scale(1.01);
+    box-shadow: var(--shadow-medium);
+  }
+
+  .btn-accent {
+    @apply bg-accent text-accent-foreground font-semibold px-6 py-3 rounded-xl;
+    transition: var(--transition-organic);
+    box-shadow: var(--shadow-soft);
+  }
+
+  .btn-accent:hover {
+    @apply bg-accent-light;
+    transform: translateY(-2px) scale(1.01);
+    box-shadow: var(--shadow-medium);
+  }
+
+  .btn-outline {
+    @apply border-2 border-primary text-primary bg-transparent font-semibold px-6 py-3 rounded-xl;
+    transition: var(--transition-organic);
+    backdrop-filter: blur(10px);
+  }
+
+  .btn-outline:hover {
+    @apply bg-primary text-primary-foreground;
+    box-shadow: var(--shadow-leaf);
+    transform: scale(1.02);
+  }
+
+  /* Section containers */
+  .section-container {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  .section-padding {
+    @apply py-16 lg:py-24;
+  }
+
+  /* Card hover animations */
+  .card-hover {
+    transition: var(--transition-smooth);
+  }
+
+  .card-hover:hover {
+    transform: translateY(-8px);
+    box-shadow: var(--shadow-strong);
+  }
+
+  /* Text gradients */
+  .text-gradient-primary {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .text-gradient-secondary {
+    background: var(--gradient-secondary);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  /* Biomimetic animations */
+  .float-animation {
+    animation: float 8s ease-in-out infinite;
+  }
+
+  .breathe-animation {
+    animation: breathe 4s ease-in-out infinite;
+  }
+
+  .grow-animation {
+    animation: grow 6s ease-in-out infinite;
+  }
+
+  .pulse-soft {
+    animation: pulse-soft 3s ease-in-out infinite;
+  }
+
+  .fade-in-up {
+    opacity: 0;
+    transform: translateY(40px);
+    animation: fadeInUp 0.8s ease-out forwards;
+  }
+
+  .fade-in-scale {
+    opacity: 0;
+    transform: scale(0.8);
+    animation: fadeInScale 0.8s ease-out forwards;
+  }
+
+  .leaf-sway {
+    animation: leafSway 4s ease-in-out infinite;
+  }
+
+  /* Stagger delays */
+  .stagger-1 { animation-delay: 0.1s; }
+  .stagger-2 { animation-delay: 0.3s; }
+  .stagger-3 { animation-delay: 0.5s; }
+  .stagger-4 { animation-delay: 0.7s; }
+  .stagger-5 { animation-delay: 0.9s; }
+}
+
+@layer utilities {
+  .shadow-soft { box-shadow: var(--shadow-soft); }
+  .shadow-medium { box-shadow: var(--shadow-medium); }
+  .shadow-strong { box-shadow: var(--shadow-strong); }
+  .shadow-glow { box-shadow: var(--shadow-glow); }
+
+  .transition-smooth { transition: var(--transition-smooth); }
+  .transition-bouncy { transition: var(--transition-bouncy); }
+
+  .bg-gradient-hero { background: var(--gradient-hero); }
+  .bg-gradient-card { background: var(--gradient-card); }
+  .bg-gradient-primary { background: var(--gradient-primary); }
+  .bg-gradient-secondary { background: var(--gradient-secondary); }
 }
