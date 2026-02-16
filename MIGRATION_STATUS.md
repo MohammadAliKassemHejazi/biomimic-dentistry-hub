@@ -21,16 +21,21 @@
   - `Blog` -> `client/src/app/blog/page.tsx`
   - `Contact` -> `client/src/app/contact/page.tsx`
   - `Subscription` -> `client/src/app/subscription/page.tsx`
-- **State Management**:
-  - Created `AuthContext` stub with mock user/login logic.
-  - Created `ThemeContext` wrapper around `next-themes`.
-  - Created `Providers` component to wrap the app.
+- **State Management & Authentication**:
+  - **AuthContext**: Replaced mock authentication with real API calls (`/auth/login`, `/auth/register`).
+  - **JWT Handling**: Implemented token storage using `js-cookie` for persistence.
+  - **Protected Routes**: Implemented redirects for authenticated routes (Dashboard, Resources, Courses, Subscription).
 - **Data Fetching**:
-  - Stubbed `supabase` client in `client/src/lib/supabase.ts` with mock methods (`from`, `select`, `eq`, `rpc`, `functions.invoke`) to prevent build errors.
-  - Mocked data in all pages to ensure UI renders correctly without a backend connection.
+  - **API Client**: Created `client/src/lib/api.ts` with an `axios`-like wrapper around `fetch` that handles Authorization headers automatically.
+  - **React Query**: Implemented custom hooks for data fetching using `@tanstack/react-query`:
+    - `useCourses`: Fetches course list.
+    - `useResources`: Fetches resources library.
+    - `useBlogPosts`: Fetches blog posts.
+    - `useSubscription`: Fetches subscription status.
+  - **Pages Updated**: Refactored `Courses`, `Resources`, `Dashboard`, `Blog`, and `Subscription` pages to use these hooks instead of mock Supabase calls.
 
 ## Pending / To Do
 - **Admin Section**: `src/components/admin` and `src/pages/Admin` were skipped.
-- **Backend Integration**: Replace mock `supabase.ts` with real `supabase-js` client pointing to the Express backend or actual Supabase instance.
-- **Ambassadors Page**: `Ambassadors` page was skipped in the initial batch but can be added similarly to others.
-- **Complex UI**: `Charts` (recharts) and `Resizable` panels were removed as they were not used in the migrated pages.
+- **Ambassadors Page**: `Ambassadors` page was skipped in the initial batch.
+- **Complex UI**: `Charts` (recharts) logic in Dashboard is currently mocked or minimal.
+- **Backend**: Ensure the Express backend endpoints fully align with the frontend expectations (some endpoints were mocked or assumed).

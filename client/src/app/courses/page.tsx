@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Clock, Calendar, Users, Star, Bell } from 'lucide-react';
 import Navigation from '@/components/Navigation';
@@ -10,42 +10,23 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
+import { useCourses } from '@/hooks/queries/useCourses';
+import { useRouter } from 'next/navigation';
 
 const Courses = () => {
-  const [courses, setCourses] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [notifyEmails, setNotifyEmails] = useState<{ [key: string]: string }>({});
-  const { user } = useAuth();
+  const { isAuthenticated, loading: authLoading } = useAuth();
   const { toast } = useToast();
+  const router = useRouter();
 
-  useEffect(() => {
-    fetchCourses();
-  }, []);
+  const { data: courses = [], isLoading: coursesLoading } = useCourses();
 
-  const fetchCourses = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('courses')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      const coursesData = data as any[] | null;
-
-      // Mock data if no data returned (since we are stubbing supabase)
-      if (!coursesData || coursesData.length === 0) {
-          // You can put mock courses here if you want to see them in UI
-          setCourses([]);
-      } else {
-        setCourses(coursesData);
-      }
-    } catch (error) {
-      console.error('Error fetching courses:', error);
-    } finally {
-      setLoading(false);
+  React.useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      router.push('/login');
     }
-  };
+  }, [isAuthenticated, authLoading, router]);
 
   const handleNotifyMe = async (courseId: string) => {
     const email = notifyEmails[courseId];
@@ -59,6 +40,7 @@ const Courses = () => {
     }
 
     // Here you would typically save the email to a notifications table
+    // For now we just show a success message
     toast({
       title: "Success",
       description: "You'll be notified when this course launches!",
@@ -74,13 +56,15 @@ const Courses = () => {
     }).format(price);
   };
 
-  if (loading) {
+  if (authLoading || coursesLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
       </div>
     );
   }
+
+  if (!isAuthenticated) return null;
 
   return (
     <div className="min-h-screen bg-background">

@@ -12,24 +12,24 @@ import {
   BookOpen,
   Download,
   Calendar,
-  Trophy,
   Star,
   Crown,
   Zap,
   FileText,
   Clock,
   TrendingUp,
-  Settings
+  Settings,
+  Trophy
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase'; // Using mocked Supabase
-import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
+import { useSubscription } from '@/hooks/queries/useSubscription';
+import { api } from '@/lib/api';
 
 interface UserStats {
   totalDownloads: number;
   coursesCompleted: number;
   memberSince: string;
-  subscriptionStatus: any;
 }
 
 interface RecentActivity {
@@ -37,72 +37,68 @@ interface RecentActivity {
   type: 'download' | 'course' | 'resource';
   title: string;
   date: string;
+  description: string;
 }
 
 const Dashboard = () => {
-  const { user, profile } = useAuth();
-  const { toast } = useToast();
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const router = useRouter();
+
   const [stats, setStats] = useState<UserStats>({
     totalDownloads: 0,
     coursesCompleted: 0,
     memberSince: new Date().toISOString(),
-    subscriptionStatus: null
   });
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  const { data: subscriptionStatus } = useSubscription();
+
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+        router.push('/login');
+    }
+  }, [isAuthenticated, authLoading, router]);
 
   useEffect(() => {
     if (user) {
       fetchUserStats();
-      checkSubscription();
     }
   }, [user]);
 
   const fetchUserStats = async () => {
     try {
-      // Mocked response
-      const purchases: any[] = [];
+        const statsData = await api.get<UserStats>('/users/stats');
+        setStats(statsData);
 
-      const mockActivity: RecentActivity[] = [
-        {
-          id: '1',
-          type: 'download',
-          title: 'Biomimetic Restoration Guide',
-          date: new Date(Date.now() - 86400000).toISOString()
-        },
-        {
-          id: '2',
-          type: 'course',
-          title: 'Advanced Adhesive Techniques',
-          date: new Date(Date.now() - 172800000).toISOString()
-        }
-      ];
+        // Fetch analytics dashboard data for recent activity or use a dedicated endpoint if available
+        // For now, using a mock or if there is an endpoint for user activity
+        // Since API_REQUIREMENTS.md doesn't specify a user activity endpoint, we'll keep the mock logic for now
+        // or try to infer from analytics if possible.
+        // Assuming we might need to add an endpoint for this later.
+        // Reverting to mock for activity as placeholder until backend supports it fully
+         const mockActivity: RecentActivity[] = [
+            {
+              id: '1',
+              type: 'download',
+              title: 'Biomimetic Restoration Guide',
+              date: new Date(Date.now() - 86400000).toISOString(),
+              description: 'Downloaded resource'
+            },
+            {
+              id: '2',
+              type: 'course',
+              title: 'Advanced Adhesive Techniques',
+              date: new Date(Date.now() - 172800000).toISOString(),
+              description: 'Enrolled in course'
+            }
+          ];
+          setRecentActivity(mockActivity);
 
-      setStats({
-        totalDownloads: 12, // Mock data
-        coursesCompleted: purchases?.length || 0,
-        memberSince: profile?.created_at || new Date().toISOString(),
-        subscriptionStatus: null
-      });
-
-      setRecentActivity(mockActivity);
     } catch (error: any) {
       console.error('Error fetching stats:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
-  const checkSubscription = async () => {
-    try {
-      const { data, error } = await supabase.functions.invoke();
-      if (!error && data) {
-        setStats(prev => ({ ...prev, subscriptionStatus: data }));
-      }
-    } catch (error: any) {
-      console.error('Error checking subscription:', error);
-    }
-  };
 
   const getRoleIcon = (role: string) => {
     switch (role) {
@@ -145,16 +141,15 @@ const Dashboard = () => {
     }
   };
 
-  if (loading) {
+  if (authLoading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Navigation />
-        <div className="pt-16 flex items-center justify-center min-h-[calc(100vh-4rem)]">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
-        </div>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
       </div>
     );
   }
+
+  if (!isAuthenticated) return null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -171,15 +166,15 @@ const Dashboard = () => {
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h1 className="text-4xl font-bold text-foreground mb-2">
-                  Welcome back, {profile?.first_name || user?.email}!
+                  Welcome back, {user?.first_name || user?.email}!
                 </h1>
                 <p className="text-muted-foreground">
                   Continue your dental education journey
                 </p>
               </div>
               <div className="flex items-center gap-3">
-                {getRoleIcon(profile?.role || 'user')}
-                {getRoleBadge(profile?.role || 'user')}
+                {getRoleIcon(user?.role || 'user')}
+                {getRoleBadge(user?.role || 'user')}
               </div>
             </div>
           </motion.div>
@@ -260,10 +255,10 @@ const Dashboard = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">
-                    {stats.subscriptionStatus?.subscribed ? 'Active' : 'Free'}
+                    {subscriptionStatus?.subscribed ? 'Active' : 'Free'}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    {stats.subscriptionStatus?.subscribed ? 'Premium member' : 'Upgrade available'}
+                    {subscriptionStatus?.subscribed ? 'Premium member' : 'Upgrade available'}
                   </p>
                 </CardContent>
               </Card>
@@ -356,7 +351,7 @@ const Dashboard = () => {
               </Card>
 
               {/* Subscription Status */}
-              {!stats.subscriptionStatus?.subscribed && (
+              {!subscriptionStatus?.subscribed && (
                 <Card className="mt-6 border-primary/20 bg-primary/5">
                   <CardHeader>
                     <CardTitle className="text-lg">Upgrade Your Plan</CardTitle>

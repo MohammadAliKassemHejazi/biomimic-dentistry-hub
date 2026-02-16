@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
@@ -11,61 +11,31 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Search, Download, FileText, Lock, Crown, Star } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
-
-interface Resource {
-  id: string;
-  title: string;
-  description: string;
-  file_url: string;
-  file_name: string;
-  file_type: string;
-  access_level: 'public' | 'vip' | 'ambassador' | 'admin';
-  category: string;
-  tags: string[];
-  download_count: number;
-  created_at: string;
-}
+import { useResources, Resource } from '@/hooks/queries/useResources';
+import { useRouter } from 'next/navigation';
+import { api } from '@/lib/api';
 
 const Resources = () => {
-  const [resources, setResources] = useState<Resource[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const { user, profile } = useAuth();
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
   const { toast } = useToast();
+  const router = useRouter();
 
-  useEffect(() => {
-    fetchResources();
-  }, []);
+  const { data: resources = [], isLoading: resourcesLoading, refetch } = useResources();
 
-  const fetchResources = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('resources')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setResources(data as unknown as Resource[] || []);
-    } catch (error: any) {
-      // toast({
-      //   title: "Error",
-      //   description: error.message,
-      //   variant: "destructive",
-      // });
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  React.useEffect(() => {
+      if (!authLoading && !isAuthenticated) {
+        router.push('/login');
+      }
+    }, [isAuthenticated, authLoading, router]);
 
   const canAccessResource = (resource: Resource) => {
-    if (!profile) return resource.access_level === 'public';
+    if (!user) return resource.access_level === 'public';
 
     const roleHierarchy = ['user', 'vip', 'ambassador', 'admin'];
-    const userRoleLevel = roleHierarchy.indexOf(profile.role);
+    const userRoleLevel = roleHierarchy.indexOf(user.role);
     const resourceLevel = roleHierarchy.indexOf(resource.access_level === 'public' ? 'user' : resource.access_level);
 
     return userRoleLevel >= resourceLevel;
@@ -83,10 +53,7 @@ const Resources = () => {
 
     try {
       // Increment download count
-      await supabase
-        .from('resources')
-        .update({ download_count: resource.download_count + 1 })
-        .eq('id', resource.id);
+      await api.post(`/resources/${resource.id}/download`, {});
 
       // Open download link
       window.open(resource.file_url, '_blank');
@@ -97,11 +64,11 @@ const Resources = () => {
       });
 
       // Refresh resources to update download count
-      fetchResources();
+      refetch();
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to download resource",
         variant: "destructive",
       });
     }
@@ -128,6 +95,16 @@ const Resources = () => {
   });
 
   const categories = [...new Set(resources.map(r => r.category).filter(Boolean))];
+
+  if (authLoading || resourcesLoading) {
+      return (
+        <div className="min-h-screen bg-background flex items-center justify-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+        </div>
+      );
+    }
+
+  if (!isAuthenticated) return null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -230,7 +207,7 @@ const Resources = () => {
             ))}
           </div>
 
-          {filteredResources.length === 0 && !loading && (
+          {filteredResources.length === 0 && !resourcesLoading && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
