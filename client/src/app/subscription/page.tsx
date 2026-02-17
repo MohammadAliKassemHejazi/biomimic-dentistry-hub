@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
@@ -9,8 +9,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Check, Crown, Star, Zap, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
+import { useSubscription } from '@/hooks/queries/useSubscription';
+import { api } from '@/lib/api';
 
 interface SubscriptionTier {
   id: string;
@@ -74,29 +75,14 @@ const subscriptionTiers: SubscriptionTier[] = [
 ];
 
 const Subscription = () => {
-  const [loading, setLoading] = useState<string | null>(null);
-  const [currentSubscription, setCurrentSubscription] = useState<any>(null);
-  const { user, profile } = useAuth();
+  const [loadingAction, setLoadingAction] = useState<string | null>(null);
+  const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
 
-  useEffect(() => {
-    if (user) {
-      checkSubscriptionStatus();
-    }
-  }, [user]);
-
-  const checkSubscriptionStatus = async () => {
-    try {
-      const { data, error } = await supabase.functions.invoke();
-      if (error) throw error;
-      setCurrentSubscription(data);
-    } catch (error: any) {
-      console.error('Error checking subscription:', error);
-    }
-  };
+  const { data: currentSubscription } = useSubscription();
 
   const createCheckoutSession = async (priceId: string) => {
-    if (!user) {
+    if (!isAuthenticated) {
       toast({
         title: "Authentication Required",
         description: "Please log in to subscribe.",
@@ -105,13 +91,12 @@ const Subscription = () => {
       return;
     }
 
-    setLoading(priceId);
+    setLoadingAction(priceId);
     try {
-      const { data, error } = await supabase.functions.invoke();
+      const { url } = await api.post<{ url: string }>('/subscriptions/checkout', { price_id: priceId });
 
-      if (error) throw error;
-      if (data?.url) {
-        window.open(data.url, '_blank');
+      if (url) {
+        window.open(url, '_blank');
       }
     } catch (error: any) {
       toast({
@@ -120,17 +105,16 @@ const Subscription = () => {
         variant: "destructive",
       });
     } finally {
-      setLoading(null);
+      setLoadingAction(null);
     }
   };
 
   const manageBilling = async () => {
-    setLoading('manage');
+    setLoadingAction('manage');
     try {
-      const { data, error } = await supabase.functions.invoke();
-      if (error) throw error;
-      if (data?.url) {
-        window.open(data.url, '_blank');
+      const { url } = await api.post<{ url: string }>('/subscriptions/portal', {});
+      if (url) {
+        window.open(url, '_blank');
       }
     } catch (error: any) {
       toast({
@@ -139,7 +123,7 @@ const Subscription = () => {
         variant: "destructive",
       });
     } finally {
-      setLoading(null);
+      setLoadingAction(null);
     }
   };
 
@@ -174,15 +158,15 @@ const Subscription = () => {
                         Active Subscription
                       </h3>
                       <p className="text-green-600 dark:text-green-300">
-                        Your subscription is active until {new Date(currentSubscription.subscription_end).toLocaleDateString()}
+                        Your subscription is active{currentSubscription.subscription_end && ` until ${new Date(currentSubscription.subscription_end).toLocaleDateString()}`}
                       </p>
                     </div>
                     <Button
                       onClick={manageBilling}
-                      disabled={loading === 'manage'}
+                      disabled={loadingAction === 'manage'}
                       variant="outline"
                     >
-                      {loading === 'manage' && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                      {loadingAction === 'manage' && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                       Manage Billing
                     </Button>
                   </div>
@@ -210,7 +194,7 @@ const Subscription = () => {
 
                 <Card className={`h-full transition-all duration-200 hover:shadow-lg ${
                   tier.popular ? 'border-primary shadow-lg' : ''
-                } ${profile?.role === tier.id ? 'ring-2 ring-primary' : ''}`}>
+                } ${user?.role === tier.id ? 'ring-2 ring-primary' : ''}`}>
                   <CardHeader className="text-center">
                     <div className="flex justify-center mb-4">
                       <div className={`p-3 rounded-full ${
@@ -237,14 +221,14 @@ const Subscription = () => {
 
                     <Button
                       onClick={() => createCheckoutSession(tier.stripe_price_id)}
-                      disabled={loading === tier.stripe_price_id || profile?.role === tier.id}
+                      disabled={loadingAction === tier.stripe_price_id || user?.role === tier.id}
                       className={`w-full ${tier.popular ? 'bg-primary' : ''}`}
                       variant={tier.popular ? 'default' : 'outline'}
                     >
-                      {loading === tier.stripe_price_id && (
+                      {loadingAction === tier.stripe_price_id && (
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                       )}
-                      {profile?.role === tier.id ? 'Current Plan' : `Get ${tier.name}`}
+                      {user?.role === tier.id ? 'Current Plan' : `Get ${tier.name}`}
                     </Button>
                   </CardContent>
                 </Card>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Search, Clock, User, Calendar, Tag, FileText } from 'lucide-react';
 import Link from 'next/link';
@@ -10,91 +10,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { supabase } from '@/lib/supabase';
+import { useBlogPosts } from '@/hooks/queries/useBlog';
 
 const Blog = () => {
-  const [posts, setPosts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchPosts();
-  }, []);
-
-  const fetchPosts = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('blog_posts')
-        .select(`
-          *,
-          profiles!blog_posts_author_id_fkey (
-            first_name,
-            last_name
-          )
-        `)
-        .eq('published', true)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setPosts(data || []);
-    } catch (error) {
-      console.error('Error fetching posts:', error);
-      // Set sample posts for demo if supabase fetch fails (mock mode)
-      setPosts([
-        {
-          id: '1',
-          title: 'Introduction to Biomimetic Dentistry: Nature\'s Blueprint for Dental Care',
-          slug: 'intro-to-biomimetic-dentistry',
-          excerpt: 'Discover how biomimetic dentistry mimics nature\'s own design principles to preserve and restore teeth in the most natural way possible.',
-          content: '',
-          featured_image: null, // Placeholder handled in rendering
-          category: 'Philosophy',
-          tags: ['biomimetics', 'natural dentistry', 'tooth preservation'],
-          read_time: 8,
-          created_at: '2024-01-15T10:00:00Z',
-          profiles: {
-            first_name: 'Dr. Sarah',
-            last_name: 'Chen'
-          }
-        },
-        {
-          id: '2',
-          title: 'Case Study: Restoring Function and Aesthetics with Minimal Intervention',
-          slug: 'case-study-minimal-intervention',
-          excerpt: 'A detailed look at how biomimetic techniques can achieve remarkable results while preserving maximum natural tooth structure.',
-          content: '',
-          featured_image: null,
-          category: 'Case Study',
-          tags: ['case study', 'restoration', 'minimal intervention'],
-          read_time: 12,
-          created_at: '2024-01-10T14:30:00Z',
-          profiles: {
-            first_name: 'Dr. Michael',
-            last_name: 'Rodriguez'
-          }
-        },
-        {
-          id: '3',
-          title: 'The Science Behind Tooth Biomechanics and Stress Distribution',
-          slug: 'tooth-biomechanics-stress-distribution',
-          excerpt: 'Understanding how natural teeth handle forces and how we can replicate these mechanisms in restorative dentistry.',
-          content: '',
-          featured_image: null,
-          category: 'Science',
-          tags: ['biomechanics', 'research', 'tooth structure'],
-          read_time: 15,
-          created_at: '2024-01-05T09:15:00Z',
-          profiles: {
-            first_name: 'Dr. Emily',
-            last_name: 'Thompson'
-          }
-        }
-      ]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: posts = [], isLoading: loading } = useBlogPosts(true);
 
   const filteredPosts = posts.filter(post => {
     const matchesSearch = post.title.toLowerCase().includes(searchTerm.toLowerCase()) ||

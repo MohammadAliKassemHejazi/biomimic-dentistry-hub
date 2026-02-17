@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -16,16 +17,21 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const { signIn } = useAuth();
   const router = useRouter();
+  const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
       await signIn(email, password);
-      router.push('/');
-    } catch (error) {
-      console.error(error);
-      // Error is handled in AuthContext
+      // Redirect handled in AuthContext or here if preferred
+      // router.push('/dashboard'); // AuthContext usually handles this
+    } catch (error: any) {
+      toast({
+        title: "Login Failed",
+        description: error.message || "Invalid email or password",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -71,7 +77,7 @@ const Login = () => {
               </Button>
             </form>
             <div className="text-center mt-4 space-y-2">
-              <Link href="/signup" className="text-primary hover:underline">
+              <Link href="/register" className="text-primary hover:underline">
                 Don't have an account? Sign up
               </Link>
             </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X, User, LogOut, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -14,7 +14,10 @@ import LanguageToggle from './LanguageToggle';
 const Navigation = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const pathname = usePathname();
-  const { user, signOut, profile } = useAuth();
+  const { user, signOut } = useAuth();
+  // Safe access to role, default to 'user' if not present
+  const userRole = user?.role || 'user';
+  const userName = user?.first_name || user?.email?.split('@')[0] || 'User';
 
   // Organized navigation items into logical groups
   const learnItems = [
@@ -83,7 +86,7 @@ const Navigation = () => {
 
           <div className="flex items-center space-x-4">
             {/* Desktop Navigation */}
-            <nav className="hidden md:flex items-center space-x-4">
+            <div className="hidden md:flex items-center space-x-4">
               {/* Home link */}
               <Link
                 href="/"
@@ -106,10 +109,10 @@ const Navigation = () => {
               )}
 
               {/* Admin Dropdown - only show for admins */}
-              {profile?.role === 'admin' && (
+              {userRole === 'admin' && (
                 <DropdownNav title="Admin" items={adminItems} />
               )}
-            </nav>
+            </div>
 
             {/* User Menu & Settings */}
             <div className="hidden md:flex items-center space-x-2">
@@ -120,7 +123,7 @@ const Navigation = () => {
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="text-white/90 hover:text-white hover:bg-white/10">
                       <User className="mr-2 h-4 w-4" />
-                      {profile?.first_name || user.email?.split('@')[0]}
+                      {userName}
                       <ChevronDown className="ml-1 h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -135,7 +138,7 @@ const Navigation = () => {
                         Subscription
                       </Link>
                     </DropdownMenuItem>
-                    {profile?.role === 'admin' && (
+                    {userRole === 'admin' && (
                       <>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem asChild>
@@ -180,6 +183,7 @@ const Navigation = () => {
         </div>
 
         {/* Mobile Navigation */}
+        <AnimatePresence>
         {isMenuOpen && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
@@ -253,7 +257,7 @@ const Navigation = () => {
               )}
 
               {/* Admin Section - only show for admins */}
-              {profile?.role === 'admin' && (
+              {userRole === 'admin' && (
                 <div className="px-4 py-2">
                   <div className="text-white/70 text-sm font-medium mb-2">Admin</div>
                   {adminItems.map((item) => (
@@ -309,6 +313,7 @@ const Navigation = () => {
             </div>
           </motion.div>
         )}
+        </AnimatePresence>
       </div>
     </nav>
   );
