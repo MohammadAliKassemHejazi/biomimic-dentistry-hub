@@ -98,12 +98,6 @@ const Subscription = () => {
       if (url) {
         window.open(url, '_blank');
       }
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
     } finally {
       setLoadingAction(null);
     }
@@ -116,12 +110,6 @@ const Subscription = () => {
       if (url) {
         window.open(url, '_blank');
       }
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
     } finally {
       setLoadingAction(null);
     }

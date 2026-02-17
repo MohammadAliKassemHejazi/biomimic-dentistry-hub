@@ -51,27 +51,19 @@ const Resources = () => {
       return;
     }
 
-    try {
-      // Increment download count
-      await api.post(`/resources/${resource.id}/download`, {});
+    // Increment download count
+    await api.post(`/resources/${resource.id}/download`, {});
 
-      // Open download link
-      window.open(resource.file_url, '_blank');
+    // Open download link
+    window.open(resource.file_url, '_blank');
 
-      toast({
-        title: "Success",
-        description: "Download started successfully!",
-      });
+    toast({
+      title: "Success",
+      description: "Download started successfully!",
+    });
 
-      // Refresh resources to update download count
-      refetch();
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to download resource",
-        variant: "destructive",
-      });
-    }
+    // Refresh resources to update download count
+    refetch();
   };
 
   const getAccessIcon = (level: string) => {

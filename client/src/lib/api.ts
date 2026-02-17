@@ -1,9 +1,11 @@
 import Cookies from 'js-cookie';
+import { toast } from '@/hooks/use-toast';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 interface FetchOptions extends RequestInit {
   headers?: Record<string, string>;
+  skipErrorHandling?: boolean;
 }
 
 export const api = {
@@ -45,8 +47,10 @@ async function fetchWithAuth<T>(endpoint: string, options: FetchOptions): Promis
     ...options.headers,
   };
 
+  const { skipErrorHandling, ...fetchOptions } = options;
+
   const config = {
-    ...options,
+    ...fetchOptions,
     headers,
   };
 
@@ -71,8 +75,17 @@ async function fetchWithAuth<T>(endpoint: string, options: FetchOptions): Promis
     }
 
     return response.json();
-  } catch (error) {
+  } catch (error: any) {
     console.error(`API Error [${options.method} ${endpoint}]:`, error);
+
+    if (!skipErrorHandling) {
+      toast({
+        title: "Error",
+        description: error.message || "An unexpected error occurred",
+        variant: "destructive",
+      });
+    }
+
     throw error;
   }
 }

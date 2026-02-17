@@ -26,12 +26,6 @@ const Login = () => {
       await signIn(email, password);
       // Redirect handled in AuthContext or here if preferred
       // router.push('/dashboard'); // AuthContext usually handles this
-    } catch (error: any) {
-      toast({
-        title: "Login Failed",
-        description: error.message || "Invalid email or password",
-        variant: "destructive",
-      });
     } finally {
       setLoading(false);
     }
