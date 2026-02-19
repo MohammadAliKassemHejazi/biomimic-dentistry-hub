@@ -27,14 +27,29 @@ export const listAmbassadors = async (req: Request, res: Response) => {
 export const applyAmbassador = async (req: Request, res: Response) => {
   try {
     const { name, email, country, experience, bio } = req.body;
+    const user = req.user;
+
+    if (!user) {
+        return res.status(401).json({ message: 'You must be logged in to apply' });
+    }
+
+    // Check if already applied
+    const existing = await prisma.ambassadorApplication.findFirst({
+        where: { userId: user.id, status: 'pending' }
+    });
+
+    if (existing) {
+        return res.status(400).json({ message: 'You already have a pending application' });
+    }
 
     await prisma.ambassadorApplication.create({
       data: {
-        name,
-        email,
+        name: name || `${user.firstName} ${user.lastName}`,
+        email: email || user.email,
         country,
         experience,
         bio,
+        userId: user.id
       },
     });
 

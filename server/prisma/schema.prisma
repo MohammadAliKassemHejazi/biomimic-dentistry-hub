@@ -6,53 +6,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
-}
-
-// Enums
-
-enum Role {
-  user
-  vip
-  ambassador
-  admin
-}
-
-enum AccessLevel {
-  public
-  vip
-  ambassador
-  admin
-}
-
-enum ContentStatus {
-  pending
-  approved
-  rejected
-}
-
-enum PurchaseStatus {
-  pending
-  completed
-  failed
-  refunded
-}
-
-enum SubscriptionStatus {
-  active
-  canceled
-  incomplete
-  incomplete_expired
-  past_due
-  trialing
-  unpaid
-}
-
-enum ContactStatus {
-  new
-  read
-  replied
 }
 
 // Models
@@ -63,7 +18,7 @@ model User {
   password         String
   firstName        String?
   lastName         String?
-  role             Role     @default(user)
+  role             String   @default("user") // Role enum
   avatarUrl        String?
   stripeCustomerId String?
   createdAt        DateTime @default(now())
@@ -77,6 +32,9 @@ model User {
   partnershipRequests PartnershipRequest[]
   ambassadorProfile   AmbassadorProfile?
   activityLogs        ActivityLog[]
+  favorites           Favorite[]
+  blogViews           BlogView[]
+  ambassadorApplications AmbassadorApplication[]
 }
 
 model Resource {
@@ -87,10 +45,11 @@ model Resource {
   fileName      String
   fileSize      BigInt? // In bytes
   fileType      String?
-  accessLevel   AccessLevel @default(public)
+  accessLevel   String      @default("public") // AccessLevel enum
   category      String?
-  tags          String[]
+  tags          String      // CSV string
   downloadCount Int         @default(0)
+  status        String      @default("approved") // ContentStatus enum
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
@@ -104,11 +63,11 @@ model Course {
   title         String
   slug          String      @unique
   description   String?
-  price         Decimal     @db.Decimal(10, 2)
+  price         Decimal
   featuredImage String?
   comingSoon    Boolean     @default(false)
   launchDate    DateTime?
-  accessLevel   AccessLevel @default(public)
+  accessLevel   String      @default("public")
   stripePriceId String?
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
@@ -122,8 +81,8 @@ model Purchase {
   userId                String
   courseId              String
   stripePaymentIntentId String?
-  amount                Decimal        @db.Decimal(10, 2)
-  status                PurchaseStatus @default(pending)
+  amount                Decimal
+  status                String         @default("pending") // PurchaseStatus enum
   createdAt             DateTime       @default(now())
 
   // Relationships
@@ -141,15 +100,17 @@ model BlogPost {
   content       String?
   featuredImage String?
   category      String?
-  tags          String[]
+  tags          String        // CSV string
   readTime      Int? // In minutes
-  status        ContentStatus @default(pending)
+  status        String        @default("pending") // ContentStatus enum
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
   // Relationships
   authorId String
   author   User   @relation(fields: [authorId], references: [id])
+  favorites Favorite[]
+  views     BlogView[]
 }
 
 model PartnershipRequest {
@@ -158,7 +119,7 @@ model PartnershipRequest {
   email       String
   companyName String?
   message     String
-  status      ContentStatus @default(pending)
+  status      String        @default("pending")
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
@@ -172,7 +133,7 @@ model Subscription {
   userId               String             @unique
   stripeSubscriptionId String             @unique
   stripePriceId        String
-  status               SubscriptionStatus
+  status               String             // SubscriptionStatus enum
   currentPeriodEnd     DateTime
   cancelAtPeriodEnd    Boolean            @default(false)
   createdAt            DateTime           @default(now())
@@ -188,7 +149,7 @@ model ContactMessage {
   email     String
   subject   String
   message   String
-  status    ContactStatus @default(new)
+  status    String        @default("new") // ContactStatus enum
   createdAt DateTime      @default(now())
 }
 
@@ -215,9 +176,12 @@ model AmbassadorApplication {
   country    String
   experience String?
   bio        String?
-  status     ContentStatus @default(pending)
+  status     String        @default("pending")
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @updatedAt
+
+  userId     String?
+  user       User?         @relation(fields: [userId], references: [id])
 }
 
 model ActivityLog {
@@ -226,7 +190,30 @@ model ActivityLog {
   description String
   timestamp   DateTime @default(now())
   userId      String?
-  metadata    Json? // Optional extra data
+  metadata    String? // SQLite json stored as string usually
 
   user User? @relation(fields: [userId], references: [id])
+}
+
+model Favorite {
+  id         String   @id @default(uuid())
+  userId     String
+  blogPostId String
+  createdAt  DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  blogPost BlogPost @relation(fields: [blogPostId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, blogPostId])
+}
+
+model BlogView {
+  id         String   @id @default(uuid())
+  blogPostId String
+  userId     String?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  blogPost BlogPost @relation(fields: [blogPostId], references: [id], onDelete: Cascade)
+  user     User?    @relation(fields: [userId], references: [id])
 }
