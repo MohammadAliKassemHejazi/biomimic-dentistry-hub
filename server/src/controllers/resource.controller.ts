@@ -1,10 +1,18 @@
 import { Request, Response } from 'express';
 import prisma from '../utils/prisma';
-import { AccessLevel } from '@prisma/client';
 
 export const getResources = async (req: Request, res: Response) => {
   try {
+    const user = req.user;
+    const where: any = {};
+
+    // If not admin, only show approved resources
+    if (user?.role !== 'admin') {
+      where.status = 'approved';
+    }
+
     const resources = await prisma.resource.findMany({
+      where,
       orderBy: { createdAt: 'desc' },
     });
 
@@ -17,9 +25,10 @@ export const getResources = async (req: Request, res: Response) => {
       file_type: r.fileType,
       access_level: r.accessLevel,
       category: r.category,
-      tags: r.tags,
+      tags: r.tags ? r.tags.split(',').filter(Boolean) : [],
       download_count: r.downloadCount,
       created_at: r.createdAt,
+      status: r.status
     }));
 
     res.json(formatted);
@@ -32,6 +41,14 @@ export const getResources = async (req: Request, res: Response) => {
 export const createResource = async (req: Request, res: Response) => {
   try {
     const { title, description, file_url, file_name, file_type, access_level, category, tags } = req.body;
+    const user = req.user;
+
+    // Check permissions: Admin or Ambassador
+    if (user?.role !== 'admin' && user?.role !== 'ambassador') {
+      return res.status(403).json({ message: 'Only Ambassadors and Admins can create resources' });
+    }
+
+    const status = user?.role === 'admin' ? 'approved' : 'pending';
 
     const resource = await prisma.resource.create({
       data: {
@@ -40,10 +57,11 @@ export const createResource = async (req: Request, res: Response) => {
         fileUrl: file_url,
         fileName: file_name,
         fileType: file_type,
-        accessLevel: access_level as AccessLevel,
+        accessLevel: access_level || 'public',
         category,
-        tags: tags || [],
-        createdById: req.user?.id, // Assumes auth middleware populates req.user
+        tags: Array.isArray(tags) ? tags.join(',') : (tags || ''),
+        status,
+        createdById: user?.id,
       }
     });
 
@@ -56,8 +74,9 @@ export const createResource = async (req: Request, res: Response) => {
       file_type: resource.fileType,
       access_level: resource.accessLevel,
       category: resource.category,
-      tags: resource.tags,
+      tags: resource.tags ? resource.tags.split(',') : [],
       download_count: resource.downloadCount,
+      status: resource.status,
       created_at: resource.createdAt,
     });
   } catch (error) {
@@ -69,20 +88,27 @@ export const createResource = async (req: Request, res: Response) => {
 export const updateResource = async (req: Request, res: Response) => {
   try {
     const { id } = req.params as { id: string };
-    const { title, description, file_url, file_name, file_type, access_level, category, tags } = req.body;
+    const { title, description, file_url, file_name, file_type, access_level, category, tags, status } = req.body;
+    const user = req.user;
+
+    const data: any = {
+      title,
+      description,
+      fileUrl: file_url,
+      fileName: file_name,
+      fileType: file_type,
+      accessLevel: access_level,
+      category,
+      tags: Array.isArray(tags) ? tags.join(',') : (tags || undefined),
+    };
+
+    if (status && user?.role === 'admin') {
+      data.status = status;
+    }
 
     const resource = await prisma.resource.update({
       where: { id },
-      data: {
-        title,
-        description,
-        fileUrl: file_url,
-        fileName: file_name,
-        fileType: file_type,
-        accessLevel: access_level as AccessLevel,
-        category,
-        tags: tags || [],
-      }
+      data,
     });
 
     res.json({
@@ -94,8 +120,9 @@ export const updateResource = async (req: Request, res: Response) => {
       file_type: resource.fileType,
       access_level: resource.accessLevel,
       category: resource.category,
-      tags: resource.tags,
+      tags: resource.tags ? resource.tags.split(',') : [],
       download_count: resource.downloadCount,
+      status: resource.status,
       created_at: resource.createdAt,
     });
   } catch (error) {

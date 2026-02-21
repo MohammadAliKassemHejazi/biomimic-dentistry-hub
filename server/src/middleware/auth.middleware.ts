@@ -46,3 +46,33 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
     return;
   }
 };
+
+export const authenticateOptional = async (req: Request, res: Response, next: NextFunction) => {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader) {
+    return next();
+  }
+
+  const token = authHeader.split(' ')[1];
+
+  if (!token) {
+    return next();
+  }
+
+  try {
+    const decoded: any = verifyToken(token);
+
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+    });
+
+    if (user) {
+      req.user = user;
+    }
+    next();
+  } catch (error) {
+    // Treat invalid token as guest
+    next();
+  }
+};

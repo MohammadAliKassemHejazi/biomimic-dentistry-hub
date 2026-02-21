@@ -7,6 +7,12 @@ import Footer from '@/components/Footer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { useToast } from '@/hooks/use-toast';
+import Link from 'next/link';
 import {
   User,
   BookOpen,
@@ -43,6 +49,7 @@ interface RecentActivity {
 const Dashboard = () => {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();
+  const { toast } = useToast();
 
   const [stats, setStats] = useState<UserStats>({
     totalDownloads: 0,
@@ -50,6 +57,11 @@ const Dashboard = () => {
     memberSince: new Date().toISOString(),
   });
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
+
+  // Ambassador App State
+  const [openAppDialog, setOpenAppDialog] = useState(false);
+  const [appLoading, setAppLoading] = useState(false);
+  const [appData, setAppData] = useState({ country: '', experience: '', bio: '' });
 
   const { data: subscriptionStatus } = useSubscription();
 
@@ -69,13 +81,6 @@ const Dashboard = () => {
     try {
         const statsData = await api.get<UserStats>('/users/stats');
         setStats(statsData);
-
-        // Fetch analytics dashboard data for recent activity or use a dedicated endpoint if available
-        // For now, using a mock or if there is an endpoint for user activity
-        // Since API_REQUIREMENTS.md doesn't specify a user activity endpoint, we'll keep the mock logic for now
-        // or try to infer from analytics if possible.
-        // Assuming we might need to add an endpoint for this later.
-        // Reverting to mock for activity as placeholder until backend supports it fully
          const mockActivity: RecentActivity[] = [
             {
               id: '1',
@@ -96,6 +101,20 @@ const Dashboard = () => {
 
     } catch (error: any) {
       console.error('Error fetching stats:', error);
+    }
+  };
+
+  const handleSubmitApplication = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAppLoading(true);
+    try {
+        await api.post('/ambassador/apply', appData);
+        toast({ title: "Application Submitted", description: "We will review your application shortly." });
+        setOpenAppDialog(false);
+    } catch (error: any) {
+        toast({ title: "Error", description: error.message || "Failed to submit application", variant: "destructive" });
+    } finally {
+        setAppLoading(false);
     }
   };
 
@@ -349,6 +368,91 @@ const Dashboard = () => {
                   </Button>
                 </CardContent>
               </Card>
+
+              {/* Ambassador Application Card - Only for Users */}
+              {user?.role === 'user' && (
+                <Card className="mt-6 border-secondary/20 bg-secondary/5">
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                        <Star className="h-5 w-5 text-secondary" />
+                        Become an Ambassador
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Join our team of ambassadors and contribute to the community.
+                    </p>
+                    <Dialog open={openAppDialog} onOpenChange={setOpenAppDialog}>
+                        <DialogTrigger asChild>
+                            <Button className="w-full" variant="secondary">
+                                Apply Now
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Ambassador Application</DialogTitle>
+                                <DialogDescription>Tell us about yourself and why you want to be an ambassador.</DialogDescription>
+                            </DialogHeader>
+                            <form onSubmit={handleSubmitApplication}>
+                                <div className="space-y-4 py-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="country">Country</Label>
+                                        <Input
+                                            id="country"
+                                            value={appData.country}
+                                            onChange={(e) => setAppData({...appData, country: e.target.value})}
+                                            required
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="experience">Years of Experience</Label>
+                                        <Input
+                                            id="experience"
+                                            value={appData.experience}
+                                            onChange={(e) => setAppData({...appData, experience: e.target.value})}
+                                            required
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="bio">Bio / Motivation</Label>
+                                        <Textarea
+                                            id="bio"
+                                            value={appData.bio}
+                                            onChange={(e) => setAppData({...appData, bio: e.target.value})}
+                                            required
+                                        />
+                                    </div>
+                                </div>
+                                <DialogFooter>
+                                    <Button type="submit" disabled={appLoading}>
+                                        {appLoading ? "Submitting..." : "Submit Application"}
+                                    </Button>
+                                </DialogFooter>
+                            </form>
+                        </DialogContent>
+                    </Dialog>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Ambassador/Admin Tools Link */}
+              {(user?.role === 'ambassador' || user?.role === 'admin') && (
+                 <Card className="mt-6 border-secondary/20 bg-secondary/5">
+                    <CardHeader>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                            <Crown className="h-5 w-5 text-secondary" />
+                            {user.role === 'admin' ? 'Admin' : 'Ambassador'} Tools
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <Button className="w-full" variant="secondary" asChild>
+                            <Link href={user.role === 'admin' ? '/admin' : '/ambassador'}>
+                                Go to Dashboard
+                            </Link>
+                        </Button>
+                    </CardContent>
+                 </Card>
+              )}
 
               {/* Subscription Status */}
               {!subscriptionStatus?.subscribed && (

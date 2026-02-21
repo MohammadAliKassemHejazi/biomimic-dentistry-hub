@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import prisma from '../utils/prisma';
-import { AccessLevel } from '@prisma/client';
 
 export const getCourses = async (req: Request, res: Response) => {
   try {
@@ -45,7 +44,7 @@ export const createCourse = async (req: Request, res: Response) => {
         featuredImage: featured_image,
         comingSoon: coming_soon,
         launchDate: launch_date ? new Date(launch_date) : null,
-        accessLevel: access_level as AccessLevel,
+        accessLevel: access_level || 'public',
         stripePriceId: stripe_price_id,
       }
     });
@@ -84,7 +83,7 @@ export const updateCourse = async (req: Request, res: Response) => {
         featuredImage: featured_image,
         comingSoon: coming_soon,
         launchDate: launch_date ? new Date(launch_date) : null,
-        accessLevel: access_level as AccessLevel,
+        accessLevel: access_level,
         stripePriceId: stripe_price_id,
       }
     });
