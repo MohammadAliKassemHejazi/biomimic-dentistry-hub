@@ -11,40 +11,39 @@ import { useAuth } from '@/contexts/AuthContext';
 import ThemeToggle from './ThemeToggle';
 import LanguageToggle from './LanguageToggle';
 
-const Navigation = () => {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+// Organized navigation items into logical groups
+const learnItems = [
+  { name: 'Courses', href: '/courses' },
+  { name: 'Resources', href: '/resources' },
+  { name: 'Blog', href: '/blog' },
+];
+
+const communityItems = [
+  { name: 'About', href: '/about' },
+  { name: 'Ambassadors', href: '/ambassadors' },
+  { name: 'Contact', href: '/contact' },
+];
+
+const accountItems = [
+  { name: 'Dashboard', href: '/dashboard' },
+  { name: 'Subscription', href: '/subscription' },
+];
+
+const adminItems = [
+  { name: 'Admin Dashboard', href: '/admin' },
+];
+
+interface NavItem {
+  name: string;
+  href: string;
+}
+
+const DropdownNav = ({ title, items, className = "" }: { title: string, items: NavItem[], className?: string }) => {
   const pathname = usePathname();
-  const { user, signOut } = useAuth();
-  // Safe access to role, default to 'user' if not present
-  const userRole = user?.role || 'user';
-  const userName = user?.first_name || user?.email?.split('@')[0] || 'User';
-
-  // Organized navigation items into logical groups
-  const learnItems = [
-    { name: 'Courses', href: '/courses' },
-    { name: 'Resources', href: '/resources' },
-    { name: 'Blog', href: '/blog' },
-  ];
-
-  const communityItems = [
-    { name: 'About', href: '/about' },
-    { name: 'Ambassadors', href: '/ambassadors' },
-    { name: 'Contact', href: '/contact' },
-  ];
-
-  const accountItems = [
-    { name: 'Dashboard', href: '/dashboard' },
-    { name: 'Subscription', href: '/subscription' },
-  ];
-
-  const adminItems = [
-    { name: 'Admin Dashboard', href: '/admin' },
-  ];
-
   const isActive = (href: string) => pathname === href;
 
-  const DropdownNav = ({ title, items, className = "" }: { title: string, items: any[], className?: string }) => (
-    <DropdownMenu>
+  return (
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className={`text-white/90 hover:text-white hover:bg-white/10 ${className}`}>
           {title}
@@ -65,6 +64,17 @@ const Navigation = () => {
       </DropdownMenuContent>
     </DropdownMenu>
   );
+};
+
+const Navigation = () => {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const pathname = usePathname();
+  const { user, signOut } = useAuth();
+  // Safe access to role, default to 'user' if not present
+  const userRole = user?.role || 'user';
+  const userName = user?.first_name || user?.email?.split('@')[0] || 'User';
+
+  const isActive = (href: string) => pathname === href;
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-primary shadow-soft">
@@ -119,7 +129,7 @@ const Navigation = () => {
               <ThemeToggle />
               <LanguageToggle />
               {user ? (
-                <DropdownMenu>
+                <DropdownMenu modal={false}>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="text-white/90 hover:text-white hover:bg-white/10">
                       <User className="mr-2 h-4 w-4" />
