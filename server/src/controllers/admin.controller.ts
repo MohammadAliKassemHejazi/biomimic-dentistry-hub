@@ -48,7 +48,7 @@ export const getApplications = async (req: Request, res: Response) => {
 
 export const updateApplicationStatus = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
     const { status } = req.body;
 
     if (!['approved', 'rejected'].includes(status)) {

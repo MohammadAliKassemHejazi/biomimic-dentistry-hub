@@ -170,7 +170,7 @@ export const createPost = async (req: Request, res: Response) => {
 
 export const toggleFavorite = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params; // Post ID
+    const { id } = req.params as { id: string }; // Post ID
     const user = req.user;
 
     if (!user) return res.status(401).json({ message: 'Unauthorized' });
@@ -206,7 +206,7 @@ export const toggleFavorite = async (req: Request, res: Response) => {
 
 export const recordView = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
     const user = req.user;
     const ip = req.ip || req.connection.remoteAddress;
 
@@ -238,7 +238,7 @@ export const recordView = async (req: Request, res: Response) => {
 
 export const updatePostStatus = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params as { id: string };
     const { status } = req.body;
     const user = req.user;
 
