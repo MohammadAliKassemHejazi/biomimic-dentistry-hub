@@ -1,5 +1,15 @@
 import 'dotenv/config'; // Load env vars before other imports
 import express, { Request, Response } from 'express';
+
+// Check for required environment variables
+const requiredEnvVars = ['DATABASE_URL', 'JWT_SECRET'];
+const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
+
+if (missingEnvVars.length > 0) {
+  console.error(`Error: Missing required environment variables: ${missingEnvVars.join(', ')}`);
+  process.exit(1);
+}
+
 import cors from 'cors';
 import helmet from 'helmet';
 import authRoutes from './routes/auth.routes';

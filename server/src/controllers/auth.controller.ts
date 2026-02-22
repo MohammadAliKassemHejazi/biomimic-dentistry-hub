@@ -53,7 +53,12 @@ export const register = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    if (process.env.NODE_ENV === 'production') {
+      res.status(500).json({ message: 'Internal server error' });
+    } else {
+      res.status(500).json({ message: `Internal server error: ${errorMessage}` });
+    }
   }
 };
 
@@ -100,7 +105,12 @@ export const login = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    if (process.env.NODE_ENV === 'production') {
+      res.status(500).json({ message: 'Internal server error' });
+    } else {
+      res.status(500).json({ message: `Internal server error: ${errorMessage}` });
+    }
   }
 };
 
