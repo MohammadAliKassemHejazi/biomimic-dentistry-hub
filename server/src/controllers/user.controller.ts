@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
-import { User, Purchase, Subscription } from '../models';
+import { User, Purchase, Subscription, ActivityLog } from '../models';
+import { PurchaseStatus } from '../types/enums';
 
 export const getProfile = async (req: Request, res: Response) => {
   try {
@@ -67,18 +68,34 @@ export const getStats = async (req: Request, res: Response) => {
     }
     const userId = req.user.id;
 
-    const user = await User.findByPk(userId, {
-        attributes: ['createdAt']
-    });
+    const [user, totalDownloads, coursesCompleted, recentActivity] = await Promise.all([
+      User.findByPk(userId, { attributes: ['createdAt'] }),
+      ActivityLog.count({ where: { userId, type: 'download' } }),
+      Purchase.count({ where: { userId, status: PurchaseStatus.COMPLETED } }),
+      ActivityLog.findAll({
+        where: { userId },
+        order: [['timestamp', 'DESC']],
+        limit: 10
+      })
+    ]);
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
     res.json({
-      totalDownloads: 0,
-      coursesCompleted: 0,
-      memberSince: user.createdAt,
+      stats: {
+        totalDownloads,
+        coursesCompleted,
+        memberSince: user.createdAt,
+      },
+      recentActivity: recentActivity.map(log => ({
+        id: log.id,
+        type: log.type,
+        title: log.description,
+        date: log.timestamp,
+        description: log.metadata ? JSON.stringify(log.metadata) : '',
+      }))
     });
   } catch (error) {
     console.error('Error fetching stats:', error);
