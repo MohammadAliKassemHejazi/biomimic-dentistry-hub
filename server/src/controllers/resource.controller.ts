@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { Resource } from '../models';
 import { ContentStatus } from '../types/enums';
+import { logActivity } from '../utils/activity';
 
 export const getResources = async (req: Request, res: Response) => {
   try {
@@ -153,9 +154,18 @@ export const deleteResource = async (req: Request, res: Response) => {
 export const downloadResource = async (req: Request, res: Response) => {
   try {
     const { id } = req.params as { id: string };
-    await Resource.increment('downloadCount', {
-      where: { id },
-    });
+    const resource = await Resource.findByPk(id);
+
+    if (!resource) {
+      return res.status(404).json({ message: 'Resource not found' });
+    }
+
+    await resource.increment('downloadCount');
+
+    if (req.user) {
+      await logActivity(req.user.id, 'download', `Downloaded resource: ${resource.title}`, { resourceId: id });
+    }
+
     res.json({ success: true });
   } catch (error) {
     console.error('Error recording download:', error);

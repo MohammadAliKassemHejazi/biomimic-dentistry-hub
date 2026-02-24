@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { AmbassadorProfile, AmbassadorApplication, User } from '../models';
 import { AmbassadorApplicationStatus } from '../types/enums';
+import { logActivity } from '../utils/activity';
 
 export const listAmbassadors = async (req: Request, res: Response) => {
   try {
@@ -43,7 +44,7 @@ export const applyAmbassador = async (req: Request, res: Response) => {
         return res.status(400).json({ message: 'You already have a pending application' });
     }
 
-    await AmbassadorApplication.create({
+    const application = await AmbassadorApplication.create({
       name: name || `${user.firstName} ${user.lastName}`,
       email: email || user.email,
       country,
@@ -51,6 +52,8 @@ export const applyAmbassador = async (req: Request, res: Response) => {
       bio,
       userId: user.id
     });
+
+    await logActivity(user.id, 'application', 'Applied for Ambassador role', { applicationId: application.id });
 
     res.json({ message: "Application submitted successfully" });
   } catch (error) {

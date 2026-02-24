@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { User } from '../models';
 import { generateToken } from '../utils/jwt';
 import { sendEmail } from '../utils/email';
+import { logActivity } from '../utils/activity';
 
 export const register = async (req: Request, res: Response) => {
   try {
@@ -30,6 +31,8 @@ export const register = async (req: Request, res: Response) => {
     });
 
     const token = generateToken(user.id);
+
+    await logActivity(user.id, 'register', 'User registered');
 
     // Matching Supabase-like structure as per requirement hint
     res.status(201).json({
@@ -83,6 +86,8 @@ export const login = async (req: Request, res: Response) => {
     }
 
     const token = generateToken(user.id);
+
+    await logActivity(user.id, 'login', 'User logged in');
 
     res.json({
       user: {
