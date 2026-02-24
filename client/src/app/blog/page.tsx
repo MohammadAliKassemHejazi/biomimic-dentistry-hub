@@ -2,19 +2,20 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Clock, User, Calendar, Tag, FileText } from 'lucide-react';
+import { Search, Clock, User, Calendar, Tag, FileText, PlusCircle } from 'lucide-react';
 import Link from 'next/link';
-import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { useBlogPosts } from '@/hooks/queries/useBlog';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Blog = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const { user } = useAuth();
 
   const { data: posts = [], isLoading: loading } = useBlogPosts(true);
 
@@ -45,7 +46,6 @@ const Blog = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navigation />
 
       {/* Hero Section */}
       <section className="relative py-20 bg-gradient-hero">
@@ -81,7 +81,15 @@ const Blog = () => {
                 className="pl-10"
               />
             </div>
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex gap-2 flex-wrap items-center">
+              {user && (
+                 <Link href="/blog/create">
+                  <Button size="sm" className="gap-2">
+                    <PlusCircle className="h-4 w-4" />
+                    Create Post
+                  </Button>
+                </Link>
+              )}
               <Button
                 variant={selectedCategory === null ? "default" : "outline"}
                 onClick={() => setSelectedCategory(null)}

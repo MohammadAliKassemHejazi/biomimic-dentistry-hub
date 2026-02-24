@@ -1,5 +1,4 @@
 import React from 'react';
-import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import HeroSection from '@/components/HeroSection';
 import SponsorsSection from '@/components/SponsorsSection';
@@ -14,7 +13,6 @@ export const metadata = {
 export default function Home() {
   return (
     <div className="min-h-screen bg-background">
-      <Navigation />
       <HeroSection />
       <SponsorsSection />
       <VIPSection />

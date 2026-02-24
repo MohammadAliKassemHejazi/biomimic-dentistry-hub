@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import Navigation from '@/components/Navigation';
 import { useAuth } from '@/contexts/AuthContext';
 
 const Login = () => {
@@ -30,7 +29,6 @@ const Login = () => {
 
   return (
     <div className="min-h-screen bg-gradient-hero flex items-center justify-center p-4 pt-20">
-      <Navigation />
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

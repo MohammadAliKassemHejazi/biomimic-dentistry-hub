@@ -11,3 +11,6 @@ export * from './AmbassadorApplication.model';
 export * from './ActivityLog.model';
 export * from './Favorite.model';
 export * from './BlogView.model';
+export * from './TrustedPartner.model';
+export * from './LeadershipMember.model';
+export * from './SubscriptionPlan.model';

@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -100,7 +99,6 @@ const Resources = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navigation />
 
       <main className="pt-16">
         <div className="container mx-auto px-4 py-8">

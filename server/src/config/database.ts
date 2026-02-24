@@ -13,6 +13,9 @@ import {
   ActivityLog,
   Favorite,
   BlogView,
+  TrustedPartner,
+  LeadershipMember,
+  SubscriptionPlan,
 } from '../models';
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -37,6 +40,9 @@ export const sequelize = new Sequelize(databaseUrl, {
     ActivityLog,
     Favorite,
     BlogView,
+    TrustedPartner,
+    LeadershipMember,
+    SubscriptionPlan,
   ],
   logging: false, // Set to console.log to see SQL queries
   dialectOptions: {

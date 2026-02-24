@@ -11,6 +11,11 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Check, X, Shield, User as UserIcon } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Plus, Trash, Edit } from 'lucide-react';
 
 // Types
 interface User {
@@ -46,13 +51,53 @@ interface Resource {
     createdAt: string;
 }
 
+interface TrustedPartner {
+    id: string;
+    name: string;
+    role: string;
+    description: string;
+    logo: string;
+    tier: string;
+    website?: string;
+}
+
+interface LeadershipMember {
+    id: string;
+    name: string;
+    role: string;
+    bio: string;
+    image: string;
+    linkedin?: string;
+    twitter?: string;
+}
+
+interface SubscriptionPlan {
+    id: string;
+    key: string;
+    name: string;
+    price: number;
+    interval: string;
+    features: string[];
+    popular: boolean;
+    stripePriceId: string;
+}
+
 export default function AdminDashboard() {
     const { user, loading: authLoading } = useAuth();
     const { toast } = useToast();
     const [users, setUsers] = useState<User[]>([]);
     const [applications, setApplications] = useState<Application[]>([]);
     const [pendingContent, setPendingContent] = useState<{ posts: BlogPost[], resources: Resource[] }>({ posts: [], resources: [] });
+    const [partners, setPartners] = useState<TrustedPartner[]>([]);
+    const [members, setMembers] = useState<LeadershipMember[]>([]);
+    const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
     const [loading, setLoading] = useState(true);
+
+    // Dialog States
+    const [partnerDialogOpen, setPartnerDialogOpen] = useState(false);
+    const [memberDialogOpen, setMemberDialogOpen] = useState(false);
+    const [planDialogOpen, setPlanDialogOpen] = useState(false);
+    const [editingItem, setEditingItem] = useState<any>(null); // Generic holder for item being edited
 
     useEffect(() => {
         if (!authLoading) {
@@ -67,14 +112,20 @@ export default function AdminDashboard() {
     const fetchData = async () => {
         setLoading(true);
         try {
-            const [usersData, appsData, contentData] = await Promise.all([
+            const [usersData, appsData, contentData, partnersData, membersData, plansData] = await Promise.all([
                 api.get<{ users: User[] }>('/admin/users'),
                 api.get<Application[]>('/admin/applications'),
-                api.get<{ posts: BlogPost[], resources: Resource[] }>('/admin/content/pending')
+                api.get<{ posts: BlogPost[], resources: Resource[] }>('/admin/content/pending'),
+                api.get<TrustedPartner[]>('/partners'),
+                api.get<LeadershipMember[]>('/leadership'),
+                api.get<SubscriptionPlan[]>('/plans')
             ]);
             setUsers(usersData.users);
             setApplications(appsData);
             setPendingContent(contentData);
+            setPartners(partnersData);
+            setMembers(membersData);
+            setPlans(plansData);
         } catch (error) {
             console.error("Failed to fetch admin data", error);
             toast({ title: "Error", description: "Failed to load dashboard data", variant: "destructive" });
@@ -131,6 +182,91 @@ export default function AdminDashboard() {
         }
     }
 
+    const handlePartnerSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const formData = new FormData(e.target as HTMLFormElement);
+        const data = Object.fromEntries(formData.entries());
+
+        try {
+            if (editingItem) {
+                await api.put(`/partners/${editingItem.id}`, data);
+                toast({ title: "Success", description: "Partner updated" });
+            } else {
+                await api.post('/partners', data);
+                toast({ title: "Success", description: "Partner created" });
+            }
+            setPartnerDialogOpen(false);
+            setEditingItem(null);
+            fetchData();
+        } catch (error) {
+            toast({ title: "Error", description: "Failed to save partner", variant: "destructive" });
+        }
+    };
+
+    const handleDeletePartner = async (id: string) => {
+        if (!confirm("Are you sure?")) return;
+        try {
+            await api.delete(`/partners/${id}`);
+            toast({ title: "Success", description: "Partner deleted" });
+            fetchData();
+        } catch (error) {
+            toast({ title: "Error", description: "Failed to delete partner", variant: "destructive" });
+        }
+    };
+
+    const handleMemberSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const formData = new FormData(e.target as HTMLFormElement);
+        const data = Object.fromEntries(formData.entries());
+
+        try {
+            if (editingItem) {
+                await api.put(`/leadership/${editingItem.id}`, data);
+                toast({ title: "Success", description: "Member updated" });
+            } else {
+                await api.post('/leadership', data);
+                toast({ title: "Success", description: "Member created" });
+            }
+            setMemberDialogOpen(false);
+            setEditingItem(null);
+            fetchData();
+        } catch (error) {
+            toast({ title: "Error", description: "Failed to save member", variant: "destructive" });
+        }
+    };
+
+    const handleDeleteMember = async (id: string) => {
+        if (!confirm("Are you sure?")) return;
+        try {
+            await api.delete(`/leadership/${id}`);
+            toast({ title: "Success", description: "Member deleted" });
+            fetchData();
+        } catch (error) {
+            toast({ title: "Error", description: "Failed to delete member", variant: "destructive" });
+        }
+    };
+
+    const handlePlanSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const formData = new FormData(e.target as HTMLFormElement);
+        const data = Object.fromEntries(formData.entries()) as any;
+
+        // Handle features as array (split by newline)
+        data.features = data.features.split('\n').filter((f: string) => f.trim() !== '');
+        data.price = parseFloat(data.price);
+        data.popular = formData.get('popular') === 'on';
+
+        try {
+            await api.put(`/plans/${editingItem.id}`, data);
+            toast({ title: "Success", description: "Plan updated" });
+            setPlanDialogOpen(false);
+            setEditingItem(null);
+            fetchData();
+        } catch (error) {
+            toast({ title: "Error", description: "Failed to update plan", variant: "destructive" });
+        }
+    };
+
     if (authLoading || loading) return <div className="flex justify-center items-center h-screen"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>;
 
     if (!user || user.role !== 'admin') {
@@ -143,7 +279,7 @@ export default function AdminDashboard() {
     }
 
     return (
-        <div className="container mx-auto py-8 px-4">
+        <div className="container mx-auto py-8 px-4 pt-24">
             <h1 className="text-3xl font-bold mb-6 flex items-center gap-2">
                 <Shield className="h-8 w-8 text-primary" />
                 Admin Dashboard
@@ -168,7 +304,186 @@ export default function AdminDashboard() {
                         )}
                     </TabsTrigger>
                     <TabsTrigger value="users">User Management</TabsTrigger>
+                    <TabsTrigger value="partners">Partners</TabsTrigger>
+                    <TabsTrigger value="leadership">Leadership</TabsTrigger>
+                    <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
                 </TabsList>
+
+                <TabsContent value="partners">
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between">
+                            <div>
+                                <CardTitle>Trusted Partners</CardTitle>
+                                <CardDescription>Manage trusted partners and sponsors.</CardDescription>
+                            </div>
+                            <Dialog open={partnerDialogOpen} onOpenChange={(open) => {
+                                setPartnerDialogOpen(open);
+                                if (!open) setEditingItem(null);
+                            }}>
+                                <DialogTrigger asChild>
+                                    <Button onClick={() => setEditingItem(null)}><Plus className="mr-2 h-4 w-4"/> Add Partner</Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                    <DialogHeader>
+                                        <DialogTitle>{editingItem ? 'Edit Partner' : 'Add Partner'}</DialogTitle>
+                                    </DialogHeader>
+                                    <form onSubmit={handlePartnerSubmit} className="space-y-4">
+                                        <div className="space-y-2"><Label>Name</Label><Input name="name" defaultValue={editingItem?.name} required /></div>
+                                        <div className="space-y-2"><Label>Role</Label><Input name="role" defaultValue={editingItem?.role} required /></div>
+                                        <div className="space-y-2"><Label>Description</Label><Textarea name="description" defaultValue={editingItem?.description} required /></div>
+                                        <div className="space-y-2"><Label>Logo (URL/Emoji)</Label><Input name="logo" defaultValue={editingItem?.logo} required /></div>
+                                        <div className="space-y-2">
+                                            <Label>Tier</Label>
+                                            <Select name="tier" defaultValue={editingItem?.tier || "Bronze"}>
+                                                <SelectTrigger><SelectValue placeholder="Select Tier" /></SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="Platinum">Platinum</SelectItem>
+                                                    <SelectItem value="Gold">Gold</SelectItem>
+                                                    <SelectItem value="Silver">Silver</SelectItem>
+                                                    <SelectItem value="Bronze">Bronze</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="space-y-2"><Label>Website</Label><Input name="website" defaultValue={editingItem?.website} /></div>
+                                        <Button type="submit" className="w-full">Save</Button>
+                                    </form>
+                                </DialogContent>
+                            </Dialog>
+                        </CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Role</TableHead><TableHead>Tier</TableHead><TableHead>Actions</TableHead></TableRow></TableHeader>
+                                <TableBody>
+                                    {partners.map(p => (
+                                        <TableRow key={p.id}>
+                                            <TableCell>{p.name}</TableCell>
+                                            <TableCell>{p.role}</TableCell>
+                                            <TableCell>{p.tier}</TableCell>
+                                            <TableCell>
+                                                <Button variant="ghost" size="sm" onClick={() => { setEditingItem(p); setPartnerDialogOpen(true); }}><Edit className="h-4 w-4"/></Button>
+                                                <Button variant="ghost" size="sm" onClick={() => handleDeletePartner(p.id)} className="text-destructive"><Trash className="h-4 w-4"/></Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                <TabsContent value="leadership">
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between">
+                            <div>
+                                <CardTitle>Leadership Team</CardTitle>
+                                <CardDescription>Manage leadership team members.</CardDescription>
+                            </div>
+                            <Dialog open={memberDialogOpen} onOpenChange={(open) => {
+                                setMemberDialogOpen(open);
+                                if (!open) setEditingItem(null);
+                            }}>
+                                <DialogTrigger asChild>
+                                    <Button onClick={() => setEditingItem(null)}><Plus className="mr-2 h-4 w-4"/> Add Member</Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                    <DialogHeader>
+                                        <DialogTitle>{editingItem ? 'Edit Member' : 'Add Member'}</DialogTitle>
+                                    </DialogHeader>
+                                    <form onSubmit={handleMemberSubmit} className="space-y-4">
+                                        <div className="space-y-2"><Label>Name</Label><Input name="name" defaultValue={editingItem?.name} required /></div>
+                                        <div className="space-y-2"><Label>Role</Label><Input name="role" defaultValue={editingItem?.role} required /></div>
+                                        <div className="space-y-2"><Label>Bio</Label><Textarea name="bio" defaultValue={editingItem?.bio} required /></div>
+                                        <div className="space-y-2"><Label>Image (URL)</Label><Input name="image" defaultValue={editingItem?.image} required /></div>
+                                        <div className="space-y-2"><Label>LinkedIn</Label><Input name="linkedin" defaultValue={editingItem?.linkedin} /></div>
+                                        <div className="space-y-2"><Label>Twitter</Label><Input name="twitter" defaultValue={editingItem?.twitter} /></div>
+                                        <Button type="submit" className="w-full">Save</Button>
+                                    </form>
+                                </DialogContent>
+                            </Dialog>
+                        </CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Role</TableHead><TableHead>Actions</TableHead></TableRow></TableHeader>
+                                <TableBody>
+                                    {members.map(m => (
+                                        <TableRow key={m.id}>
+                                            <TableCell>{m.name}</TableCell>
+                                            <TableCell>{m.role}</TableCell>
+                                            <TableCell>
+                                                <Button variant="ghost" size="sm" onClick={() => { setEditingItem(m); setMemberDialogOpen(true); }}><Edit className="h-4 w-4"/></Button>
+                                                <Button variant="ghost" size="sm" onClick={() => handleDeleteMember(m.id)} className="text-destructive"><Trash className="h-4 w-4"/></Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                <TabsContent value="subscriptions">
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between">
+                            <div>
+                                <CardTitle>Subscription Plans</CardTitle>
+                                <CardDescription>Edit details of subscription plans.</CardDescription>
+                            </div>
+                            {plans.length === 0 && (
+                                <Button onClick={async () => {
+                                    await api.post('/plans/seed', {});
+                                    fetchData();
+                                }} variant="outline" size="sm">
+                                    Seed Default Plans
+                                </Button>
+                            )}
+                        </CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Price</TableHead><TableHead>Key</TableHead><TableHead>Actions</TableHead></TableRow></TableHeader>
+                                <TableBody>
+                                    {plans.map(p => (
+                                        <TableRow key={p.id}>
+                                            <TableCell>{p.name}</TableCell>
+                                            <TableCell>${p.price}</TableCell>
+                                            <TableCell>{p.key}</TableCell>
+                                            <TableCell>
+                                                <Dialog open={planDialogOpen && editingItem?.id === p.id} onOpenChange={(open) => {
+                                                    setPlanDialogOpen(open);
+                                                    if (!open) setEditingItem(null);
+                                                }}>
+                                                    <DialogTrigger asChild>
+                                                        <Button variant="ghost" size="sm" onClick={() => { setEditingItem(p); setPlanDialogOpen(true); }}><Edit className="h-4 w-4"/></Button>
+                                                    </DialogTrigger>
+                                                    <DialogContent>
+                                                        <DialogHeader>
+                                                            <DialogTitle>Edit Plan: {p.name}</DialogTitle>
+                                                        </DialogHeader>
+                                                        <form onSubmit={handlePlanSubmit} className="space-y-4">
+                                                            <div className="space-y-2"><Label>Name</Label><Input name="name" defaultValue={p.name} required /></div>
+                                                            <div className="space-y-2"><Label>Price</Label><Input name="price" type="number" step="0.01" defaultValue={p.price} required /></div>
+                                                            <div className="space-y-2"><Label>Key</Label><Input name="key" defaultValue={p.key} required /></div>
+                                                            <div className="space-y-2"><Label>Stripe Price ID</Label><Input name="stripePriceId" defaultValue={p.stripePriceId} required /></div>
+                                                            <div className="space-y-2"><Label>Interval</Label><Input name="interval" defaultValue={p.interval} required /></div>
+                                                            <div className="space-y-2">
+                                                                <Label>Features (one per line)</Label>
+                                                                <Textarea name="features" defaultValue={p.features?.join('\n')} rows={5} required />
+                                                            </div>
+                                                            <div className="flex items-center space-x-2">
+                                                                <input type="checkbox" name="popular" id="popular" defaultChecked={p.popular} />
+                                                                <Label htmlFor="popular">Popular</Label>
+                                                            </div>
+                                                            <Button type="submit" className="w-full">Save</Button>
+                                                        </form>
+                                                    </DialogContent>
+                                                </Dialog>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
 
                 <TabsContent value="applications">
                     <Card>
