@@ -53,10 +53,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { user, token } = await api.post<{ user: User; token: string }>('/auth/login', {
+      const response = await api.post<{
+        user: User;
+        session: { access_token: string };
+      }>('/auth/login', {
         email,
         password,
       });
+
+      const { user, session } = response;
+      const token = session.access_token;
 
       // Store token in cookie
       Cookies.set('token', token, { expires: 7 }); // Expires in 7 days
@@ -75,10 +81,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     lastName: string
   ) => {
     try {
-      const { user, token } = await api.post<{ user: User; token: string }>(
+      const response = await api.post<{
+        user: User;
+        session: { access_token: string };
+      }>(
         '/auth/register',
         { email, password, firstName, lastName }
       );
+
+      const { user, session } = response;
+      const token = session.access_token;
 
       Cookies.set('token', token, { expires: 7 });
       setUser(user);

@@ -23,6 +23,7 @@ import subscriptionRoutes from './routes/subscription.routes';
 import contactRoutes from './routes/contact.routes';
 import ambassadorRoutes from './routes/ambassador.routes';
 import adminRoutes from './routes/admin.routes';
+import { seedDefaultAdmin } from './utils/seed';
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -40,6 +41,7 @@ sequelize.authenticate()
       await sequelize.sync({ alter: true });
       console.log('Database synced');
     }
+    await seedDefaultAdmin();
   })
   .catch((err: any) => {
     console.error('Unable to connect to the database:', err);
