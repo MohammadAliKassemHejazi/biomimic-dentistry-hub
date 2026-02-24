@@ -28,4 +28,13 @@ export class LeadershipMember extends Model {
 
   @Column(DataType.STRING)
   twitter?: string;
+
+  @Column(DataType.STRING)
+  expertise?: string;
+
+  @Column(DataType.STRING)
+  achievements?: string;
+
+  @Column(DataType.STRING)
+  status?: string;
 }

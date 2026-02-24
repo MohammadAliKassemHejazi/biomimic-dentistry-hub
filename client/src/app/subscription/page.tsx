@@ -3,10 +3,9 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import Footer from '@/components/Footer';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Check, Crown, Star, Zap, Loader2 } from 'lucide-react';
+import { Crown, Star, Zap, Loader2, Trophy } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useSubscription } from '@/hooks/queries/useSubscription';
@@ -18,64 +17,15 @@ interface SubscriptionTier {
   price: number;
   interval: string;
   features: string[];
-  icon: React.ReactNode;
+  icon: any;
   popular?: boolean;
   stripe_price_id: string;
+  color: string;
 }
-
-const initialTiers: SubscriptionTier[] = [
-  {
-    id: 'basic',
-    name: 'Basic',
-    price: 29,
-    interval: 'month',
-    stripe_price_id: 'price_1S7EbEAI5O329ebg7Hqc1N1P',
-    features: [
-      'Access to basic courses',
-      'Community forum access',
-      'Monthly newsletter',
-      'Basic resources library'
-    ],
-    icon: <Star className="h-6 w-6" />
-  },
-  {
-    id: 'vip',
-    name: 'VIP',
-    price: 99,
-    interval: 'month',
-    stripe_price_id: 'price_1S7EbnAI5O329ebgzZ5CxmIj',
-    features: [
-      'All Basic features',
-      'VIP exclusive content',
-      'Live Q&A sessions',
-      'Advanced resources',
-      'Priority support',
-      'Certification courses'
-    ],
-    icon: <Crown className="h-6 w-6" />,
-    popular: true
-  },
-  {
-    id: 'ambassador',
-    name: 'Ambassador',
-    price: 199,
-    interval: 'month',
-    stripe_price_id: 'price_1S7Ec2AI5O329ebgXUxKBPK7',
-    features: [
-      'All VIP features',
-      'Ambassador network access',
-      'Mentorship programs',
-      'Research collaborations',
-      'Speaking opportunities',
-      'Revenue sharing'
-    ],
-    icon: <Zap className="h-6 w-6" />
-  }
-];
 
 const Subscription = () => {
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
-  const [subscriptionTiers, setSubscriptionTiers] = useState<SubscriptionTier[]>(initialTiers);
+  const [subscriptionTiers, setSubscriptionTiers] = useState<SubscriptionTier[]>([]);
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
 
@@ -83,12 +33,21 @@ const Subscription = () => {
 
   const getIconForKey = (key: string) => {
     switch(key) {
-        case 'basic': return <Star className="h-6 w-6" />;
-        case 'vip': return <Crown className="h-6 w-6" />;
-        case 'ambassador': return <Zap className="h-6 w-6" />;
-        default: return <Star className="h-6 w-6" />;
+        case 'basic': return Trophy;
+        case 'vip': return Star;
+        case 'ambassador': return Crown;
+        default: return Star;
     }
   };
+
+  const getColorForKey = (key: string) => {
+    switch(key) {
+        case 'basic': return 'from-accent-light to-accent';
+        case 'vip': return 'from-gray-300 to-gray-500';
+        case 'ambassador': return 'from-secondary to-secondary-light';
+        default: return 'from-primary to-primary-light';
+    }
+};
 
   React.useEffect(() => {
     api.get<any[]>('/plans').then((data) => {
@@ -101,8 +60,11 @@ const Subscription = () => {
                 stripe_price_id: p.stripePriceId,
                 features: p.features,
                 popular: p.popular,
-                icon: getIconForKey(p.key)
+                icon: getIconForKey(p.key),
+                color: getColorForKey(p.key)
             }));
+             // Sort plans by price to ensure correct order
+             mapped.sort((a, b) => a.price - b.price);
             setSubscriptionTiers(mapped);
         }
     }).catch(console.error);
@@ -164,7 +126,7 @@ const Subscription = () => {
               animate={{ opacity: 1, y: 0 }}
               className="mb-8"
             >
-              <Card className="border-green-200 bg-green-50 dark:bg-green-900/20">
+              <Card className="border-green-200 bg-green-50 dark:bg-green-900/20 max-w-4xl mx-auto">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
@@ -190,64 +152,62 @@ const Subscription = () => {
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            {subscriptionTiers.map((tier, index) => (
-              <motion.div
-                key={tier.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 * index }}
-                className="relative"
-              >
-                {tier.popular && (
-                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                    <Badge className="bg-primary text-primary-foreground">
-                      Most Popular
-                    </Badge>
-                  </div>
-                )}
-
-                <Card className={`h-full transition-all duration-200 hover:shadow-lg ${
-                  tier.popular ? 'border-primary shadow-lg' : ''
-                } ${user?.role === tier.id ? 'ring-2 ring-primary' : ''}`}>
-                  <CardHeader className="text-center">
-                    <div className="flex justify-center mb-4">
-                      <div className={`p-3 rounded-full ${
-                        tier.popular ? 'bg-primary text-primary-foreground' : 'bg-muted'
-                      }`}>
-                        {tier.icon}
+            {subscriptionTiers.map((tier, index) => {
+              const IconComponent = tier.icon;
+              return (
+                <motion.div
+                  key={tier.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 * index }}
+                  className={`relative card-hover bg-card rounded-2xl p-8 shadow-medium fade-in-up stagger-${index + 1} ${
+                    tier.popular ? 'ring-2 ring-secondary scale-105' : ''
+                  } ${user?.role === tier.id ? 'ring-2 ring-primary' : ''}`}
+                >
+                  {tier.popular && (
+                    <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                      <div className="bg-gradient-to-r from-secondary to-secondary-light text-secondary-foreground px-4 py-1 rounded-full text-sm font-semibold">
+                        Most Popular
                       </div>
                     </div>
-                    <CardTitle className="text-2xl">{tier.name}</CardTitle>
-                    <div className="text-center">
-                      <span className="text-4xl font-bold">${tier.price}</span>
-                      <span className="text-muted-foreground">/{tier.interval}</span>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="flex-1">
-                    <ul className="space-y-3 mb-8">
-                      {tier.features.map((feature, featureIndex) => (
-                        <li key={featureIndex} className="flex items-start gap-3">
-                          <Check className="h-5 w-5 text-green-500 shrink-0 mt-0.5" />
-                          <span className="text-sm">{feature}</span>
-                        </li>
-                      ))}
-                    </ul>
+                  )}
 
-                    <Button
+                  <div className="text-center mb-6">
+                    <div className={`w-16 h-16 mx-auto mb-4 bg-gradient-to-r ${tier.color} rounded-2xl flex items-center justify-center`}>
+                      <IconComponent className="w-8 h-8 text-white" />
+                    </div>
+                    <h3 className="text-2xl font-bold text-foreground mb-2">{tier.name}</h3>
+                    <p className="text-3xl font-bold text-primary">${tier.price}/{tier.interval}</p>
+                  </div>
+
+                  <ul className="space-y-3 mb-8">
+                    {tier.features.map((feature, featureIndex) => (
+                      <li key={featureIndex} className="flex items-start gap-3">
+                        <div className="w-5 h-5 bg-secondary/20 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <div className="w-2 h-2 bg-secondary rounded-full"></div>
+                        </div>
+                        <span className="text-muted-foreground">{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <Button
                       onClick={() => createCheckoutSession(tier.stripe_price_id)}
                       disabled={loadingAction === tier.stripe_price_id || user?.role === tier.id}
-                      className={`w-full ${tier.popular ? 'bg-primary' : ''}`}
-                      variant={tier.popular ? 'default' : 'outline'}
+                      className={`w-full font-semibold py-3 rounded-lg transition-smooth ${
+                        tier.popular
+                          ? 'bg-secondary text-secondary-foreground hover:bg-secondary/90'
+                          : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                      }`}
                     >
                       {loadingAction === tier.stripe_price_id && (
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                       )}
                       {user?.role === tier.id ? 'Current Plan' : `Get ${tier.name}`}
                     </Button>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
+                </motion.div>
+              );
+            })}
           </div>
 
           <motion.div
