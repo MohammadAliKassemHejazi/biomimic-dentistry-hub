@@ -1,3 +1,4 @@
+"use client";
 import React, { useEffect, useState } from 'react';
 import { Crown, Star, Zap, MessageCircle, BookOpen, Calendar, Trophy } from 'lucide-react';
 import { api } from '@/lib/api';
@@ -167,7 +168,7 @@ const VIPSection = () => {
             </div>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
               Get direct access to our experts, exclusive courses, and personalized mentorship
-              to accelerate your journey in biomimetic dentistry.
+              to accelerate your journey in biomimetic techniques.
             </p>
           </div>
 

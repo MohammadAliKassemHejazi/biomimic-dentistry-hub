@@ -52,12 +52,25 @@ export const createResource = async (req: Request, res: Response) => {
 
     const status = user?.role === 'admin' ? ContentStatus.APPROVED : ContentStatus.PENDING;
 
+    let finalFileUrl = file_url;
+    let finalFileName = file_name;
+    let finalFileType = file_type;
+    let finalFileSize = 0;
+
+    if (req.file) {
+      finalFileUrl = `/uploads/${req.file.filename}`;
+      finalFileName = req.file.originalname;
+      finalFileType = req.file.mimetype;
+      finalFileSize = req.file.size;
+    }
+
     const resource = await Resource.create({
       title,
       description,
-      fileUrl: file_url,
-      fileName: file_name,
-      fileType: file_type,
+      fileUrl: finalFileUrl,
+      fileName: finalFileName,
+      fileType: finalFileType,
+      fileSize: finalFileSize,
       accessLevel: access_level || 'public',
       category,
       tags: Array.isArray(tags) ? tags.join(',') : (tags || ''),

@@ -146,12 +146,17 @@ export const createPost = async (req: Request, res: Response) => {
 
     const status = user.role === 'admin' ? ContentStatus.APPROVED : ContentStatus.PENDING;
 
+    let finalFeaturedImage = featured_image;
+    if (req.file) {
+      finalFeaturedImage = `/uploads/${req.file.filename}`;
+    }
+
     const post = await BlogPost.create({
         title,
         slug,
         excerpt,
         content,
-        featuredImage: featured_image,
+        featuredImage: finalFeaturedImage,
         category,
         tags: Array.isArray(tags) ? tags.join(',') : tags,
         readTime: read_time ? parseInt(read_time) : undefined,

@@ -13,7 +13,11 @@ export const getPartners = async (req: Request, res: Response) => {
 
 export const createPartner = async (req: Request, res: Response) => {
   try {
-    const partner = await TrustedPartner.create(req.body);
+    const data = { ...req.body };
+    if (req.file) {
+      data.logo = `/uploads/${req.file.filename}`;
+    }
+    const partner = await TrustedPartner.create(data);
     res.status(201).json(partner);
   } catch (error) {
     console.error('Error creating partner:', error);
@@ -24,7 +28,11 @@ export const createPartner = async (req: Request, res: Response) => {
 export const updatePartner = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const [updated] = await TrustedPartner.update(req.body, { where: { id } });
+    const data = { ...req.body };
+    if (req.file) {
+      data.logo = `/uploads/${req.file.filename}`;
+    }
+    const [updated] = await TrustedPartner.update(data, { where: { id } });
     if (updated) {
       const updatedPartner = await TrustedPartner.findByPk(id as string);
       res.json(updatedPartner);

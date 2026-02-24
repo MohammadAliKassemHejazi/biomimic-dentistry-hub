@@ -100,6 +100,7 @@ export default function AdminDashboard() {
     const [partnerDialogOpen, setPartnerDialogOpen] = useState(false);
     const [memberDialogOpen, setMemberDialogOpen] = useState(false);
     const [planDialogOpen, setPlanDialogOpen] = useState(false);
+    const [resourceDialogOpen, setResourceDialogOpen] = useState(false);
     const [editingItem, setEditingItem] = useState<any>(null); // Generic holder for item being edited
 
     useEffect(() => {
@@ -185,17 +186,28 @@ export default function AdminDashboard() {
         }
     }
 
+    const handleResourceSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const formData = new FormData(e.target as HTMLFormElement);
+        try {
+            await api.post('/resources', formData);
+            toast({ title: "Success", description: "Resource created" });
+            setResourceDialogOpen(false);
+        } catch (error) {
+            toast({ title: "Error", description: "Failed to create resource", variant: "destructive" });
+        }
+    };
+
     const handlePartnerSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         const formData = new FormData(e.target as HTMLFormElement);
-        const data = Object.fromEntries(formData.entries());
 
         try {
             if (editingItem) {
-                await api.put(`/partners/${editingItem.id}`, data);
+                await api.put(`/partners/${editingItem.id}`, formData);
                 toast({ title: "Success", description: "Partner updated" });
             } else {
-                await api.post('/partners', data);
+                await api.post('/partners', formData);
                 toast({ title: "Success", description: "Partner created" });
             }
             setPartnerDialogOpen(false);
@@ -220,14 +232,13 @@ export default function AdminDashboard() {
     const handleMemberSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         const formData = new FormData(e.target as HTMLFormElement);
-        const data = Object.fromEntries(formData.entries());
 
         try {
             if (editingItem) {
-                await api.put(`/leadership/${editingItem.id}`, data);
+                await api.put(`/leadership/${editingItem.id}`, formData);
                 toast({ title: "Success", description: "Member updated" });
             } else {
-                await api.post('/leadership', data);
+                await api.post('/leadership', formData);
                 toast({ title: "Success", description: "Member created" });
             }
             setMemberDialogOpen(false);
@@ -334,7 +345,14 @@ export default function AdminDashboard() {
                                         <div className="space-y-2"><Label>Name</Label><Input name="name" defaultValue={editingItem?.name} required /></div>
                                         <div className="space-y-2"><Label>Role</Label><Input name="role" defaultValue={editingItem?.role} required /></div>
                                         <div className="space-y-2"><Label>Description</Label><Textarea name="description" defaultValue={editingItem?.description} required /></div>
-                                        <div className="space-y-2"><Label>Logo (URL/Emoji)</Label><Input name="logo" defaultValue={editingItem?.logo} required /></div>
+                                        <div className="space-y-2">
+                                            <Label>Logo (URL/Emoji)</Label>
+                                            <Input name="logo" defaultValue={editingItem?.logo} />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Or Upload Logo</Label>
+                                            <Input name="logo" type="file" />
+                                        </div>
                                         <div className="space-y-2">
                                             <Label>Tier</Label>
                                             <Select name="tier" defaultValue={editingItem?.tier || "Bronze"}>
@@ -396,7 +414,14 @@ export default function AdminDashboard() {
                                         <div className="space-y-2"><Label>Name</Label><Input name="name" defaultValue={editingItem?.name} required /></div>
                                         <div className="space-y-2"><Label>Role / Title</Label><Input name="role" defaultValue={editingItem?.role} required /></div>
                                         <div className="space-y-2"><Label>Bio</Label><Textarea name="bio" defaultValue={editingItem?.bio} required /></div>
-                                        <div className="space-y-2"><Label>Image (Emoji or URL)</Label><Input name="image" defaultValue={editingItem?.image} placeholder="Leave blank for auto-emoji" /></div>
+                                        <div className="space-y-2">
+                                            <Label>Image (Emoji or URL)</Label>
+                                            <Input name="image" defaultValue={editingItem?.image} placeholder="Leave blank for auto-emoji" />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Or Upload Image</Label>
+                                            <Input name="image" type="file" />
+                                        </div>
                                         <div className="space-y-2"><Label>Expertise</Label><Input name="expertise" defaultValue={editingItem?.expertise} /></div>
                                         <div className="space-y-2"><Label>Achievements</Label><Input name="achievements" defaultValue={editingItem?.achievements} /></div>
                                         <div className="space-y-2"><Label>Status (e.g. Founder, Advisor)</Label><Input name="status" defaultValue={editingItem?.status} /></div>
@@ -563,8 +588,60 @@ export default function AdminDashboard() {
                         </Card>
 
                         <Card>
-                            <CardHeader>
+                            <CardHeader className="flex flex-row items-center justify-between">
                                 <CardTitle>Pending Resources</CardTitle>
+                                <Dialog open={resourceDialogOpen} onOpenChange={setResourceDialogOpen}>
+                                    <DialogTrigger asChild>
+                                        <Button size="sm"><Plus className="mr-2 h-4 w-4"/> Add Resource</Button>
+                                    </DialogTrigger>
+                                    <DialogContent className="max-w-2xl h-[80vh] overflow-y-auto">
+                                        <DialogHeader>
+                                            <DialogTitle>Add New Resource</DialogTitle>
+                                        </DialogHeader>
+                                        <form onSubmit={handleResourceSubmit} className="space-y-4">
+                                            <div className="space-y-2"><Label>Title</Label><Input name="title" required /></div>
+                                            <div className="space-y-2"><Label>Description</Label><Textarea name="description" rows={3} /></div>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="space-y-2"><Label>Category</Label><Input name="category" /></div>
+                                                <div className="space-y-2">
+                                                    <Label>File Type</Label>
+                                                    <Select name="file_type" defaultValue="PDF">
+                                                        <SelectTrigger><SelectValue /></SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="PDF">PDF</SelectItem>
+                                                            <SelectItem value="Image">Image</SelectItem>
+                                                            <SelectItem value="Video">Video</SelectItem>
+                                                            <SelectItem value="Other">Other</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                            </div>
+                                            <div className="space-y-2"><Label>Tags</Label><Input name="tags" placeholder="guide, protocol" /></div>
+
+                                            <div className="space-y-2">
+                                                <Label>Upload File</Label>
+                                                <Input name="file" type="file" />
+                                                <p className="text-sm text-muted-foreground">Uploading a file will override the URL below.</p>
+                                            </div>
+
+                                            <div className="space-y-2"><Label>File URL (if not uploading)</Label><Input name="file_url" placeholder="https://..." /></div>
+                                            <div className="space-y-2"><Label>File Name (display)</Label><Input name="file_name" placeholder="MyResource.pdf" /></div>
+
+                                            <div className="space-y-2">
+                                                <Label>Access Level</Label>
+                                                <Select name="access_level" defaultValue="public">
+                                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="public">Public</SelectItem>
+                                                        <SelectItem value="vip">VIP Only</SelectItem>
+                                                        <SelectItem value="ambassador">Ambassador Only</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <Button type="submit" className="w-full">Create Resource</Button>
+                                        </form>
+                                    </DialogContent>
+                                </Dialog>
                             </CardHeader>
                             <CardContent>
                                 {pendingContent.resources.length === 0 ? (

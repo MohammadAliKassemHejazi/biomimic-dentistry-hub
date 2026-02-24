@@ -17,6 +17,7 @@ export default function SubmitResourcePage() {
     const { toast } = useToast();
     const router = useRouter();
     const [loading, setLoading] = useState(false);
+    const [file, setFile] = useState<File | null>(null);
     const [formData, setFormData] = useState({
         title: '',
         description: '',
@@ -32,7 +33,22 @@ export default function SubmitResourcePage() {
         e.preventDefault();
         setLoading(true);
         try {
-            await api.post('/resources', formData);
+            const data = new FormData();
+            data.append('title', formData.title);
+            data.append('description', formData.description);
+            data.append('category', formData.category);
+            data.append('tags', formData.tags);
+            data.append('access_level', formData.access_level);
+
+            if (file) {
+                data.append('file', file);
+            } else {
+                data.append('file_url', formData.file_url);
+                data.append('file_name', formData.file_name);
+                data.append('file_type', formData.file_type);
+            }
+
+            await api.post('/resources', data);
             toast({ title: "Success", description: "Resource submitted for review." });
             router.push('/ambassador');
         } catch (error: any) {
@@ -84,13 +100,18 @@ export default function SubmitResourcePage() {
                             <Label htmlFor="tags">Tags (comma separated)</Label>
                             <Input id="tags" value={formData.tags} onChange={e => setFormData({...formData, tags: e.target.value})} placeholder="guide, protocol, research" />
                         </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="file">Upload File</Label>
+                            <Input id="file" type="file" onChange={e => setFile(e.target.files?.[0] || null)} />
+                            <p className="text-sm text-muted-foreground">Uploading a file will override the URL below.</p>
+                        </div>
                          <div className="space-y-2">
-                            <Label htmlFor="file_url">File URL</Label>
-                            <Input id="file_url" value={formData.file_url} onChange={e => setFormData({...formData, file_url: e.target.value})} placeholder="https://..." required />
+                            <Label htmlFor="file_url">File URL (if not uploading)</Label>
+                            <Input id="file_url" value={formData.file_url} onChange={e => setFormData({...formData, file_url: e.target.value})} placeholder="https://..." required={!file} />
                         </div>
                          <div className="space-y-2">
                             <Label htmlFor="file_name">File Name (for display)</Label>
-                             <Input id="file_name" value={formData.file_name} onChange={e => setFormData({...formData, file_name: e.target.value})} placeholder="MyResource.pdf" required />
+                             <Input id="file_name" value={formData.file_name} onChange={e => setFormData({...formData, file_name: e.target.value})} placeholder="MyResource.pdf" required={!file} />
                         </div>
                          <div className="space-y-2">
                             <Label htmlFor="access_level">Access Level</Label>
