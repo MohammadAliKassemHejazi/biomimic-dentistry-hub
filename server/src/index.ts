@@ -23,6 +23,9 @@ import subscriptionRoutes from './routes/subscription.routes';
 import contactRoutes from './routes/contact.routes';
 import ambassadorRoutes from './routes/ambassador.routes';
 import adminRoutes from './routes/admin.routes';
+import trustedPartnerRoutes from './routes/trustedPartner.routes';
+import leadershipMemberRoutes from './routes/leadershipMember.routes';
+import subscriptionPlanRoutes from './routes/subscriptionPlan.routes';
 import { seedDefaultAdmin } from './utils/seed';
 
 const app = express();
@@ -57,6 +60,9 @@ app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/ambassadors', ambassadorRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/partners', trustedPartnerRoutes);
+app.use('/api/leadership', leadershipMemberRoutes);
+app.use('/api/plans', subscriptionPlanRoutes);
 
 app.get('/', (req: Request, res: Response) => {
   res.send('Server is running');

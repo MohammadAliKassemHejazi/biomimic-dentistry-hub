@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,7 +23,7 @@ interface SubscriptionTier {
   stripe_price_id: string;
 }
 
-const subscriptionTiers: SubscriptionTier[] = [
+const initialTiers: SubscriptionTier[] = [
   {
     id: 'basic',
     name: 'Basic',
@@ -76,10 +75,38 @@ const subscriptionTiers: SubscriptionTier[] = [
 
 const Subscription = () => {
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
+  const [subscriptionTiers, setSubscriptionTiers] = useState<SubscriptionTier[]>(initialTiers);
   const { user, isAuthenticated } = useAuth();
   const { toast } = useToast();
 
   const { data: currentSubscription } = useSubscription();
+
+  const getIconForKey = (key: string) => {
+    switch(key) {
+        case 'basic': return <Star className="h-6 w-6" />;
+        case 'vip': return <Crown className="h-6 w-6" />;
+        case 'ambassador': return <Zap className="h-6 w-6" />;
+        default: return <Star className="h-6 w-6" />;
+    }
+  };
+
+  React.useEffect(() => {
+    api.get<any[]>('/plans').then((data) => {
+        if (data && data.length > 0) {
+            const mapped = data.map(p => ({
+                id: p.key, // Using key as id for role matching
+                name: p.name,
+                price: parseFloat(p.price),
+                interval: p.interval,
+                stripe_price_id: p.stripePriceId,
+                features: p.features,
+                popular: p.popular,
+                icon: getIconForKey(p.key)
+            }));
+            setSubscriptionTiers(mapped);
+        }
+    }).catch(console.error);
+  }, []);
 
   const createCheckoutSession = async (priceId: string) => {
     if (!isAuthenticated) {
@@ -117,7 +144,6 @@ const Subscription = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navigation />
 
       <main className="pt-16">
         <div className="container mx-auto px-4 py-8">

@@ -1,57 +1,25 @@
-import React from 'react';
+"use client";
+
+import React, { useState, useEffect } from 'react';
 import { Building2, Award, HandHeart } from 'lucide-react';
+import { api } from '@/lib/api';
+
+interface TrustedPartner {
+    id: string;
+    name: string;
+    role: string;
+    description: string;
+    logo: string;
+    tier: string;
+    website?: string;
+}
 
 const SponsorsSection = () => {
-  const sponsors = [
-    {
-      id: 1,
-      name: 'BioMimetic Institute',
-      role: 'Research Partner',
-      description: 'Leading research in biomimetic dental materials and techniques.',
-      logo: '🔬',
-      tier: 'Platinum'
-    },
-    {
-      id: 2,
-      name: 'Natural Dental Solutions',
-      role: 'Technology Sponsor',
-      description: 'Innovative dental equipment and sustainable materials.',
-      logo: '🌱',
-      tier: 'Gold'
-    },
-    {
-      id: 3,
-      name: 'Global Health Foundation',
-      role: 'Education Sponsor',
-      description: 'Supporting accessible dental education worldwide.',
-      logo: '🌍',
-      tier: 'Gold'
-    },
-    {
-      id: 4,
-      name: 'DentaCare International',
-      role: 'Clinical Partner',
-      description: 'Providing clinical expertise and mentorship programs.',
-      logo: '🦷',
-      tier: 'Silver'
-    },
-    {
-      id: 5,
-      name: 'EcoMaterials Corp',
-      role: 'Materials Supplier',
-      description: 'Sustainable and biocompatible dental materials.',
-      logo: '♻️',
-      tier: 'Silver'
-    },
-    {
-      id: 6,
-      name: 'Student Dental Network',
-      role: 'Community Partner',
-      description: 'Connecting dental students across continents.',
-      logo: '👥',
-      tier: 'Bronze'
-    }
-  ];
+  const [sponsors, setSponsors] = useState<TrustedPartner[]>([]);
+
+  useEffect(() => {
+    api.get<TrustedPartner[]>('/partners').then(setSponsors).catch(console.error);
+  }, []);
 
   const getTierColor = (tier: string) => {
     switch (tier) {

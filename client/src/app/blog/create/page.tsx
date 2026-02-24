@@ -32,7 +32,7 @@ export default function CreateBlogPage() {
         try {
             await api.post('/blog/posts', formData);
             toast({ title: "Success", description: "Blog post submitted for review." });
-            router.push('/ambassador');
+            router.push('/blog');
         } catch (error: any) {
             toast({ title: "Error", description: error.message || "Failed to create post", variant: "destructive" });
         } finally {
@@ -40,8 +40,8 @@ export default function CreateBlogPage() {
         }
     };
 
-    if (!user || (user.role !== 'ambassador' && user.role !== 'admin')) {
-        return <div className="text-center py-20 text-destructive font-bold text-2xl">Access Denied</div>;
+    if (!user) {
+        return <div className="text-center py-20 text-destructive font-bold text-2xl">Please log in to create a post.</div>;
     }
 
     return (

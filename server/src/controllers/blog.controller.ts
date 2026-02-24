@@ -132,10 +132,6 @@ export const createPost = async (req: Request, res: Response) => {
 
     if (!user) return res.status(401).json({ message: 'Unauthorized' });
 
-    if (user.role !== 'admin' && user.role !== 'ambassador') {
-        return res.status(403).json({ message: 'Only Ambassadors and Admins can create posts' });
-    }
-
     if (typeof title !== 'string' || !title) {
         return res.status(400).json({ message: 'Title is required' });
     }

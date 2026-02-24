@@ -1,14 +1,30 @@
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Stethoscope, Users, Globe, Award, Heart, BookOpen } from 'lucide-react';
-import Navigation from '@/components/Navigation';
 import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { api } from '@/lib/api';
+
+interface LeadershipMember {
+    id: string;
+    name: string;
+    role: string;
+    bio: string;
+    image: string;
+    linkedin?: string;
+    twitter?: string;
+}
 
 const About = () => {
+  const [team, setTeam] = useState<LeadershipMember[]>([]);
+
+  useEffect(() => {
+    api.get<LeadershipMember[]>('/leadership').then(setTeam).catch(console.error);
+  }, []);
+
   const values = [
     {
       icon: <Heart className="h-8 w-8" />,
@@ -62,7 +78,6 @@ const About = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Navigation />
 
       {/* Hero Section */}
       <section className="relative py-20 bg-gradient-hero">
@@ -165,6 +180,52 @@ const About = () => {
           </div>
         </div>
       </section>
+
+      {/* Leadership Team */}
+      {team.length > 0 && (
+      <section className="py-16">
+        <div className="container mx-auto px-4">
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                className="text-center mb-12"
+            >
+                <h2 className="text-3xl font-bold text-foreground mb-4">Our Leadership Team</h2>
+                <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                    Meet the experts and visionaries guiding our mission.
+                </p>
+            </motion.div>
+
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {team.map((member, index) => (
+                    <motion.div
+                        key={member.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                        viewport={{ once: true }}
+                    >
+                        <Card className="h-full hover-scale overflow-hidden">
+                             {member.image && (
+                                <div className="aspect-square overflow-hidden bg-muted">
+                                    <img src={member.image} alt={member.name} className="w-full h-full object-cover transition-transform duration-300 hover:scale-105" />
+                                </div>
+                            )}
+                            <CardHeader>
+                                <CardTitle>{member.name}</CardTitle>
+                                <CardDescription className="text-primary font-medium">{member.role}</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <p className="text-muted-foreground text-sm line-clamp-4">{member.bio}</p>
+                            </CardContent>
+                        </Card>
+                    </motion.div>
+                ))}
+            </div>
+        </div>
+      </section>
+      )}
 
       {/* Timeline */}
       <section className="py-16">
