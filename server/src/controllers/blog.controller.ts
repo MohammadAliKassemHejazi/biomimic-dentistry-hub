@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
-import prisma from '../utils/prisma';
+import { BlogPost, User, Favorite, BlogView } from '../models';
+import { ContentStatus } from '../types/enums';
 
 // Helper to generate slug
 const generateSlug = (title: string) => {
@@ -7,18 +8,6 @@ const generateSlug = (title: string) => {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)+/g, '');
-};
-
-// Helper to ensure string
-const ensureString = (val: any): string | undefined => {
-  return typeof val === 'string' ? val : undefined;
-};
-
-// Helper for tags
-const parseTags = (val: any): string => {
-  if (Array.isArray(val)) return val.join(',');
-  if (typeof val === 'string') return val;
-  return '';
 };
 
 export const getPosts = async (req: Request, res: Response) => {
@@ -32,23 +21,33 @@ export const getPosts = async (req: Request, res: Response) => {
     if (status) {
       where.status = status;
     } else if (published === 'true') {
-      where.status = 'approved';
+      where.status = ContentStatus.APPROVED;
     } else if (!user || (user.role !== 'admin')) {
       // Default for non-admins is approved only
-      where.status = 'approved';
+      where.status = ContentStatus.APPROVED;
     }
 
-    const posts = await prisma.blogPost.findMany({
+    const include: any[] = [
+      { model: User, as: 'author' },
+      { model: BlogView, as: 'views' }
+    ];
+
+    if (user) {
+      include.push({
+        model: Favorite,
+        as: 'favorites',
+        where: { userId: user.id },
+        required: false
+      });
+    }
+
+    const posts = await BlogPost.findAll({
       where,
-      include: {
-        author: true,
-        views: true,
-        favorites: user ? { where: { userId: user.id } } : false
-      },
-      orderBy: { createdAt: 'desc' },
+      include,
+      order: [['createdAt', 'DESC']],
     });
 
-    const formatted = posts.map((p: any) => ({
+    const formatted = posts.map((p) => ({
       id: p.id,
       title: p.title,
       slug: p.slug,
@@ -60,11 +59,11 @@ export const getPosts = async (req: Request, res: Response) => {
       read_time: p.readTime,
       created_at: p.createdAt,
       status: p.status,
-      view_count: p.views.length,
-      is_favorited: user ? p.favorites.length > 0 : false,
+      view_count: p.views?.length || 0,
+      is_favorited: user && p.favorites ? p.favorites.length > 0 : false,
       profiles: {
-        first_name: p.author.firstName,
-        last_name: p.author.lastName,
+        first_name: p.author?.firstName,
+        last_name: p.author?.lastName,
       },
     }));
 
@@ -80,37 +79,44 @@ export const getPostBySlug = async (req: Request, res: Response) => {
     const { slug } = req.params as { slug: string };
     const user = req.user;
 
-    const post = await prisma.blogPost.findUnique({
+    const include: any[] = [
+      { model: User, as: 'author' },
+      { model: BlogView, as: 'views' }
+    ];
+
+    if (user) {
+      include.push({
+        model: Favorite,
+        as: 'favorites',
+        where: { userId: user.id },
+        required: false
+      });
+    }
+
+    const post = await BlogPost.findOne({
       where: { slug },
-      include: {
-        author: true,
-        views: true,
-        favorites: user ? { where: { userId: user.id } } : false
-      },
+      include,
     });
 
     if (!post) return res.status(404).json({ message: 'Post not found' });
 
-    // Explicit cast or access
-    const postWithAuthor = post as any;
-
     res.json({
-      id: postWithAuthor.id,
-      title: postWithAuthor.title,
-      slug: postWithAuthor.slug,
-      excerpt: postWithAuthor.excerpt,
-      content: postWithAuthor.content,
-      featured_image: postWithAuthor.featuredImage,
-      category: postWithAuthor.category,
-      tags: postWithAuthor.tags ? postWithAuthor.tags.split(',') : [],
-      read_time: postWithAuthor.readTime,
-      created_at: postWithAuthor.createdAt,
-      status: postWithAuthor.status,
-      view_count: postWithAuthor.views.length,
-      is_favorited: user ? postWithAuthor.favorites.length > 0 : false,
+      id: post.id,
+      title: post.title,
+      slug: post.slug,
+      excerpt: post.excerpt,
+      content: post.content,
+      featured_image: post.featuredImage,
+      category: post.category,
+      tags: post.tags ? post.tags.split(',') : [],
+      read_time: post.readTime,
+      created_at: post.createdAt,
+      status: post.status,
+      view_count: post.views?.length || 0,
+      is_favorited: user && post.favorites ? post.favorites.length > 0 : false,
       profiles: {
-        first_name: postWithAuthor.author.firstName,
-        last_name: postWithAuthor.author.lastName,
+        first_name: post.author?.firstName,
+        last_name: post.author?.lastName,
       },
     });
   } catch (error) {
@@ -137,28 +143,24 @@ export const createPost = async (req: Request, res: Response) => {
     const slug = generateSlug(title);
 
     // Check slug uniqueness
-    const existing = await prisma.blogPost.findUnique({ where: { slug } });
+    const existing = await BlogPost.findOne({ where: { slug } });
     if (existing) {
       return res.status(400).json({ message: 'Title already exists' });
     }
 
-    const status = user.role === 'admin' ? 'approved' : 'pending';
+    const status = user.role === 'admin' ? ContentStatus.APPROVED : ContentStatus.PENDING;
 
-    const postData = {
+    const post = await BlogPost.create({
         title,
         slug,
-        excerpt: ensureString(excerpt),
-        content: ensureString(content),
-        featuredImage: ensureString(featured_image),
-        category: ensureString(category),
-        tags: parseTags(tags),
+        excerpt,
+        content,
+        featuredImage: featured_image,
+        category,
+        tags: Array.isArray(tags) ? tags.join(',') : tags,
         readTime: read_time ? parseInt(read_time) : undefined,
         status,
         authorId: user.id
-    } as any;
-
-    const post = await prisma.blogPost.create({
-      data: postData
     });
 
     res.status(201).json(post);
@@ -175,26 +177,22 @@ export const toggleFavorite = async (req: Request, res: Response) => {
 
     if (!user) return res.status(401).json({ message: 'Unauthorized' });
 
-    const existing = await prisma.favorite.findUnique({
+    const existing = await Favorite.findOne({
       where: {
-        userId_blogPostId: {
-          userId: user.id,
-          blogPostId: id
-        }
+        userId: user.id,
+        blogPostId: id
       }
     });
 
     if (existing) {
-      await prisma.favorite.delete({
+      await Favorite.destroy({
         where: { id: existing.id }
       });
       res.json({ favorited: false });
     } else {
-      await prisma.favorite.create({
-        data: {
-          userId: user.id,
-          blogPostId: id
-        }
+      await Favorite.create({
+        userId: user.id,
+        blogPostId: id
       });
       res.json({ favorited: true });
     }
@@ -208,24 +206,22 @@ export const recordView = async (req: Request, res: Response) => {
   try {
     const { id } = req.params as { id: string };
     const user = req.user;
-    const ip = req.ip || req.connection.remoteAddress;
+    const ip = req.ip || req.socket.remoteAddress; // req.connection is deprecated
 
     const where: any = { blogPostId: id };
     if (user) {
       where.userId = user.id;
     } else {
-      where.ipAddress = ip as string;
+      where.ipAddress = ip;
     }
 
-    const existing = await prisma.blogView.findFirst({ where });
+    const existing = await BlogView.findOne({ where });
 
     if (!existing) {
-      await prisma.blogView.create({
-        data: {
-          blogPostId: id,
-          userId: user?.id,
-          ipAddress: ip as string
-        }
+      await BlogView.create({
+        blogPostId: id,
+        userId: user?.id,
+        ipAddress: ip as string
       });
     }
 
@@ -250,12 +246,16 @@ export const updatePostStatus = async (req: Request, res: Response) => {
         return res.status(400).json({ message: 'Status must be a string' });
     }
 
-    const post = await prisma.blogPost.update({
-      where: { id },
-      data: { status: status as string }
-    });
+    const [affectedCount, affectedRows] = await BlogPost.update(
+      { status: status as ContentStatus },
+      { where: { id }, returning: true }
+    );
 
-    res.json(post);
+    if (affectedCount === 0) {
+        return res.status(404).json({ message: 'Post not found' });
+    }
+
+    res.json(affectedRows[0]);
   } catch (error) {
     console.error('Error updating post status:', error);
     res.status(500).json({ message: 'Internal server error' });

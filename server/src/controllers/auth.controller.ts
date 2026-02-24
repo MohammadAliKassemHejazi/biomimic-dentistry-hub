@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
-import prisma from '../utils/prisma';
+import { User } from '../models';
 import { generateToken } from '../utils/jwt';
 import { sendEmail } from '../utils/email';
 
@@ -12,7 +12,7 @@ export const register = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Email and password are required' });
     }
 
-    const existingUser = await prisma.user.findUnique({
+    const existingUser = await User.findOne({
       where: { email },
     });
 
@@ -22,13 +22,11 @@ export const register = async (req: Request, res: Response) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const user = await prisma.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-        firstName,
-        lastName,
-      },
+    const user = await User.create({
+      email,
+      password: hashedPassword,
+      firstName,
+      lastName,
     });
 
     const token = generateToken(user.id);
@@ -70,7 +68,7 @@ export const login = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Email and password are required' });
     }
 
-    const user = await prisma.user.findUnique({
+    const user = await User.findOne({
       where: { email },
     });
 
@@ -128,7 +126,7 @@ export const forgotPassword = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Email is required" });
     }
 
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await User.findOne({ where: { email } });
 
     if (!user) {
       // Don't reveal user existence

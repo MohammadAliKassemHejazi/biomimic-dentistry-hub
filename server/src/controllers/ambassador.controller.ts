@@ -1,14 +1,15 @@
 import { Request, Response } from 'express';
-import prisma from '../utils/prisma';
+import { AmbassadorProfile, AmbassadorApplication, User } from '../models';
+import { AmbassadorApplicationStatus } from '../types/enums';
 
 export const listAmbassadors = async (req: Request, res: Response) => {
   try {
-    const profiles = await prisma.ambassadorProfile.findMany({
-      include: { user: true },
+    const profiles = await AmbassadorProfile.findAll({
+      include: [User],
     });
 
     const ambassadors = profiles.map(p => ({
-      name: `${p.user.firstName} ${p.user.lastName}`,
+      name: p.user ? `${p.user.firstName} ${p.user.lastName}` : 'Unknown User',
       country: p.country,
       region: p.region,
       specialization: p.specialization,
@@ -34,23 +35,21 @@ export const applyAmbassador = async (req: Request, res: Response) => {
     }
 
     // Check if already applied
-    const existing = await prisma.ambassadorApplication.findFirst({
-        where: { userId: user.id, status: 'pending' }
+    const existing = await AmbassadorApplication.findOne({
+        where: { userId: user.id, status: AmbassadorApplicationStatus.PENDING }
     });
 
     if (existing) {
         return res.status(400).json({ message: 'You already have a pending application' });
     }
 
-    await prisma.ambassadorApplication.create({
-      data: {
-        name: name || `${user.firstName} ${user.lastName}`,
-        email: email || user.email,
-        country,
-        experience,
-        bio,
-        userId: user.id
-      },
+    await AmbassadorApplication.create({
+      name: name || `${user.firstName} ${user.lastName}`,
+      email: email || user.email,
+      country,
+      experience,
+      bio,
+      userId: user.id
     });
 
     res.json({ message: "Application submitted successfully" });
