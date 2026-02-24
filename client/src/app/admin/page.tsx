@@ -69,6 +69,9 @@ interface LeadershipMember {
     image: string;
     linkedin?: string;
     twitter?: string;
+    expertise?: string;
+    achievements?: string;
+    status?: string;
 }
 
 interface SubscriptionPlan {
@@ -391,9 +394,12 @@ export default function AdminDashboard() {
                                     </DialogHeader>
                                     <form onSubmit={handleMemberSubmit} className="space-y-4">
                                         <div className="space-y-2"><Label>Name</Label><Input name="name" defaultValue={editingItem?.name} required /></div>
-                                        <div className="space-y-2"><Label>Role</Label><Input name="role" defaultValue={editingItem?.role} required /></div>
+                                        <div className="space-y-2"><Label>Role / Title</Label><Input name="role" defaultValue={editingItem?.role} required /></div>
                                         <div className="space-y-2"><Label>Bio</Label><Textarea name="bio" defaultValue={editingItem?.bio} required /></div>
-                                        <div className="space-y-2"><Label>Image (URL)</Label><Input name="image" defaultValue={editingItem?.image} required /></div>
+                                        <div className="space-y-2"><Label>Image (Emoji or URL)</Label><Input name="image" defaultValue={editingItem?.image} placeholder="Leave blank for auto-emoji" /></div>
+                                        <div className="space-y-2"><Label>Expertise</Label><Input name="expertise" defaultValue={editingItem?.expertise} /></div>
+                                        <div className="space-y-2"><Label>Achievements</Label><Input name="achievements" defaultValue={editingItem?.achievements} /></div>
+                                        <div className="space-y-2"><Label>Status (e.g. Founder, Advisor)</Label><Input name="status" defaultValue={editingItem?.status} /></div>
                                         <div className="space-y-2"><Label>LinkedIn</Label><Input name="linkedin" defaultValue={editingItem?.linkedin} /></div>
                                         <div className="space-y-2"><Label>Twitter</Label><Input name="twitter" defaultValue={editingItem?.twitter} /></div>
                                         <Button type="submit" className="w-full">Save</Button>

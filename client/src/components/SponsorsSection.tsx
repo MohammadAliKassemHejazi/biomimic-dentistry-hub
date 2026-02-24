@@ -31,6 +31,21 @@ const SponsorsSection = () => {
     }
   };
 
+  const getEmojiForPartner = (partner: TrustedPartner) => {
+    if (partner.logo) return partner.logo;
+
+    // Auto-assign emoji based on role/tier
+    const role = (partner.role || '').toLowerCase();
+
+    if (role.includes('tech') || role.includes('equipment')) return '⚙️';
+    if (role.includes('research')) return '🔬';
+    if (role.includes('education')) return '🎓';
+    if (role.includes('material')) return '🧪';
+    if (role.includes('community')) return '🤝';
+
+    return '🏢';
+  };
+
   return (
     <section className="section-padding bg-background">
       <div className="section-container">
@@ -63,7 +78,7 @@ const SponsorsSection = () => {
 
               {/* Logo and Name */}
               <div className="text-center mb-4">
-                <div className="text-4xl mb-3">{sponsor.logo}</div>
+                <div className="text-4xl mb-3">{getEmojiForPartner(sponsor)}</div>
                 <h3 className="text-xl font-bold text-foreground mb-1">{sponsor.name}</h3>
                 <p className="text-primary font-semibold">{sponsor.role}</p>
               </div>

@@ -1,96 +1,103 @@
-import React from 'react';
-import { Crown, Star, Users, Zap, MessageCircle, BookOpen, Calendar, Trophy } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Crown, Star, Zap, MessageCircle, BookOpen, Calendar, Trophy } from 'lucide-react';
+import { api } from '@/lib/api';
+
+interface LeadershipMember {
+  id: string;
+  name: string;
+  role: string;
+  bio: string;
+  image: string;
+  expertise?: string;
+  achievements?: string;
+  status?: string;
+}
+
+interface SubscriptionTier {
+  name: string;
+  price: number;
+  interval: string;
+  features: string[];
+  icon: any;
+  popular?: boolean;
+  color?: string;
+  key: string;
+}
 
 const VIPSection = () => {
-  const vipMembers = [
-    {
-      id: 1,
-      name: 'Dr. Sarah Chen',
-      title: 'Founder & Chief Scientific Officer',
-      expertise: 'Biomimetic Materials Research',
-      achievements: '15+ Years Experience, 50+ Publications',
-      image: '👩‍⚕️',
-      status: 'Founder'
-    },
-    {
-      id: 2,
-      name: 'Prof. Michael Rodriguez',
-      title: 'Head of Education',
-      expertise: 'Clinical Biomimetic Techniques',
-      achievements: 'Harvard Dental School, 200+ Students Mentored',
-      image: '👨‍🏫',
-      status: 'Advisor'
-    },
-    {
-      id: 3,
-      name: 'Dr. Aisha Patel',
-      title: 'Global Ambassador Coordinator',
-      expertise: 'International Dental Education',
-      achievements: 'WHO Consultant, 30+ Countries Visited',
-      image: '👩‍💼',
-      status: 'Coordinator'
-    },
-    {
-      id: 4,
-      name: 'Dr. James Wilson',
-      title: 'Research Director',
-      expertise: 'Minimally Invasive Dentistry',
-      achievements: 'Nobel Prize Nominee, 100+ Research Papers',
-      image: '👨‍🔬',
-      status: 'Director'
-    }
-  ];
+  const [members, setMembers] = useState<LeadershipMember[]>([]);
+  const [plans, setPlans] = useState<SubscriptionTier[]>([]);
 
-  const vipTiers = [
-    {
-      name: 'Bronze VIP',
-      price: '$29/month',
-      color: 'from-accent-light to-accent',
-      features: [
-        'Monthly Q&A Sessions',
-        'Exclusive Course Discounts (20%)',
-        'Priority Email Support',
-        'VIP Community Access',
-        'Monthly Newsletter'
-      ],
-      icon: Trophy
-    },
-    {
-      name: 'Silver VIP',
-      price: '$59/month',
-      color: 'from-gray-300 to-gray-500',
-      features: [
-        'All Bronze Benefits',
-        'Bi-weekly Group Mentorship',
-        'Course Discounts (40%)',
-        'Direct Mentor Access',
-        'Case Study Reviews',
-        'Early Course Access'
-      ],
-      icon: Star,
-      popular: true
-    },
-    {
-      name: 'Gold VIP',
-      price: '$99/month',
-      color: 'from-secondary to-secondary-light',
-      features: [
-        'All Silver Benefits',
-        'Weekly 1:1 Mentorship',
-        'Free Course Access',
-        'Personal Career Guidance',
-        'Research Collaboration',
-        'Speaking Opportunities'
-      ],
-      icon: Crown
+  const getEmojiForMember = (member: LeadershipMember) => {
+    if (member.image) return member.image;
+
+    // Auto-assign emoji based on title/role
+    const title = (member.role || '').toLowerCase();
+    const name = (member.name || '').toLowerCase();
+
+    if (title.includes('founder')) return '👩‍⚕️';
+    if (title.includes('education') || title.includes('professor') || name.includes('prof')) return '👨‍🏫';
+    if (title.includes('ambassador')) return '👩‍💼';
+    if (title.includes('research')) return '👨‍🔬';
+    if (name.includes('dr')) return '👨‍⚕️';
+
+    return '👤';
+  };
+
+  const getIconForKey = (key: string) => {
+    switch(key) {
+        case 'basic': return Trophy; // Bronze equivalent
+        case 'vip': return Star; // Silver equivalent
+        case 'ambassador': return Crown; // Gold equivalent
+        default: return Star;
     }
-  ];
+  };
+
+  const getColorForKey = (key: string) => {
+      switch(key) {
+          case 'basic': return 'from-accent-light to-accent';
+          case 'vip': return 'from-gray-300 to-gray-500';
+          case 'ambassador': return 'from-secondary to-secondary-light';
+          default: return 'from-primary to-primary-light';
+      }
+  };
+
+  useEffect(() => {
+    // Fetch Leadership Members
+    api.get<LeadershipMember[]>('/leadership')
+      .then(setMembers)
+      .catch(console.error);
+
+    // Fetch Subscription Plans
+    api.get<any[]>('/plans')
+      .then(data => {
+        if (data && data.length > 0) {
+           const mappedPlans = data.map(p => ({
+               name: p.name,
+               price: parseFloat(p.price), // backend returns string for decimal
+               interval: p.interval,
+               features: p.features,
+               popular: p.popular,
+               key: p.key,
+               icon: getIconForKey(p.key),
+               color: getColorForKey(p.key)
+           }));
+           // Sort plans by price to ensure correct order (Basic -> VIP -> Ambassador)
+           mappedPlans.sort((a, b) => a.price - b.price);
+           setPlans(mappedPlans);
+        }
+      })
+      .catch(console.error);
+  }, []);
 
   const getStatusColor = (status: string) => {
+    if (!status) return 'from-muted to-muted-foreground';
+
     switch (status) {
       case 'Founder': return 'from-secondary to-secondary-light';
       case 'Advisor': return 'from-primary to-primary-light';
       case 'Director': return 'from-accent to-accent-light';
+      case 'Coordinator': return 'from-blue-400 to-blue-600';
       default: return 'from-muted to-muted-foreground';
     }
   };
@@ -112,33 +119,39 @@ const VIPSection = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {vipMembers.map((member, index) => (
+            {members.map((member, index) => (
               <div
                 key={member.id}
                 className={`card-hover bg-card rounded-2xl p-6 shadow-soft fade-in-up stagger-${index % 4 + 1}`}
               >
                 {/* Status Badge */}
-                <div className={`inline-block px-3 py-1 rounded-full bg-gradient-to-r ${getStatusColor(member.status)} text-white text-xs font-semibold mb-4`}>
-                  {member.status}
-                </div>
+                {member.status && (
+                    <div className={`inline-block px-3 py-1 rounded-full bg-gradient-to-r ${getStatusColor(member.status)} text-white text-xs font-semibold mb-4`}>
+                    {member.status}
+                    </div>
+                )}
 
                 {/* Profile Image */}
                 <div className="text-center mb-4">
-                  <div className="text-6xl mb-3">{member.image}</div>
+                  <div className="text-6xl mb-3">{getEmojiForMember(member)}</div>
                   <h3 className="text-xl font-bold text-foreground mb-1">{member.name}</h3>
-                  <p className="text-primary font-semibold text-sm mb-2">{member.title}</p>
+                  <p className="text-primary font-semibold text-sm mb-2">{member.role}</p>
                 </div>
 
                 {/* Expertise */}
                 <div className="space-y-3">
-                  <div>
-                    <h4 className="text-sm font-semibold text-foreground mb-1">Expertise</h4>
-                    <p className="text-muted-foreground text-sm">{member.expertise}</p>
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-semibold text-foreground mb-1">Achievements</h4>
-                    <p className="text-muted-foreground text-sm">{member.achievements}</p>
-                  </div>
+                  {member.expertise && (
+                    <div>
+                        <h4 className="text-sm font-semibold text-foreground mb-1">Expertise</h4>
+                        <p className="text-muted-foreground text-sm">{member.expertise}</p>
+                    </div>
+                  )}
+                  {member.achievements && (
+                    <div>
+                        <h4 className="text-sm font-semibold text-foreground mb-1">Achievements</h4>
+                        <p className="text-muted-foreground text-sm">{member.achievements}</p>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -159,7 +172,7 @@ const VIPSection = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {vipTiers.map((tier, index) => {
+            {plans.map((tier, index) => {
               const IconComponent = tier.icon;
               return (
                 <div
@@ -183,7 +196,7 @@ const VIPSection = () => {
                       <IconComponent className="w-8 h-8 text-white" />
                     </div>
                     <h3 className="text-2xl font-bold text-foreground mb-2">{tier.name}</h3>
-                    <p className="text-3xl font-bold text-primary">{tier.price}</p>
+                    <p className="text-3xl font-bold text-primary">${tier.price}/{tier.interval}</p>
                   </div>
 
                   {/* Features */}
