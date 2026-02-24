@@ -39,10 +39,15 @@ interface UserStats {
 
 interface RecentActivity {
   id: string;
-  type: 'download' | 'course' | 'resource';
+  type: 'download' | 'course' | 'resource' | 'application' | 'login' | 'register';
   title: string;
   date: string;
   description: string;
+}
+
+interface StatsResponse {
+  stats: UserStats;
+  recentActivity: RecentActivity[];
 }
 
 const Dashboard = () => {
@@ -78,26 +83,9 @@ const Dashboard = () => {
 
   const fetchUserStats = async () => {
     try {
-        const statsData = await api.get<UserStats>('/users/stats');
-        setStats(statsData);
-         const mockActivity: RecentActivity[] = [
-            {
-              id: '1',
-              type: 'download',
-              title: 'Biomimetic Restoration Guide',
-              date: new Date(Date.now() - 86400000).toISOString(),
-              description: 'Downloaded resource'
-            },
-            {
-              id: '2',
-              type: 'course',
-              title: 'Advanced Adhesive Techniques',
-              date: new Date(Date.now() - 172800000).toISOString(),
-              description: 'Enrolled in course'
-            }
-          ];
-          setRecentActivity(mockActivity);
-
+        const data = await api.get<StatsResponse>('/users/stats');
+        setStats(data.stats);
+        setRecentActivity(data.recentActivity);
     } catch (error: any) {
       console.error('Error fetching stats:', error);
     }
@@ -154,6 +142,11 @@ const Dashboard = () => {
         return <BookOpen className="h-4 w-4 text-green-500" />;
       case 'resource':
         return <FileText className="h-4 w-4 text-purple-500" />;
+      case 'application':
+        return <Star className="h-4 w-4 text-yellow-500" />;
+      case 'login':
+      case 'register':
+        return <User className="h-4 w-4 text-gray-500" />;
       default:
         return <Clock className="h-4 w-4" />;
     }
