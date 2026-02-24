@@ -1,15 +1,18 @@
 import { Request, Response } from 'express';
-import prisma from '../utils/prisma';
+import { User, Subscription } from '../models';
 import stripe from '../utils/stripe';
+import { SubscriptionStatus } from '../types/enums';
 
 export const getStatus = async (req: Request, res: Response) => {
   try {
     const userId = req.user?.id;
-    const subscription = await prisma.subscription.findUnique({
+    if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+
+    const subscription = await Subscription.findOne({
       where: { userId },
     });
 
-    if (!subscription || subscription.status !== 'active') {
+    if (!subscription || subscription.status !== SubscriptionStatus.ACTIVE) {
       return res.json({
         subscribed: false,
         product_id: null,
@@ -34,7 +37,9 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
     const userId = req.user?.id;
     const userEmail = req.user?.email;
 
-    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!userId || !userEmail) return res.status(401).json({ message: 'Unauthorized' });
+
+    const user = await User.findByPk(userId);
     let customerId = user?.stripeCustomerId;
 
     if (!customerId) {
@@ -43,9 +48,8 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
         metadata: { userId: userId as string },
       });
       customerId = customer.id;
-      await prisma.user.update({
+      await User.update({ stripeCustomerId: customerId }, {
         where: { id: userId },
-        data: { stripeCustomerId: customerId },
       });
     }
 
@@ -67,7 +71,9 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
 export const createPortalSession = async (req: Request, res: Response) => {
   try {
     const userId = req.user?.id;
-    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+
+    const user = await User.findByPk(userId);
 
     if (!user?.stripeCustomerId) {
         return res.status(400).json({ message: 'No billing account found' });

@@ -1,5 +1,7 @@
+import 'reflect-metadata'; // Required for sequelize-typescript
 import 'dotenv/config'; // Load env vars before other imports
 import express, { Request, Response } from 'express';
+import { sequelize } from './config/database';
 
 // Check for required environment variables
 const requiredEnvVars = ['DATABASE_URL', 'JWT_SECRET'];
@@ -28,6 +30,20 @@ const port = process.env.PORT || 5000;
 app.use(cors());
 app.use(helmet());
 app.use(express.json());
+
+// Database connection
+sequelize.authenticate()
+  .then(async () => {
+    console.log('Database connected via Sequelize');
+    // In development, sync models to update schema if needed
+    if (process.env.NODE_ENV !== 'production') {
+      await sequelize.sync({ alter: true });
+      console.log('Database synced');
+    }
+  })
+  .catch((err: any) => {
+    console.error('Unable to connect to the database:', err);
+  });
 
 // Routes
 app.use('/api/auth', authRoutes);

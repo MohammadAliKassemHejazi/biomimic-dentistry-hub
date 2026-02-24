@@ -1,10 +1,10 @@
 import { Request, Response } from 'express';
-import prisma from '../utils/prisma';
+import { Course, ContactMessage } from '../models';
 
 export const getCourses = async (req: Request, res: Response) => {
   try {
-    const courses = await prisma.course.findMany({
-      orderBy: { createdAt: 'desc' },
+    const courses = await Course.findAll({
+      order: [['createdAt', 'DESC']],
     });
 
     const formatted = courses.map(c => ({
@@ -32,21 +32,19 @@ export const createCourse = async (req: Request, res: Response) => {
   try {
     const { title, slug, description, price, featured_image, coming_soon, launch_date, access_level, stripe_price_id } = req.body;
 
-    const existing = await prisma.course.findUnique({ where: { slug } });
+    const existing = await Course.findOne({ where: { slug } });
     if (existing) return res.status(400).json({ message: 'Slug already exists' });
 
-    const course = await prisma.course.create({
-      data: {
-        title,
-        slug,
-        description,
-        price,
-        featuredImage: featured_image,
-        comingSoon: coming_soon,
-        launchDate: launch_date ? new Date(launch_date) : null,
-        accessLevel: access_level || 'public',
-        stripePriceId: stripe_price_id,
-      }
+    const course = await Course.create({
+      title,
+      slug,
+      description,
+      price,
+      featuredImage: featured_image,
+      comingSoon: coming_soon,
+      launchDate: launch_date ? new Date(launch_date) : null,
+      accessLevel: access_level || 'public',
+      stripePriceId: stripe_price_id,
     });
 
     res.status(201).json({
@@ -73,20 +71,26 @@ export const updateCourse = async (req: Request, res: Response) => {
     const { id } = req.params as { id: string };
     const { title, slug, description, price, featured_image, coming_soon, launch_date, access_level, stripe_price_id } = req.body;
 
-    const course = await prisma.course.update({
+    const [affectedCount, affectedRows] = await Course.update({
+      title,
+      slug,
+      description,
+      price,
+      featuredImage: featured_image,
+      comingSoon: coming_soon,
+      launchDate: launch_date ? new Date(launch_date) : null,
+      accessLevel: access_level,
+      stripePriceId: stripe_price_id,
+    }, {
       where: { id },
-      data: {
-        title,
-        slug,
-        description,
-        price,
-        featuredImage: featured_image,
-        comingSoon: coming_soon,
-        launchDate: launch_date ? new Date(launch_date) : null,
-        accessLevel: access_level,
-        stripePriceId: stripe_price_id,
-      }
+      returning: true,
     });
+
+    if (affectedCount === 0) {
+      return res.status(404).json({ message: "Course not found" });
+    }
+
+    const course = affectedRows[0];
 
     res.json({
       id: course.id,
@@ -110,7 +114,10 @@ export const updateCourse = async (req: Request, res: Response) => {
 export const deleteCourse = async (req: Request, res: Response) => {
   try {
     const { id } = req.params as { id: string };
-    await prisma.course.delete({ where: { id } });
+    const deletedCount = await Course.destroy({ where: { id } });
+    if (deletedCount === 0) {
+        return res.status(404).json({ message: "Course not found" });
+    }
     res.json({ message: "Course deleted successfully" });
   } catch (error) {
     console.error('Error deleting course:', error);
@@ -125,13 +132,11 @@ export const notifyCourse = async (req: Request, res: Response) => {
 
     if (!email) return res.status(400).json({ message: "Email is required" });
 
-    await prisma.contactMessage.create({
-      data: {
-        name: 'Subscriber',
-        email,
-        subject: `Course Notification: ${id}`,
-        message: `Please notify me when course ${id} launches.`,
-      }
+    await ContactMessage.create({
+      name: 'Subscriber',
+      email,
+      subject: `Course Notification: ${id}`,
+      message: `Please notify me when course ${id} launches.`,
     });
 
     res.json({ message: "You will be notified when the course launches" });

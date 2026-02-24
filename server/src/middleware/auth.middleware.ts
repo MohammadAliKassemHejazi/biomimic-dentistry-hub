@@ -1,18 +1,18 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyToken } from '../utils/jwt';
-import prisma from '../utils/prisma';
+import { User } from '../models';
 
 // Extend Express Request interface to include user
 declare global {
   namespace Express {
     interface Request {
-      user?: any; // Ideally this should be typed properly based on your User model
+      user?: User; // Ideally this should be typed properly based on your User model
     }
   }
 }
 
 export const authenticate = async (req: Request, res: Response, next: NextFunction) => {
-  const authHeader = req.headers.authorization;
+  const authHeader = req.headers['authorization'];
 
   if (!authHeader) {
     res.status(401).json({ message: 'Authorization header missing' });
@@ -29,10 +29,13 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
   try {
     const decoded: any = verifyToken(token);
 
+    if (!decoded || !decoded.userId) {
+       res.status(401).json({ message: 'Invalid token payload' });
+       return;
+    }
+
     // Check if user exists in DB
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-    });
+    const user = await User.findByPk(decoded.userId);
 
     if (!user) {
       res.status(401).json({ message: 'User not found' });
@@ -42,13 +45,14 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
     req.user = user;
     next();
   } catch (error) {
+    console.error('Authentication error:', error);
     res.status(401).json({ message: 'Invalid or expired token' });
     return;
   }
 };
 
 export const authenticateOptional = async (req: Request, res: Response, next: NextFunction) => {
-  const authHeader = req.headers.authorization;
+  const authHeader = req.headers['authorization'];
 
   if (!authHeader) {
     return next();
@@ -63,12 +67,11 @@ export const authenticateOptional = async (req: Request, res: Response, next: Ne
   try {
     const decoded: any = verifyToken(token);
 
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-    });
-
-    if (user) {
-      req.user = user;
+    if (decoded && decoded.userId) {
+      const user = await User.findByPk(decoded.userId);
+      if (user) {
+        req.user = user;
+      }
     }
     next();
   } catch (error) {

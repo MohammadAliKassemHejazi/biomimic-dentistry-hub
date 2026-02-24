@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
-import prisma from '../utils/prisma';
+import { Resource } from '../models';
+import { ContentStatus } from '../types/enums';
 
 export const getResources = async (req: Request, res: Response) => {
   try {
@@ -8,12 +9,12 @@ export const getResources = async (req: Request, res: Response) => {
 
     // If not admin, only show approved resources
     if (user?.role !== 'admin') {
-      where.status = 'approved';
+      where.status = ContentStatus.APPROVED;
     }
 
-    const resources = await prisma.resource.findMany({
+    const resources = await Resource.findAll({
       where,
-      orderBy: { createdAt: 'desc' },
+      order: [['createdAt', 'DESC']],
     });
 
     const formatted = resources.map(r => ({
@@ -48,21 +49,19 @@ export const createResource = async (req: Request, res: Response) => {
       return res.status(403).json({ message: 'Only Ambassadors and Admins can create resources' });
     }
 
-    const status = user?.role === 'admin' ? 'approved' : 'pending';
+    const status = user?.role === 'admin' ? ContentStatus.APPROVED : ContentStatus.PENDING;
 
-    const resource = await prisma.resource.create({
-      data: {
-        title,
-        description,
-        fileUrl: file_url,
-        fileName: file_name,
-        fileType: file_type,
-        accessLevel: access_level || 'public',
-        category,
-        tags: Array.isArray(tags) ? tags.join(',') : (tags || ''),
-        status,
-        createdById: user?.id,
-      }
+    const resource = await Resource.create({
+      title,
+      description,
+      fileUrl: file_url,
+      fileName: file_name,
+      fileType: file_type,
+      accessLevel: access_level || 'public',
+      category,
+      tags: Array.isArray(tags) ? tags.join(',') : (tags || ''),
+      status,
+      createdById: user?.id,
     });
 
     res.status(201).json({
@@ -106,10 +105,16 @@ export const updateResource = async (req: Request, res: Response) => {
       data.status = status;
     }
 
-    const resource = await prisma.resource.update({
+    const [affectedCount, affectedRows] = await Resource.update(data, {
       where: { id },
-      data,
+      returning: true,
     });
+
+    if (affectedCount === 0) {
+       return res.status(404).json({ message: 'Resource not found' });
+    }
+
+    const resource = affectedRows[0];
 
     res.json({
       id: resource.id,
@@ -134,7 +139,10 @@ export const updateResource = async (req: Request, res: Response) => {
 export const deleteResource = async (req: Request, res: Response) => {
   try {
     const { id } = req.params as { id: string };
-    await prisma.resource.delete({ where: { id } });
+    const deletedCount = await Resource.destroy({ where: { id } });
+    if (deletedCount === 0) {
+        return res.status(404).json({ message: "Resource not found" });
+    }
     res.json({ message: "Resource deleted successfully" });
   } catch (error) {
     console.error('Error deleting resource:', error);
@@ -145,9 +153,8 @@ export const deleteResource = async (req: Request, res: Response) => {
 export const downloadResource = async (req: Request, res: Response) => {
   try {
     const { id } = req.params as { id: string };
-    await prisma.resource.update({
+    await Resource.increment('downloadCount', {
       where: { id },
-      data: { downloadCount: { increment: 1 } },
     });
     res.json({ success: true });
   } catch (error) {

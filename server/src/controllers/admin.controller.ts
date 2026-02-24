@@ -1,18 +1,13 @@
 import { Request, Response } from 'express';
-import prisma from '../utils/prisma';
+import { User, AmbassadorApplication, AmbassadorProfile, BlogPost, Resource, Course, ActivityLog } from '../models';
+import { UserRole, AmbassadorApplicationStatus, ContentStatus } from '../types/enums';
+import { Sequelize } from 'sequelize-typescript';
 
 export const getUsers = async (req: Request, res: Response) => {
   try {
-    const users = await prisma.user.findMany({
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        role: true,
-        createdAt: true,
-      },
+    const users = await User.findAll({
+      order: [['createdAt', 'DESC']],
+      attributes: ['id', 'email', 'firstName', 'lastName', 'role', 'createdAt'],
     });
 
     const formatted = users.map(u => ({
@@ -34,10 +29,10 @@ export const getUsers = async (req: Request, res: Response) => {
 
 export const getApplications = async (req: Request, res: Response) => {
   try {
-    const applications = await prisma.ambassadorApplication.findMany({
-      where: { status: 'pending' },
-      orderBy: { createdAt: 'desc' },
-      include: { user: true }
+    const applications = await AmbassadorApplication.findAll({
+      where: { status: AmbassadorApplicationStatus.PENDING },
+      order: [['createdAt', 'DESC']],
+      include: [User]
     });
     res.json(applications);
   } catch (error) {
@@ -55,29 +50,32 @@ export const updateApplicationStatus = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Invalid status' });
     }
 
-    const application = await prisma.ambassadorApplication.update({
+    const [affectedCount, affectedRows] = await AmbassadorApplication.update({ status: status as AmbassadorApplicationStatus }, {
       where: { id },
-      data: { status: status as string }
+      returning: true
     });
 
+    if (affectedCount === 0) {
+      return res.status(404).json({ message: 'Application not found' });
+    }
+
+    const application = affectedRows[0];
+
     if (status === 'approved' && application.userId) {
-      await prisma.user.update({
-        where: { id: application.userId },
-        data: { role: 'ambassador' }
+      await User.update({ role: UserRole.AMBASSADOR }, {
+        where: { id: application.userId }
       });
 
-      const existingProfile = await prisma.ambassadorProfile.findUnique({
+      const existingProfile = await AmbassadorProfile.findOne({
         where: { userId: application.userId }
       });
 
       if (!existingProfile) {
-        await prisma.ambassadorProfile.create({
-          data: {
+        await AmbassadorProfile.create({
             userId: application.userId,
             country: application.country,
             experience: application.experience,
             bio: application.bio
-          }
         });
       }
     }
@@ -92,23 +90,17 @@ export const updateApplicationStatus = async (req: Request, res: Response) => {
 export const getPendingContent = async (req: Request, res: Response) => {
   try {
     const [pendingPosts, pendingResources] = await Promise.all([
-      prisma.blogPost.findMany({
-        where: { status: 'pending' },
-        include: { author: true },
-        orderBy: { createdAt: 'desc' },
+      BlogPost.findAll({
+        where: { status: ContentStatus.PENDING },
+        include: [User], // author
+        order: [['createdAt', 'DESC']],
       }),
-      prisma.resource.findMany({
-        where: { status: 'pending' },
-        // include: { createdBy: true }, // 'createdBy' relationship exists in schema
-        // Let's check schema again. `createdBy User?`. Yes.
-        // But `prisma` client needs to be aware.
-        orderBy: { createdAt: 'desc' },
+      Resource.findAll({
+        where: { status: ContentStatus.PENDING },
+        include: [User], // createdBy
+        order: [['createdAt', 'DESC']],
       })
     ]);
-
-    // We can fetch author details for resources if needed, but `include` works.
-    // However, TypeScript might complain if include is not generic enough in this snippet.
-    // But it should be fine.
 
     res.json({
       posts: pendingPosts,
@@ -131,9 +123,8 @@ export const updateUserRole = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Invalid role' });
     }
 
-    await prisma.user.update({
+    await User.update({ role }, {
       where: { id: userId },
-      data: { role },
     });
 
     res.json({ success: true, message: "User role updated successfully" });
@@ -149,34 +140,37 @@ export const getAnalytics = async (req: Request, res: Response) => {
       totalUsers,
       totalResources,
       totalCourses,
-      totalDownloadsResult,
-      usersByRole,
+      totalDownloads,
+      usersByRoleResult,
       recentActivity
     ] = await Promise.all([
-      prisma.user.count(),
-      prisma.resource.count(),
-      prisma.course.count(),
-      prisma.resource.aggregate({ _sum: { downloadCount: true } }),
-      prisma.user.groupBy({
-        by: ['role'],
-        _count: { role: true },
+      User.count(),
+      Resource.count(),
+      Course.count(),
+      Resource.sum('downloadCount'),
+      User.findAll({
+        attributes: ['role', [Sequelize.fn('COUNT', Sequelize.col('role')), 'count']],
+        group: ['role'],
       }),
-      prisma.activityLog.findMany({
-        take: 10,
-        orderBy: { timestamp: 'desc' },
+      ActivityLog.findAll({
+        limit: 10,
+        order: [['timestamp', 'DESC']],
       })
     ]);
 
     const usersByRoleMap: Record<string, number> = {};
-    usersByRole.forEach(r => {
-      usersByRoleMap[r.role] = r._count.role;
+    usersByRoleResult.forEach((r: any) => {
+      // Sequelize returns instances, dataValues has the attributes
+      const role = r.getDataValue('role');
+      const count = r.getDataValue('count');
+      usersByRoleMap[role] = Number(count);
     });
 
     res.json({
       totalUsers,
       totalResources,
       totalCourses,
-      totalDownloads: totalDownloadsResult._sum.downloadCount || 0,
+      totalDownloads: totalDownloads || 0,
       usersByRole: usersByRoleMap,
       recentActivity: recentActivity.map(a => ({
         type: a.type,
