@@ -379,7 +379,7 @@ const Dashboard = () => {
                                 Apply Now
                             </Button>
                         </DialogTrigger>
-                        <DialogContent>
+                        <DialogContent className="sm:max-w-[425px]">
                             <DialogHeader>
                                 <DialogTitle>Ambassador Application</DialogTitle>
                                 <DialogDescription>Tell us about yourself and why you want to be an ambassador.</DialogDescription>
@@ -392,8 +392,10 @@ const Dashboard = () => {
                                             id="country"
                                             value={appData.country}
                                             onChange={(e) => setAppData({...appData, country: e.target.value})}
+                                            placeholder="e.g. United Kingdom"
                                             required
                                         />
+                                        <p className="text-[0.8rem] text-muted-foreground">Where are you currently practicing?</p>
                                     </div>
                                     <div className="space-y-2">
                                         <Label htmlFor="experience">Years of Experience</Label>
@@ -401,8 +403,10 @@ const Dashboard = () => {
                                             id="experience"
                                             value={appData.experience}
                                             onChange={(e) => setAppData({...appData, experience: e.target.value})}
+                                            placeholder="e.g. 5 years"
                                             required
                                         />
+                                        <p className="text-[0.8rem] text-muted-foreground">How long have you been in the dental field?</p>
                                     </div>
                                     <div className="space-y-2">
                                         <Label htmlFor="bio">Bio / Motivation</Label>
@@ -410,12 +414,15 @@ const Dashboard = () => {
                                             id="bio"
                                             value={appData.bio}
                                             onChange={(e) => setAppData({...appData, bio: e.target.value})}
+                                            placeholder="I am passionate about biomimetic dentistry because..."
+                                            rows={4}
                                             required
                                         />
+                                        <p className="text-[0.8rem] text-muted-foreground">Share your background and why you want to join us.</p>
                                     </div>
                                 </div>
                                 <DialogFooter>
-                                    <Button type="submit" disabled={appLoading}>
+                                    <Button type="submit" disabled={appLoading} className="w-full sm:w-auto">
                                         {appLoading ? "Submitting..." : "Submit Application"}
                                     </Button>
                                 </DialogFooter>
