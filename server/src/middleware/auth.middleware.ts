@@ -2,15 +2,6 @@ import { Request, Response, NextFunction } from 'express';
 import { verifyToken } from '../utils/jwt';
 import { User } from '../models';
 
-// Extend Express Request interface to include user
-declare global {
-  namespace Express {
-    interface Request {
-      user?: User; // Ideally this should be typed properly based on your User model
-    }
-  }
-}
-
 export const authenticate = async (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers['authorization'];
 
