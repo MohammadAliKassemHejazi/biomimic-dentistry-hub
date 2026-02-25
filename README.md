@@ -1,132 +1,82 @@
-# Welcome to your Lovable project
+# Docker Development Environment Setup
 
-## Project info
+This project includes a Docker-based development environment that spins up the Client (Next.js), Server (Express), and Database (PostgreSQL) with hot-reloading enabled.
 
-**URL**: https://lovable.dev/projects/3cae7436-d3e3-4115-95e3-3301bff80014
+## Prerequisites
 
-## How can I edit this code?
+- [Docker](https://www.docker.com/get-started) installed on your machine.
+- [Docker Compose](https://docs.docker.com/compose/install/) (usually included with Docker Desktop).
 
-There are several ways of editing your application.
+## Quick Start
 
-**Use Lovable**
+1.  **Start the environment:**
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/3cae7436-d3e3-4115-95e3-3301bff80014) and start prompting.
+    Run the following command in the root directory of the project:
 
-Changes made via Lovable will be committed automatically to this repo.
+    ```bash
+    docker compose up
+    ```
 
-**Use your preferred IDE**
+    *Add the `-d` flag to run in detached mode (background):*
+    ```bash
+    docker compose up -d
+    ```
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+2.  **Access the application:**
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+    - **Client (Frontend):** [http://localhost:3000](http://localhost:3000)
+    - **Server (Backend):** [http://localhost:5000](http://localhost:5000)
+    - **Database (PostgreSQL):** `localhost:5432`
 
-Follow these steps:
+3.  **Stop the environment:**
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+    Press `Ctrl+C` if running in foreground, or run:
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+    ```bash
+    docker compose down
+    ```
 
-# Step 3: Install the necessary dependencies.
-npm i
+    *To remove volumes (database data):*
+    ```bash
+    docker compose down -v
+    ```
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+## Features
 
-**Edit a file directly in GitHub**
+### Hot Reloading (Binding)
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+The `client` and `server` directories are mounted into the containers. This means:
+- Any changes you make to the code in your local `client` or `server` folders will be immediately reflected in the running containers.
+- The server will automatically restart (via `nodemon`) when backend files change.
+- The client will automatically refresh (via Next.js Fast Refresh) when frontend files change.
 
-**Use GitHub Codespaces**
+### Data Persistence
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+The PostgreSQL database data is stored in a Docker volume named `pgdata`. This ensures that your data persists even if you restart the containers. To reset the database completely, run `docker compose down -v`.
 
-## What technologies are used for this project?
+## Configuration
 
-This project is built with:
+The `docker-compose.yml` file comes with default environment variables for development. You can override them by creating a `.env` file in the root directory or modifying `docker-compose.yml` directly.
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+**Default Variables:**
 
-## How can I deploy this project?
+- **Database:**
+  - `POSTGRES_USER`: postgres
+  - `POSTGRES_PASSWORD`: postgres
+  - `POSTGRES_DB`: app_db
 
-Simply open [Lovable](https://lovable.dev/projects/3cae7436-d3e3-4115-95e3-3301bff80014) and click on Share -> Publish.
+- **Server:**
+  - `DATABASE_URL`: postgres://postgres:postgres@db:5432/app_db
+  - `JWT_SECRET`: dev_secret_key_123
+  - `STRIPE_SECRET_KEY`: sk_test_placeholder
 
-## Can I connect a custom domain to my Lovable project?
+- **Client:**
+  - `NEXT_PUBLIC_API_URL`: http://localhost:5000/api
 
-Yes, you can!
+## Troubleshooting
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
-#   b i o m i m i c - d e n t i s t r y - h u b  
-
-## Database Schema (PostgreSQL)
-
-The project uses a local PostgreSQL database managed by Prisma ORM.
-
-### Models
-
-*   **User**: Represents a registered user.
-    *   Fields: `id`, `email`, `password` (hashed), `firstName`, `lastName`, `role`, `avatarUrl`, `stripeCustomerId`, `createdAt`, `updatedAt`
-    *   Relationships:
-        *   `resources`: Resources created by the user.
-        *   `purchases`: Courses purchased by the user.
-        *   `blogPosts`: Blog posts authored by the user.
-        *   `subscription`: Active subscription (one-to-one).
-        *   `partnershipRequests`: Associated partnership requests (optional).
-
-*   **Resource**: Downloadable content (files, documents).
-    *   Fields: `id`, `title`, `description`, `fileUrl`, `fileName`, `fileSize`, `fileType`, `accessLevel`, `category`, `tags`, `downloadCount`, `createdAt`, `updatedAt`
-    *   Relationships: `createdBy` (User).
-
-*   **Course**: Educational courses available for purchase.
-    *   Fields: `id`, `title`, `slug`, `description`, `price`, `featuredImage`, `comingSoon`, `launchDate`, `accessLevel`, `stripePriceId`, `createdAt`, `updatedAt`
-    *   Relationships: `purchases`.
-
-*   **Purchase**: Tracks course purchases.
-    *   Fields: `id`, `stripePaymentIntentId`, `amount`, `status`, `createdAt`
-    *   Relationships: `user` (User), `course` (Course).
-
-*   **BlogPost**: Content for the blog section.
-    *   Fields: `id`, `title`, `slug`, `excerpt`, `content`, `featuredImage`, `category`, `tags`, `readTime`, `status`, `createdAt`, `updatedAt`
-    *   Relationships: `author` (User).
-
-*   **PartnershipRequest**: Requests from users or organizations to partner.
-    *   Fields: `id`, `name`, `email`, `companyName`, `message`, `status`, `createdAt`, `updatedAt`
-    *   Relationships: `user` (User - optional).
-
-*   **Subscription**: Tracks user subscription status (Stripe).
-    *   Fields: `id`, `stripeSubscriptionId`, `stripePriceId`, `status`, `currentPeriodEnd`, `cancelAtPeriodEnd`, `createdAt`, `updatedAt`
-    *   Relationships: `user` (User).
-
-*   **ContactMessage**: Messages from the contact form.
-    *   Fields: `id`, `name`, `email`, `subject`, `message`, `status`, `createdAt`
-
-### Enums
-
-*   **Role**: `user`, `vip`, `ambassador`, `admin`
-*   **AccessLevel**: `public`, `vip`, `ambassador`, `admin`
-*   **ContentStatus**: `pending`, `approved`, `rejected`
-*   **PurchaseStatus**: `pending`, `completed`, `failed`, `refunded`
-*   **SubscriptionStatus**: `active`, `canceled`, `incomplete`, `incomplete_expired`, `past_due`, `trialing`, `unpaid`
-*   **ContactStatus**: `new`, `read`, `replied`
-
-### Setup Instructions
-
-1.  Navigate to the `server` directory: `cd server`
-2.  Install dependencies: `npm install`
-3.  Set up the database: `npx prisma migrate dev --name init` (requires a running PostgreSQL instance or uses Prisma Postgres if configured).
-4.  Generate Prisma Client: `npx prisma generate`
+- **Ports already in use:** Ensure that ports 3000, 5000, and 5432 are not being used by other applications on your host machine.
+- **Node Modules:** The setup uses volume tricks to prevent your local `node_modules` from interfering with the container's `node_modules`. If you add a new dependency, you may need to rebuild the containers:
+  ```bash
+  docker compose up --build
+  ```
