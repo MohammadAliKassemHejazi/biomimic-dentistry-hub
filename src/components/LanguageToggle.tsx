@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Languages, Globe } from 'lucide-react';
+import React from 'react';
+import { Globe } from 'lucide-react';
+import { useLanguage, languages, LanguageCode } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -8,37 +9,12 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-interface Language {
-  code: string;
-  name: string;
-  flag: string;
-}
-
 const LanguageToggle = () => {
-  const [currentLanguage, setCurrentLanguage] = useState<Language>({
-    code: 'en',
-    name: 'English',
-    flag: '🇺🇸'
-  });
+  const { currentLanguage, setLanguage, t } = useLanguage();
 
-  const languages: Language[] = [
-    { code: 'en', name: 'English', flag: '🇺🇸' },
-    { code: 'es', name: 'Español', flag: '🇪🇸' },
-    { code: 'fr', name: 'Français', flag: '🇫🇷' },
-    { code: 'de', name: 'Deutsch', flag: '🇩🇪' },
-    { code: 'pt', name: 'Português', flag: '🇧🇷' },
-    { code: 'it', name: 'Italiano', flag: '🇮🇹' },
-    { code: 'zh', name: '中文', flag: '🇨🇳' },
-    { code: 'ja', name: '日本語', flag: '🇯🇵' },
-    { code: 'ko', name: '한국어', flag: '🇰🇷' },
-    { code: 'ar', name: 'العربية', flag: '🇸🇦' }
-  ];
-
-  const handleLanguageChange = (language: Language) => {
-    setCurrentLanguage(language);
-    // Here you would implement actual language switching logic
-    // For now, this is just a UI component ready for i18n integration
-    console.log(`Language changed to: ${language.code}`);
+  const handleLanguageChange = (code: LanguageCode) => {
+    setLanguage(code);
+    console.log(`Language changed to: ${code}`);
   };
 
   return (
@@ -47,14 +23,14 @@ const LanguageToggle = () => {
         <Button variant="ghost" size="sm" className="gap-2">
           <span className="text-sm">{currentLanguage.flag}</span>
           <Globe className="h-4 w-4" />
-          <span className="sr-only">Change language</span>
+          <span className="sr-only">{t('nav.changeLanguage')}</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
         {languages.map((language) => (
           <DropdownMenuItem
             key={language.code}
-            onClick={() => handleLanguageChange(language)}
+            onClick={() => handleLanguageChange(language.code)}
             className="flex items-center gap-3"
           >
             <span className="text-lg">{language.flag}</span>

@@ -1,10 +1,12 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRight, Heart, Users, Globe, Leaf, Sparkles } from 'lucide-react';
+import { useLanguage } from '@/contexts/LanguageContext';
 import heroBg from '../assets/hero-bg.jpg';
 import BiomimeticTooth3D from './BiomimeticTooth3D';
 
 const HeroSection = () => {
+  const { t } = useLanguage();
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-br from-background via-bio-mint/5 to-enamel-sky/10 pt-20">
       {/* Background Image with Nature's Overlay */}
@@ -125,7 +127,7 @@ const HeroSection = () => {
               }}
               className="text-4xl md:text-6xl lg:text-7xl font-bold text-foreground mb-6"
             >
-              Making Dentistry More{' '}
+              {t('hero.title1')}{' '}
               <motion.span 
                 className="text-gradient-primary inline-block"
                 whileHover={{ 
@@ -134,9 +136,9 @@ const HeroSection = () => {
                 }}
                 transition={{ type: "spring", stiffness: 300 }}
               >
-                Human
+                {t('hero.human')}
               </motion.span>{' '}
-              and{' '}
+              {t('hero.and')}{' '}
               <motion.span 
                 className="text-gradient-secondary inline-block"
                 whileHover={{ 
@@ -145,7 +147,7 @@ const HeroSection = () => {
                 }}
                 transition={{ type: "spring", stiffness: 300 }}
               >
-                Accessible
+                {t('hero.accessible')}
               </motion.span>
             </motion.h1>
 
@@ -156,9 +158,7 @@ const HeroSection = () => {
               transition={{ duration: 0.8, delay: 0.3 }}
               className="text-xl md:text-2xl text-foreground/80 mb-8 max-w-3xl mx-auto leading-relaxed"
             >
-              Join the movement redefining dental care through{' '}
-              <span className="text-primary-light font-semibold">biomimetic science</span>, 
-              connecting students worldwide with affordable, accessible education.
+              {t('hero.subtitle')}
             </motion.p>
 
             {/* Animated Stats Bar */}
