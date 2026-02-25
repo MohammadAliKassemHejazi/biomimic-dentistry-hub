@@ -5,6 +5,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import ThemeToggle from './ThemeToggle';
 import LanguageToggle from './LanguageToggle';
 
@@ -12,27 +13,28 @@ const Navigation = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
   const { user, signOut, profile } = useAuth();
+  const { t } = useLanguage();
 
   // Organized navigation items into logical groups
   const learnItems = [
-    { name: 'Courses', href: '/courses' },
-    { name: 'Resources', href: '/resources' },
-    { name: 'Blog', href: '/blog' },
+    { name: t('nav.courses'), href: '/courses' },
+    { name: t('nav.resources'), href: '/resources' },
+    { name: t('nav.blog'), href: '/blog' },
   ];
 
   const communityItems = [
-    { name: 'About', href: '/about' },
-    { name: 'Ambassadors', href: '/ambassadors' },
-    { name: 'Contact', href: '/contact' },
+    { name: t('nav.about'), href: '/about' },
+    { name: t('nav.ambassadors'), href: '/ambassadors' },
+    { name: t('nav.contact'), href: '/contact' },
   ];
 
   const accountItems = [
-    { name: 'Dashboard', href: '/dashboard' },
-    { name: 'Subscription', href: '/subscription' },
+    { name: t('nav.dashboard'), href: '/dashboard' },
+    { name: t('nav.subscription'), href: '/subscription' },
   ];
 
   const adminItems = [
-    { name: 'Admin Dashboard', href: '/admin' },
+    { name: t('nav.admin'), href: '/admin' },
   ];
 
   const isActive = (href: string) => location.pathname === href;
@@ -88,23 +90,23 @@ const Navigation = () => {
                   isActive('/') ? 'text-secondary bg-white/5' : ''
                 }`}
               >
-                Home
+                {t('nav.home')}
               </Link>
 
               {/* Learn Dropdown */}
-              <DropdownNav title="Learn" items={learnItems} />
+              <DropdownNav title={t('nav.learn')} items={learnItems} />
 
               {/* Community Dropdown */}
-              <DropdownNav title="Community" items={communityItems} />
+              <DropdownNav title={t('nav.community')} items={communityItems} />
 
               {/* User Account Dropdown - only show if logged in */}
               {user && (
-                <DropdownNav title="Account" items={accountItems} />
+                <DropdownNav title={t('nav.account')} items={accountItems} />
               )}
 
               {/* Admin Dropdown - only show for admins */}
               {profile?.role === 'admin' && (
-                <DropdownNav title="Admin" items={adminItems} />
+                <DropdownNav title={t('nav.admin')} items={adminItems} />
               )}
             </nav>
 
@@ -124,12 +126,12 @@ const Navigation = () => {
                   <DropdownMenuContent className="bg-background border-border" align="end">
                     <DropdownMenuItem asChild>
                       <Link to="/dashboard" className="cursor-pointer">
-                        Dashboard
+                        {t('nav.dashboard')}
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link to="/subscription" className="cursor-pointer">
-                        Subscription
+                        {t('nav.subscription')}
                       </Link>
                     </DropdownMenuItem>
                     {profile?.role === 'admin' && (
@@ -145,7 +147,7 @@ const Navigation = () => {
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={signOut} className="cursor-pointer text-destructive">
                       <LogOut className="mr-2 h-4 w-4" />
-                      Sign Out
+                      {t('nav.logout')}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -154,12 +156,12 @@ const Navigation = () => {
                   <Link to="/login">
                     <Button variant="ghost" size="sm" className="text-white/90 hover:text-white hover:bg-white/10">
                       <User className="mr-2 h-4 w-4" />
-                      Login
+                      {t('nav.login')}
                     </Button>
                   </Link>
                   <Link to="/signup">
                     <Button variant="outline" size="sm" className="text-white border-white hover:bg-white hover:text-primary">
-                      Sign Up
+                      {t('nav.signup')}
                     </Button>
                   </Link>
                 </div>
@@ -193,12 +195,12 @@ const Navigation = () => {
                   isActive('/') ? 'text-secondary bg-white/5' : ''
                 }`}
               >
-                Home
+                {t('nav.home')}
               </Link>
 
               {/* Learn Section */}
               <div className="px-4 py-2">
-                <div className="text-white/70 text-sm font-medium mb-2">Learn</div>
+                <div className="text-white/70 text-sm font-medium mb-2">{t('nav.learn')}</div>
                 {learnItems.map((item) => (
                   <Link
                     key={item.name}
@@ -215,7 +217,7 @@ const Navigation = () => {
 
               {/* Community Section */}
               <div className="px-4 py-2">
-                <div className="text-white/70 text-sm font-medium mb-2">Community</div>
+                <div className="text-white/70 text-sm font-medium mb-2">{t('nav.community')}</div>
                 {communityItems.map((item) => (
                   <Link
                     key={item.name}
@@ -233,7 +235,7 @@ const Navigation = () => {
               {/* Account Section - only show if logged in */}
               {user && (
                 <div className="px-4 py-2">
-                  <div className="text-white/70 text-sm font-medium mb-2">Account</div>
+                  <div className="text-white/70 text-sm font-medium mb-2">{t('nav.account')}</div>
                   {accountItems.map((item) => (
                     <Link
                       key={item.name}
@@ -252,7 +254,7 @@ const Navigation = () => {
               {/* Admin Section - only show for admins */}
               {profile?.role === 'admin' && (
                 <div className="px-4 py-2">
-                  <div className="text-white/70 text-sm font-medium mb-2">Admin</div>
+                  <div className="text-white/70 text-sm font-medium mb-2">{t('nav.admin')}</div>
                   {adminItems.map((item) => (
                     <Link
                       key={item.name}
@@ -285,7 +287,7 @@ const Navigation = () => {
                     className="text-white/90 hover:text-white hover:bg-white/10"
                   >
                     <LogOut className="h-4 w-4 mr-2" />
-                    Logout
+                    {t('nav.logout')}
                   </Button>
                 ) : (
                   <div className="flex gap-2">
