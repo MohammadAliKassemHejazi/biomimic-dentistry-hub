@@ -62,9 +62,8 @@ export const updateApplicationStatus = async (req: Request, res: Response) => {
     const application = affectedRows[0];
 
     if (status === 'approved' && application.userId) {
-      await User.update({ role: UserRole.AMBASSADOR }, {
-        where: { id: application.userId }
-      });
+      // We no longer change the user role to AMBASSADOR.
+      // Ambassador status is now determined by the existence of an AmbassadorProfile.
 
       const existingProfile = await AmbassadorProfile.findOne({
         where: { userId: application.userId }
@@ -118,7 +117,7 @@ export const updateUserRole = async (req: Request, res: Response) => {
     const { role } = req.body;
 
     // Validate role
-    const validRoles = ['user', 'vip', 'ambassador', 'admin'];
+    const validRoles = ['user', 'bronze', 'silver', 'gold', 'ambassador', 'admin'];
     if (!validRoles.includes(role)) {
       return res.status(400).json({ message: 'Invalid role' });
     }

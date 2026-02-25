@@ -8,7 +8,9 @@ interface User {
   email: string;
   first_name?: string;
   last_name?: string;
-  role: 'user' | 'admin' | 'ambassador' | 'vip';
+  role: 'user' | 'admin' | 'ambassador' | 'bronze' | 'silver' | 'gold';
+  is_ambassador?: boolean;
+  ambassador_profile?: any;
 }
 
 interface AuthContextType {

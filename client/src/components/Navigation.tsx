@@ -73,8 +73,17 @@ const Navigation = () => {
   // Safe access to role, default to 'user' if not present
   const userRole = user?.role || 'user';
   const userName = user?.first_name || user?.email?.split('@')[0] || 'User';
+  const isAmbassador = user?.is_ambassador || userRole === 'ambassador';
 
   const isActive = (href: string) => pathname === href;
+
+  const linkClass = (href: string) => `text-white/90 hover:text-white transition-colors font-medium px-3 py-2 rounded-md hover:bg-white/10 ${
+    isActive(href) ? 'text-secondary bg-white/5' : ''
+  }`;
+
+  const mobileLinkClass = (href: string) => `block px-4 py-3 text-white/90 hover:text-white hover:bg-white/10 rounded-lg transition-colors ${
+    isActive(href) ? 'text-secondary bg-white/5' : ''
+  }`;
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-primary shadow-soft">
@@ -98,12 +107,7 @@ const Navigation = () => {
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-4">
               {/* Home link */}
-              <Link
-                href="/"
-                className={`text-white/90 hover:text-white transition-colors font-medium px-3 py-2 rounded-md hover:bg-white/10 ${
-                  isActive('/') ? 'text-secondary bg-white/5' : ''
-                }`}
-              >
+              <Link href="/" className={linkClass('/')}>
                 Home
               </Link>
 
@@ -112,6 +116,20 @@ const Navigation = () => {
 
               {/* Community Dropdown */}
               <DropdownNav title="Community" items={communityItems} />
+
+              {/* Role Specific Links */}
+              {userRole === 'bronze' && (
+                <Link href="/bronze" className={linkClass('/bronze')}>Bronze VIP</Link>
+              )}
+              {userRole === 'silver' && (
+                <Link href="/silver" className={linkClass('/silver')}>Silver VIP</Link>
+              )}
+              {userRole === 'gold' && (
+                <Link href="/gold" className={linkClass('/gold')}>Gold VIP</Link>
+              )}
+              {isAmbassador && (
+                <Link href="/ambassador" className={linkClass('/ambassador')}>Ambassador</Link>
+              )}
 
               {/* User Account Dropdown - only show if logged in */}
               {user && (
@@ -148,6 +166,18 @@ const Navigation = () => {
                         Subscription
                       </Link>
                     </DropdownMenuItem>
+
+                    {isAmbassador && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem asChild>
+                          <Link href="/ambassador" className="cursor-pointer">
+                            Ambassador Dashboard
+                          </Link>
+                        </DropdownMenuItem>
+                      </>
+                    )}
+
                     {userRole === 'admin' && (
                       <>
                         <DropdownMenuSeparator />
@@ -206,9 +236,7 @@ const Navigation = () => {
               <Link
                 href="/"
                 onClick={() => setIsMenuOpen(false)}
-                className={`block px-4 py-3 text-white/90 hover:text-white hover:bg-white/10 rounded-lg transition-colors ${
-                  isActive('/') ? 'text-secondary bg-white/5' : ''
-                }`}
+                className={mobileLinkClass('/')}
               >
                 Home
               </Link>
@@ -221,9 +249,7 @@ const Navigation = () => {
                     key={item.name}
                     href={item.href}
                     onClick={() => setIsMenuOpen(false)}
-                    className={`block px-4 py-2 text-white/90 hover:text-white hover:bg-white/10 rounded-lg transition-colors ${
-                      isActive(item.href) ? 'text-secondary bg-white/5' : ''
-                    }`}
+                    className={mobileLinkClass(item.href)}
                   >
                     {item.name}
                   </Link>
@@ -238,14 +264,39 @@ const Navigation = () => {
                     key={item.name}
                     href={item.href}
                     onClick={() => setIsMenuOpen(false)}
-                    className={`block px-4 py-2 text-white/90 hover:text-white hover:bg-white/10 rounded-lg transition-colors ${
-                      isActive(item.href) ? 'text-secondary bg-white/5' : ''
-                    }`}
+                    className={mobileLinkClass(item.href)}
                   >
                     {item.name}
                   </Link>
                 ))}
               </div>
+
+              {/* Role Specific Sections */}
+              {(userRole === 'bronze' || userRole === 'silver' || userRole === 'gold' || isAmbassador) && (
+                <div className="px-4 py-2">
+                  <div className="text-white/70 text-sm font-medium mb-2">Member Areas</div>
+                  {userRole === 'bronze' && (
+                    <Link href="/bronze" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/bronze')}>
+                      Bronze VIP Area
+                    </Link>
+                  )}
+                  {userRole === 'silver' && (
+                    <Link href="/silver" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/silver')}>
+                      Silver VIP Area
+                    </Link>
+                  )}
+                  {userRole === 'gold' && (
+                    <Link href="/gold" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/gold')}>
+                      Gold VIP Area
+                    </Link>
+                  )}
+                  {isAmbassador && (
+                    <Link href="/ambassador" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/ambassador')}>
+                      Ambassador Dashboard
+                    </Link>
+                  )}
+                </div>
+              )}
 
               {/* Account Section - only show if logged in */}
               {user && (
@@ -256,9 +307,7 @@ const Navigation = () => {
                       key={item.name}
                       href={item.href}
                       onClick={() => setIsMenuOpen(false)}
-                      className={`block px-4 py-2 text-white/90 hover:text-white hover:bg-white/10 rounded-lg transition-colors ${
-                        isActive(item.href) ? 'text-secondary bg-white/5' : ''
-                      }`}
+                      className={mobileLinkClass(item.href)}
                     >
                       {item.name}
                     </Link>
@@ -275,9 +324,7 @@ const Navigation = () => {
                       key={item.name}
                       href={item.href}
                       onClick={() => setIsMenuOpen(false)}
-                      className={`block px-4 py-2 text-white/90 hover:text-white hover:bg-white/10 rounded-lg transition-colors ${
-                        isActive(item.href) ? 'text-secondary bg-white/5' : ''
-                      }`}
+                      className={mobileLinkClass(item.href)}
                     >
                       {item.name}
                     </Link>

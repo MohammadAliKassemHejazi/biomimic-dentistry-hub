@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
-import { User } from '../models';
+import { User, AmbassadorProfile } from '../models';
 import { generateToken } from '../utils/jwt';
 import { sendEmail } from '../utils/email';
 import { logActivity } from '../utils/activity';
@@ -56,6 +56,7 @@ export const register = async (req: Request, res: Response) => {
         firstName: user.firstName,
         lastName: user.lastName,
         role: user.role,
+        is_ambassador: false,
       },
       session: {
         access_token: token,
@@ -91,6 +92,7 @@ export const login = async (req: Request, res: Response) => {
 
     const user = await User.findOne({
       where: { email },
+      include: [AmbassadorProfile],
     });
 
     if (!user) {
@@ -114,6 +116,8 @@ export const login = async (req: Request, res: Response) => {
         firstName: user.firstName,
         lastName: user.lastName,
         role: user.role,
+        is_ambassador: !!user.ambassadorProfile,
+        ambassador_profile: user.ambassadorProfile,
       },
       session: {
         access_token: token,

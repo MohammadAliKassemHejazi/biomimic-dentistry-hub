@@ -34,63 +34,75 @@ export const updatePlan = async (req: Request, res: Response) => {
 
 export const seedPlans = async (req: Request, res: Response) => {
      try {
-        const count = await SubscriptionPlan.count();
-        if (count > 0) {
-            const plans = await SubscriptionPlan.findAll({ order: [['price', 'ASC']] });
-            return res.json({ message: 'Plans already exist', plans });
-        }
+        // Remove Ambassador plan if exists (since it's now free/add-on)
+        await SubscriptionPlan.destroy({ where: { key: 'ambassador' } });
+        // Remove old plans if they exist
+        await SubscriptionPlan.destroy({ where: { key: 'basic' } });
+        await SubscriptionPlan.destroy({ where: { key: 'vip' } });
 
         const plansData = [
           {
-            key: 'basic',
-            name: 'Basic',
+            key: 'bronze',
+            name: 'Bronze VIP',
             price: 29,
             interval: 'month',
-            stripePriceId: 'price_1S7EbEAI5O329ebg7Hqc1N1P',
+            stripePriceId: 'price_bronze_placeholder',
             features: [
-              'Access to basic courses',
-              'Community forum access',
-              'Monthly newsletter',
-              'Basic resources library'
+              'Monthly Q&A Sessions',
+              'Exclusive Course Discounts (20%)',
+              'Priority Email Support',
+              'VIP Community Access',
+              'Monthly Newsletter'
             ],
             popular: false
           },
           {
-            key: 'vip',
-            name: 'VIP',
-            price: 99,
+            key: 'silver',
+            name: 'Silver VIP',
+            price: 59,
             interval: 'month',
-            stripePriceId: 'price_1S7EbnAI5O329ebgzZ5CxmIj',
+            stripePriceId: 'price_silver_placeholder',
             features: [
-              'All Basic features',
-              'VIP exclusive content',
-              'Live Q&A sessions',
-              'Advanced resources',
-              'Priority support',
-              'Certification courses'
+              'All Bronze Benefits',
+              'Bi-weekly Group Mentorship',
+              'Course Discounts (40%)',
+              'Direct Mentor Access',
+              'Case Study Reviews',
+              'Early Course Access'
             ],
             popular: true
           },
           {
-            key: 'ambassador',
-            name: 'Ambassador',
-            price: 199,
+            key: 'gold',
+            name: 'Gold VIP',
+            price: 99,
             interval: 'month',
-            stripePriceId: 'price_1S7Ec2AI5O329ebgXUxKBPK7',
+            stripePriceId: 'price_gold_placeholder',
             features: [
-              'All VIP features',
-              'Ambassador network access',
-              'Mentorship programs',
-              'Research collaborations',
-              'Speaking opportunities',
-              'Revenue sharing'
+              'All Silver Benefits',
+              'Weekly 1:1 Mentorship',
+              'Free Course Access',
+              'Personal Career Guidance',
+              'Research Collaboration',
+              'Speaking Opportunities'
             ],
             popular: false
           }
         ];
 
-        const createdPlans = await SubscriptionPlan.bulkCreate(plansData);
-        res.status(201).json({ message: 'Plans seeded', plans: createdPlans });
+        for (const plan of plansData) {
+            const [p, created] = await SubscriptionPlan.findOrCreate({
+                where: { key: plan.key },
+                defaults: plan
+            });
+            if (!created) {
+                // Update existing plan details
+                await p.update(plan);
+            }
+        }
+
+        const allPlans = await SubscriptionPlan.findAll({ order: [['price', 'ASC']] });
+        res.status(200).json({ message: 'Plans seeded/updated', plans: allPlans });
      } catch (error) {
         console.error('Error seeding plans:', error);
         res.status(500).json({ message: 'Error seeding plans' });
