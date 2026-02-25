@@ -14,6 +14,7 @@ if (missingEnvVars.length > 0) {
 
 import cors from 'cors';
 import helmet from 'helmet';
+import path from 'path';
 import authRoutes from './routes/auth.routes';
 import courseRoutes from './routes/course.routes';
 import resourceRoutes from './routes/resource.routes';
@@ -32,8 +33,11 @@ const app = express();
 const port = process.env.PORT || 5000;
 
 app.use(cors());
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
 app.use(express.json());
+app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
 
 // Database connection
 sequelize.authenticate()

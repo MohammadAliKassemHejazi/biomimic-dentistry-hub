@@ -13,7 +13,11 @@ export const getMembers = async (req: Request, res: Response) => {
 
 export const createMember = async (req: Request, res: Response) => {
   try {
-    const member = await LeadershipMember.create(req.body);
+    const data = { ...req.body };
+    if (req.file) {
+      data.image = `/uploads/${req.file.filename}`;
+    }
+    const member = await LeadershipMember.create(data);
     res.status(201).json(member);
   } catch (error) {
     console.error('Error creating member:', error);
@@ -24,7 +28,11 @@ export const createMember = async (req: Request, res: Response) => {
 export const updateMember = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const [updated] = await LeadershipMember.update(req.body, { where: { id } });
+    const data = { ...req.body };
+    if (req.file) {
+      data.image = `/uploads/${req.file.filename}`;
+    }
+    const [updated] = await LeadershipMember.update(data, { where: { id } });
     if (updated) {
       const updatedMember = await LeadershipMember.findByPk(id as string);
       res.json(updatedMember);

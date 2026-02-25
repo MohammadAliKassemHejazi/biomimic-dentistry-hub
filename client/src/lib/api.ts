@@ -13,24 +13,27 @@ export const api = {
     return fetchWithAuth<T>(endpoint, { ...options, method: 'GET' });
   },
   post: async <T>(endpoint: string, body: any, options: FetchOptions = {}): Promise<T> => {
+    const isFormData = body instanceof FormData;
     return fetchWithAuth<T>(endpoint, {
       ...options,
       method: 'POST',
-      body: JSON.stringify(body),
+      body: isFormData ? body : JSON.stringify(body),
     });
   },
   put: async <T>(endpoint: string, body: any, options: FetchOptions = {}): Promise<T> => {
+    const isFormData = body instanceof FormData;
     return fetchWithAuth<T>(endpoint, {
       ...options,
       method: 'PUT',
-      body: JSON.stringify(body),
+      body: isFormData ? body : JSON.stringify(body),
     });
   },
   patch: async <T>(endpoint: string, body: any, options: FetchOptions = {}): Promise<T> => {
+    const isFormData = body instanceof FormData;
     return fetchWithAuth<T>(endpoint, {
       ...options,
       method: 'PATCH',
-      body: JSON.stringify(body),
+      body: isFormData ? body : JSON.stringify(body),
     });
   },
   delete: async <T>(endpoint: string, options: FetchOptions = {}): Promise<T> => {
@@ -41,11 +44,14 @@ export const api = {
 async function fetchWithAuth<T>(endpoint: string, options: FetchOptions): Promise<T> {
   const token = Cookies.get('token');
 
-  const headers = {
-    'Content-Type': 'application/json',
+  const headers: Record<string, string> = {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...options.headers,
   };
+
+  if (!(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+  }
 
   const { skipErrorHandling, ...fetchOptions } = options;
 

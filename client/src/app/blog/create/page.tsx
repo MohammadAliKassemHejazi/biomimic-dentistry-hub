@@ -16,6 +16,7 @@ export default function CreateBlogPage() {
     const { toast } = useToast();
     const router = useRouter();
     const [loading, setLoading] = useState(false);
+    const [file, setFile] = useState<File | null>(null);
     const [formData, setFormData] = useState({
         title: '',
         excerpt: '',
@@ -30,7 +31,14 @@ export default function CreateBlogPage() {
         e.preventDefault();
         setLoading(true);
         try {
-            await api.post('/blog/posts', formData);
+            const data = new FormData();
+            Object.entries(formData).forEach(([key, value]) => {
+                data.append(key, value);
+            });
+            if (file) {
+                data.append('featured_image', file);
+            }
+            await api.post('/blog/posts', data);
             toast({ title: "Success", description: "Blog post submitted for review." });
             router.push('/blog');
         } catch (error: any) {
@@ -69,8 +77,13 @@ export default function CreateBlogPage() {
                             <Input id="read_time" type="number" value={formData.read_time} onChange={e => setFormData({...formData, read_time: e.target.value})} />
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="featured_image">Featured Image URL</Label>
-                            <Input id="featured_image" value={formData.featured_image} onChange={e => setFormData({...formData, featured_image: e.target.value})} placeholder="https://..." />
+                            <Label htmlFor="featured_image">Featured Image (Upload)</Label>
+                            <Input type="file" onChange={e => setFile(e.target.files?.[0] || null)} />
+                            <p className="text-sm text-muted-foreground">Uploading will override URL.</p>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="featured_image_url">Featured Image URL (if not uploading)</Label>
+                            <Input id="featured_image_url" value={formData.featured_image} onChange={e => setFormData({...formData, featured_image: e.target.value})} placeholder="https://..." />
                         </div>
                         <div className="space-y-2">
                             <Label htmlFor="excerpt">Excerpt</Label>
