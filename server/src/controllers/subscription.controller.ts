@@ -39,8 +39,7 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
 
     if (!userId || !userEmail) return res.status(401).json({ message: 'Unauthorized' });
 
-    const user = await User.findByPk(userId);
-    let customerId = user?.stripeCustomerId;
+    let customerId = req.user?.stripeCustomerId;
 
     if (!customerId) {
       const customer = await stripe.customers.create({
@@ -73,14 +72,14 @@ export const createPortalSession = async (req: Request, res: Response) => {
     const userId = req.user?.id;
     if (!userId) return res.status(401).json({ message: 'Unauthorized' });
 
-    const user = await User.findByPk(userId);
+    const customerId = req.user?.stripeCustomerId;
 
-    if (!user?.stripeCustomerId) {
+    if (!customerId) {
         return res.status(400).json({ message: 'No billing account found' });
     }
 
     const session = await stripe.billingPortal.sessions.create({
-      customer: user.stripeCustomerId,
+      customer: customerId,
       return_url: `${process.env.CLIENT_URL || 'http://localhost:3000'}/subscription`,
     });
 
