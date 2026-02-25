@@ -4,13 +4,27 @@ import { User } from '../models';
 import { generateToken } from '../utils/jwt';
 import { sendEmail } from '../utils/email';
 import { logActivity } from '../utils/activity';
+import { isValidEmail, isValidPassword, isNonEmptyString, isString } from '../utils/validation';
 
 export const register = async (req: Request, res: Response) => {
   try {
     const { email, password, firstName, lastName } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ message: 'Email and password are required' });
+    // Input Validation
+    if (!email || !isValidEmail(email)) {
+      return res.status(400).json({ message: 'A valid email is required' });
+    }
+
+    if (!password || !isValidPassword(password)) {
+      return res.status(400).json({ message: 'Password must be at least 8 characters long' });
+    }
+
+    if (firstName && !isString(firstName)) {
+      return res.status(400).json({ message: 'First name must be a string' });
+    }
+
+    if (lastName && !isString(lastName)) {
+      return res.status(400).json({ message: 'Last name must be a string' });
     }
 
     const existingUser = await User.findOne({
@@ -67,8 +81,12 @@ export const login = async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ message: 'Email and password are required' });
+    if (!email || !isValidEmail(email)) {
+      return res.status(400).json({ message: 'A valid email is required' });
+    }
+
+    if (!password) {
+      return res.status(400).json({ message: 'Password is required' });
     }
 
     const user = await User.findOne({
@@ -127,8 +145,8 @@ export const forgotPassword = async (req: Request, res: Response) => {
   try {
     const { email } = req.body;
 
-    if (!email) {
-      return res.status(400).json({ message: "Email is required" });
+    if (!email || !isValidEmail(email)) {
+      return res.status(400).json({ message: "A valid email is required" });
     }
 
     const user = await User.findOne({ where: { email } });
