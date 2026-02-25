@@ -342,12 +342,22 @@ export default function AdminDashboard() {
                                         <DialogTitle>{editingItem ? 'Edit Partner' : 'Add Partner'}</DialogTitle>
                                     </DialogHeader>
                                     <form onSubmit={handlePartnerSubmit} className="space-y-4">
-                                        <div className="space-y-2"><Label>Name</Label><Input name="name" defaultValue={editingItem?.name} required /></div>
-                                        <div className="space-y-2"><Label>Role</Label><Input name="role" defaultValue={editingItem?.role} required /></div>
-                                        <div className="space-y-2"><Label>Description</Label><Textarea name="description" defaultValue={editingItem?.description} required /></div>
+                                        <div className="space-y-2">
+                                            <Label>Name</Label>
+                                            <Input name="name" defaultValue={editingItem?.name} placeholder="e.g. Acme Dental" required />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Role</Label>
+                                            <Input name="role" defaultValue={editingItem?.role} placeholder="e.g. Equipment Supplier" required />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Description</Label>
+                                            <Textarea name="description" defaultValue={editingItem?.description} placeholder="Brief description of the partner..." required />
+                                        </div>
                                         <div className="space-y-2">
                                             <Label>Logo (URL/Emoji)</Label>
-                                            <Input name="logo" defaultValue={editingItem?.logo} />
+                                            <Input name="logo" defaultValue={editingItem?.logo} placeholder="https://... or 🦷" />
+                                            <p className="text-[0.8rem] text-muted-foreground">Provide a URL or an emoji.</p>
                                         </div>
                                         <div className="space-y-2">
                                             <Label>Or Upload Logo</Label>
@@ -411,22 +421,49 @@ export default function AdminDashboard() {
                                         <DialogTitle>{editingItem ? 'Edit Member' : 'Add Member'}</DialogTitle>
                                     </DialogHeader>
                                     <form onSubmit={handleMemberSubmit} className="space-y-4">
-                                        <div className="space-y-2"><Label>Name</Label><Input name="name" defaultValue={editingItem?.name} required /></div>
-                                        <div className="space-y-2"><Label>Role / Title</Label><Input name="role" defaultValue={editingItem?.role} required /></div>
-                                        <div className="space-y-2"><Label>Bio</Label><Textarea name="bio" defaultValue={editingItem?.bio} required /></div>
+                                        <div className="space-y-2">
+                                            <Label>Name</Label>
+                                            <Input name="name" defaultValue={editingItem?.name} placeholder="e.g. Dr. Jane Doe" required />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Role / Title</Label>
+                                            <Input name="role" defaultValue={editingItem?.role} placeholder="e.g. Clinical Director" required />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Bio</Label>
+                                            <Textarea name="bio" defaultValue={editingItem?.bio} placeholder="Short professional biography..." required />
+                                        </div>
                                         <div className="space-y-2">
                                             <Label>Image (Emoji or URL)</Label>
-                                            <Input name="image" defaultValue={editingItem?.image} placeholder="Leave blank for auto-emoji" />
+                                            <Input name="image" defaultValue={editingItem?.image} placeholder="https://... or 👨‍⚕️" />
+                                            <p className="text-[0.8rem] text-muted-foreground">Leave blank to auto-generate based on title.</p>
                                         </div>
                                         <div className="space-y-2">
                                             <Label>Or Upload Image</Label>
                                             <Input name="image" type="file" />
                                         </div>
-                                        <div className="space-y-2"><Label>Expertise</Label><Input name="expertise" defaultValue={editingItem?.expertise} /></div>
-                                        <div className="space-y-2"><Label>Achievements</Label><Input name="achievements" defaultValue={editingItem?.achievements} /></div>
-                                        <div className="space-y-2"><Label>Status (e.g. Founder, Advisor)</Label><Input name="status" defaultValue={editingItem?.status} /></div>
-                                        <div className="space-y-2"><Label>LinkedIn</Label><Input name="linkedin" defaultValue={editingItem?.linkedin} /></div>
-                                        <div className="space-y-2"><Label>Twitter</Label><Input name="twitter" defaultValue={editingItem?.twitter} /></div>
+                                        <div className="space-y-2">
+                                            <Label>Expertise</Label>
+                                            <Input name="expertise" defaultValue={editingItem?.expertise} placeholder="e.g. Endodontics, Bonding" />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Achievements</Label>
+                                            <Input name="achievements" defaultValue={editingItem?.achievements} placeholder="e.g. Published 50+ papers" />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label>Status</Label>
+                                            <Input name="status" defaultValue={editingItem?.status} placeholder="e.g. Founder, Board Member" />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <Label>LinkedIn</Label>
+                                                <Input name="linkedin" defaultValue={editingItem?.linkedin} placeholder="Profile URL" />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label>Twitter</Label>
+                                                <Input name="twitter" defaultValue={editingItem?.twitter} placeholder="@handle" />
+                                            </div>
+                                        </div>
                                         <Button type="submit" className="w-full">Save</Button>
                                     </form>
                                 </DialogContent>
@@ -497,7 +534,7 @@ export default function AdminDashboard() {
                                                             <div className="space-y-2"><Label>Interval</Label><Input name="interval" defaultValue={p.interval} required /></div>
                                                             <div className="space-y-2">
                                                                 <Label>Features (one per line)</Label>
-                                                                <Textarea name="features" defaultValue={p.features?.join('\n')} rows={5} required />
+                                                                <Textarea name="features" defaultValue={p.features?.join('\n')} rows={5} placeholder="- Access to all courses&#10;- Weekly webinars" required />
                                                             </div>
                                                             <div className="flex items-center space-x-2">
                                                                 <input type="checkbox" name="popular" id="popular" defaultChecked={p.popular} />
@@ -599,10 +636,19 @@ export default function AdminDashboard() {
                                             <DialogTitle>Add New Resource</DialogTitle>
                                         </DialogHeader>
                                         <form onSubmit={handleResourceSubmit} className="space-y-4">
-                                            <div className="space-y-2"><Label>Title</Label><Input name="title" required /></div>
-                                            <div className="space-y-2"><Label>Description</Label><Textarea name="description" rows={3} /></div>
+                                            <div className="space-y-2">
+                                                <Label>Title</Label>
+                                                <Input name="title" placeholder="e.g. Clinical Protocol 2024" required />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label>Description</Label>
+                                                <Textarea name="description" rows={3} placeholder="Brief description..." />
+                                            </div>
                                             <div className="grid grid-cols-2 gap-4">
-                                                <div className="space-y-2"><Label>Category</Label><Input name="category" /></div>
+                                                <div className="space-y-2">
+                                                    <Label>Category</Label>
+                                                    <Input name="category" placeholder="e.g. Protocols" />
+                                                </div>
                                                 <div className="space-y-2">
                                                     <Label>File Type</Label>
                                                     <Select name="file_type" defaultValue="PDF">
@@ -616,16 +662,26 @@ export default function AdminDashboard() {
                                                     </Select>
                                                 </div>
                                             </div>
-                                            <div className="space-y-2"><Label>Tags</Label><Input name="tags" placeholder="guide, protocol" /></div>
+                                            <div className="space-y-2">
+                                                <Label>Tags</Label>
+                                                <Input name="tags" placeholder="guide, protocol, adhesive" />
+                                                <p className="text-[0.8rem] text-muted-foreground">Comma separated.</p>
+                                            </div>
 
                                             <div className="space-y-2">
                                                 <Label>Upload File</Label>
                                                 <Input name="file" type="file" />
-                                                <p className="text-sm text-muted-foreground">Uploading a file will override the URL below.</p>
+                                                <p className="text-[0.8rem] text-muted-foreground">Uploading a file will override the URL below.</p>
                                             </div>
 
-                                            <div className="space-y-2"><Label>File URL (if not uploading)</Label><Input name="file_url" placeholder="https://..." /></div>
-                                            <div className="space-y-2"><Label>File Name (display)</Label><Input name="file_name" placeholder="MyResource.pdf" /></div>
+                                            <div className="space-y-2">
+                                                <Label>File URL (if not uploading)</Label>
+                                                <Input name="file_url" placeholder="https://..." />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label>File Name (display)</Label>
+                                                <Input name="file_name" placeholder="MyResource.pdf" />
+                                            </div>
 
                                             <div className="space-y-2">
                                                 <Label>Access Level</Label>
