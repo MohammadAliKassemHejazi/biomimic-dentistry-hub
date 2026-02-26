@@ -112,8 +112,12 @@ const Dashboard = () => {
         return <Crown className="h-5 w-5 text-red-500" />;
       case 'ambassador':
         return <Star className="h-5 w-5 text-purple-500" />;
-      case 'vip':
-        return <Star className="h-5 w-5 text-yellow-500" />;
+      case 'gold':
+        return <Crown className="h-5 w-5 text-yellow-500" />;
+      case 'silver':
+        return <Star className="h-5 w-5 text-gray-400" />;
+      case 'bronze':
+        return <Trophy className="h-5 w-5 text-amber-600" />;
       default:
         return <User className="h-5 w-5 text-gray-500" />;
     }
@@ -123,13 +127,25 @@ const Dashboard = () => {
     const variants = {
       admin: 'destructive',
       ambassador: 'secondary',
-      vip: 'outline',
+      gold: 'outline',
+      silver: 'secondary',
+      bronze: 'secondary',
       user: 'default'
     } as const;
 
+    // Map internal role names to display names if needed
+    const displayNames: Record<string, string> = {
+        'gold': 'GOLD VIP',
+        'silver': 'SILVER VIP',
+        'bronze': 'BRONZE VIP',
+        'admin': 'ADMIN',
+        'ambassador': 'AMBASSADOR',
+        'user': 'USER'
+    };
+
     return (
       <Badge variant={variants[role as keyof typeof variants] || 'default'}>
-        {role.toUpperCase()}
+        {displayNames[role] || role.toUpperCase()}
       </Badge>
     );
   };
@@ -185,6 +201,9 @@ const Dashboard = () => {
               <div className="flex items-center gap-3">
                 {getRoleIcon(user?.role || 'user')}
                 {getRoleBadge(user?.role || 'user')}
+                {user?.is_ambassador && user?.role !== 'ambassador' && (
+                    <Badge variant="secondary" className="bg-purple-500/10 text-purple-500 hover:bg-purple-500/20">AMBASSADOR</Badge>
+                )}
               </div>
             </div>
           </motion.div>
@@ -360,8 +379,8 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
 
-              {/* Ambassador Application Card - Only for Users */}
-              {user?.role === 'user' && (
+              {/* Ambassador Application Card - Only for those who are NOT ambassadors and NOT admins */}
+              {!user?.is_ambassador && user?.role !== 'admin' && (
                 <Card className="mt-6 border-secondary/20 bg-secondary/5">
                   <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2">
@@ -433,18 +452,37 @@ const Dashboard = () => {
                 </Card>
               )}
 
-              {/* Ambassador/Admin Tools Link */}
-              {(user?.role === 'ambassador' || user?.role === 'admin') && (
-                 <Card className="mt-6 border-secondary/20 bg-secondary/5">
+              {/* Admin Tools Link */}
+              {user?.role === 'admin' && (
+                 <Card className="mt-6 border-red-500/20 bg-red-500/5">
                     <CardHeader>
                         <CardTitle className="text-lg flex items-center gap-2">
-                            <Crown className="h-5 w-5 text-secondary" />
-                            {user.role === 'admin' ? 'Admin' : 'Ambassador'} Tools
+                            <Crown className="h-5 w-5 text-red-500" />
+                            Admin Dashboard
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <Button className="w-full" variant="destructive" asChild>
+                            <Link href="/admin">
+                                Go to Dashboard
+                            </Link>
+                        </Button>
+                    </CardContent>
+                 </Card>
+              )}
+
+              {/* Ambassador Tools Link */}
+              {user?.is_ambassador && (
+                 <Card className="mt-6 border-purple-500/20 bg-purple-500/5">
+                    <CardHeader>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                            <Star className="h-5 w-5 text-purple-500" />
+                            Ambassador Dashboard
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
                         <Button className="w-full" variant="secondary" asChild>
-                            <Link href={user.role === 'admin' ? '/admin' : '/ambassador'}>
+                            <Link href="/ambassador">
                                 Go to Dashboard
                             </Link>
                         </Button>

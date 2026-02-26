@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { User, Purchase, Subscription, ActivityLog } from '../models';
+import { User, Purchase, Subscription, ActivityLog, AmbassadorProfile } from '../models';
 import { PurchaseStatus } from '../types/enums';
 
 export const getProfile = async (req: Request, res: Response) => {
@@ -10,7 +10,7 @@ export const getProfile = async (req: Request, res: Response) => {
     const userId = req.user.id;
 
     const user = await User.findByPk(userId, {
-      include: [Subscription],
+      include: [Subscription, AmbassadorProfile],
     });
 
     if (!user) {
@@ -25,6 +25,8 @@ export const getProfile = async (req: Request, res: Response) => {
       first_name: user.firstName,
       last_name: user.lastName,
       role: user.role,
+      is_ambassador: !!user.ambassadorProfile,
+      ambassador_profile: user.ambassadorProfile,
       created_at: user.createdAt,
     });
   } catch (error) {
