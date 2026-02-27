@@ -2,7 +2,7 @@ export enum UserRole {
   USER = 'user',
   BRONZE = 'bronze',
   SILVER = 'silver',
-  GOLD = 'gold',
+  VIP = 'vip',
   AMBASSADOR = 'ambassador', // Kept for backward compatibility, but primarily an add-on status now
   ADMIN = 'admin',
 }
@@ -11,8 +11,7 @@ export enum AccessLevel {
   PUBLIC = 'public',
   BRONZE = 'bronze',
   SILVER = 'silver',
-  GOLD = 'gold',
-  VIP = 'gold', // For backward compatibility with old 'vip' level if needed
+  VIP = 'vip',
 }
 
 export enum ContentStatus {

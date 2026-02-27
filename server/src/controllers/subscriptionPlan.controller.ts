@@ -38,7 +38,8 @@ export const seedPlans = async (req: Request, res: Response) => {
         await SubscriptionPlan.destroy({ where: { key: 'ambassador' } });
         // Remove old plans if they exist
         await SubscriptionPlan.destroy({ where: { key: 'basic' } });
-        await SubscriptionPlan.destroy({ where: { key: 'vip' } });
+        // Clean up old 'gold' plan to replace with 'vip'
+        await SubscriptionPlan.destroy({ where: { key: 'gold' } });
 
         const plansData = [
           {
@@ -73,11 +74,11 @@ export const seedPlans = async (req: Request, res: Response) => {
             popular: true
           },
           {
-            key: 'gold',
-            name: 'Gold VIP',
+            key: 'vip',
+            name: 'VIP',
             price: 99,
             interval: 'month',
-            stripePriceId: 'price_gold_placeholder',
+            stripePriceId: 'price_vip_placeholder',
             features: [
               'All Silver Benefits',
               'Weekly 1:1 Mentorship',

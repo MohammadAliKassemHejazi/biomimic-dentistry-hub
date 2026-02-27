@@ -112,7 +112,8 @@ const Dashboard = () => {
         return <Crown className="h-5 w-5 text-red-500" />;
       case 'ambassador':
         return <Star className="h-5 w-5 text-purple-500" />;
-      case 'gold':
+      case 'vip':
+      case 'gold': // Keep for backward compatibility
         return <Crown className="h-5 w-5 text-yellow-500" />;
       case 'silver':
         return <Star className="h-5 w-5 text-gray-400" />;
@@ -128,6 +129,7 @@ const Dashboard = () => {
       admin: 'destructive',
       ambassador: 'secondary',
       gold: 'outline',
+      vip: 'outline',
       silver: 'secondary',
       bronze: 'secondary',
       user: 'default'
@@ -135,7 +137,8 @@ const Dashboard = () => {
 
     // Map internal role names to display names if needed
     const displayNames: Record<string, string> = {
-        'gold': 'GOLD VIP',
+        'gold': 'VIP',
+        'vip': 'VIP',
         'silver': 'SILVER VIP',
         'bronze': 'BRONZE VIP',
         'admin': 'ADMIN',
