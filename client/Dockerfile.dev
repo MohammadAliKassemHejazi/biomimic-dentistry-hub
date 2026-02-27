@@ -2,9 +2,11 @@ FROM node:20-alpine
 
 WORKDIR /app
 
+# Disable Next.js telemetry
+ENV NEXT_TELEMETRY_DISABLED=1
+
 # Copy package files
 COPY package*.json ./
-
 
 # Install dependencies
 RUN npm install
@@ -12,11 +14,8 @@ RUN npm install
 # Copy source code
 COPY . .
 
-# Build the application
-RUN npm run build
-
 # Expose port
-EXPOSE 5000
+EXPOSE 3000
 
-# Start command
-CMD ["npm", "start"]
+# Start command for development
+CMD ["npm", "run", "dev"]

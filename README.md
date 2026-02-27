@@ -66,7 +66,7 @@ The `docker-compose.yml` file comes with default environment variables for devel
   - `POSTGRES_DB`: app_db
 
 - **Server:**
-  - `DATABASE_URL`: postgres://postgres:postgres@db:5432/app_db
+  - `DATABASE_URL`: postgres://postgres:postgres@db:5435/app_db
   - `JWT_SECRET`: dev_secret_key_123
   - `STRIPE_SECRET_KEY`: sk_test_placeholder
 
@@ -75,7 +75,7 @@ The `docker-compose.yml` file comes with default environment variables for devel
 
 ## Troubleshooting
 
-- **Ports already in use:** Ensure that ports 3000, 5000, and 5432 are not being used by other applications on your host machine.
+- **Ports already in use:** Ensure that ports 3000, 5000, and 5435 are not being used by other applications on your host machine.
 - **Node Modules:** The setup uses volume tricks to prevent your local `node_modules` from interfering with the container's `node_modules`. If you add a new dependency, you may need to rebuild the containers:
   ```bash
   docker compose up --build
