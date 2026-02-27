@@ -13,7 +13,10 @@ CMD ["npm", "run", "dev"]
 
 # Production stage
 FROM base AS production
-RUN npm install --production
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+
+RUN npm install
 COPY . .
 RUN npm run build
 EXPOSE 3000
