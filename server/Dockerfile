@@ -12,8 +12,8 @@ CMD ["npm", "run", "dev"]
 
 # Production stage
 FROM base AS production
-RUN npm install --production
+RUN npm install
 COPY . .
-RUN npm install typescript -g && npm run build
+RUN npm run build
 EXPOSE 5000
 CMD ["npm", "start"]
