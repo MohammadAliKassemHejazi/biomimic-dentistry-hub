@@ -117,7 +117,8 @@ export const updateUserRole = async (req: Request, res: Response) => {
     const { role } = req.body;
 
     // Validate role
-    const validRoles = ['user', 'bronze', 'silver', 'gold', 'ambassador', 'admin'];
+    // 'gold' kept for backward compatibility if needed, but primarily 'vip'
+    const validRoles = ['user', 'bronze', 'silver', 'vip', 'ambassador', 'admin'];
     if (!validRoles.includes(role)) {
       return res.status(400).json({ message: 'Invalid role' });
     }

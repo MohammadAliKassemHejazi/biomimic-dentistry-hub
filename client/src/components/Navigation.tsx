@@ -124,8 +124,8 @@ const Navigation = () => {
               {userRole === 'silver' && (
                 <Link href="/silver" className={linkClass('/silver')}>Silver VIP</Link>
               )}
-              {userRole === 'gold' && (
-                <Link href="/gold" className={linkClass('/gold')}>Gold VIP</Link>
+              {(userRole === 'vip' || userRole === 'gold') && (
+                <Link href="/vip" className={linkClass('/vip')}>VIP Area</Link>
               )}
               {isAmbassador && (
                 <Link href="/ambassador" className={linkClass('/ambassador')}>Ambassador</Link>
@@ -272,7 +272,7 @@ const Navigation = () => {
               </div>
 
               {/* Role Specific Sections */}
-              {(userRole === 'bronze' || userRole === 'silver' || userRole === 'gold' || isAmbassador) && (
+              {(userRole === 'bronze' || userRole === 'silver' || userRole === 'vip' || userRole === 'gold' || isAmbassador) && (
                 <div className="px-4 py-2">
                   <div className="text-white/70 text-sm font-medium mb-2">Member Areas</div>
                   {userRole === 'bronze' && (
@@ -285,9 +285,9 @@ const Navigation = () => {
                       Silver VIP Area
                     </Link>
                   )}
-                  {userRole === 'gold' && (
-                    <Link href="/gold" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/gold')}>
-                      Gold VIP Area
+                  {(userRole === 'vip' || userRole === 'gold') && (
+                    <Link href="/vip" onClick={() => setIsMenuOpen(false)} className={mobileLinkClass('/vip')}>
+                      VIP Area
                     </Link>
                   )}
                   {isAmbassador && (

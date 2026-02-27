@@ -1,3 +1,5 @@
+"use client";
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Cookies from 'js-cookie';
@@ -8,9 +10,8 @@ interface User {
   email: string;
   first_name?: string;
   last_name?: string;
-  role: 'user' | 'admin' | 'ambassador' | 'bronze' | 'silver' | 'gold';
+  role: 'user' | 'admin' | 'ambassador' | 'bronze' | 'silver' | 'vip';
   is_ambassador?: boolean;
-  ambassador_profile?: any;
 }
 
 interface AuthContextType {
@@ -42,7 +43,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
 
     try {
+      // Assuming backend returns user object with 'role'
       const userData = await api.get<User>('/users/profile');
+      // Map potential 'gold' role to 'vip' if backend returns old data
+      if (userData.role === 'gold' as any) {
+         userData.role = 'vip';
+      }
       setUser(userData);
     } catch (error) {
       console.error('Failed to fetch user profile:', error);
@@ -65,6 +71,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       const { user, session } = response;
       const token = session.access_token;
+
+      // Map potential 'gold' role to 'vip'
+      if (user.role === 'gold' as any) {
+         user.role = 'vip';
+      }
 
       // Store token in cookie
       Cookies.set('token', token, { expires: 7 }); // Expires in 7 days
@@ -93,6 +104,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       const { user, session } = response;
       const token = session.access_token;
+
+      // Map potential 'gold' role to 'vip'
+      if (user.role === 'gold' as any) {
+         user.role = 'vip';
+      }
 
       Cookies.set('token', token, { expires: 7 });
       setUser(user);
