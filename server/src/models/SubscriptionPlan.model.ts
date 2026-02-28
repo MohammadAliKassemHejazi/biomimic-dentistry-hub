@@ -33,4 +33,7 @@ export class SubscriptionPlan extends Model {
 
   @Column(DataType.STRING)
   stripePriceId!: string;
+
+  @Column(DataType.STRING)
+  icon!: string; // 'Trophy', 'Star', 'Crown'
 }
