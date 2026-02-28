@@ -50,11 +50,12 @@ const VIPSection = () => {
     return '👤';
   };
 
-  const getIconForKey = (key: string) => {
-    switch(key) {
-        case 'basic': return Trophy; // Bronze equivalent
-        case 'vip': return Star; // Silver equivalent
-        case 'ambassador': return Crown; // Gold equivalent
+  const getIconForName = (iconName: string) => {
+    switch(iconName?.toLowerCase()) {
+        case 'trophy': return Trophy;
+        case 'star': return Star;
+        case 'crown': return Crown;
+        case 'zap': return Zap;
         default: return Star;
     }
   };
@@ -85,7 +86,7 @@ const VIPSection = () => {
                features: p.features,
                popular: p.popular,
                key: p.key,
-               icon: getIconForKey(p.key),
+               icon: getIconForName(p.icon),
                color: getColorForKey(p.key)
            }));
            // Sort plans by price to ensure correct order (Basic -> VIP -> Ambassador)

@@ -87,6 +87,7 @@ interface SubscriptionPlan {
     features: string[];
     popular: boolean;
     stripePriceId: string;
+    icon?: string;
 }
 
 export default function AdminDashboard() {
@@ -577,6 +578,10 @@ export default function AdminDashboard() {
                                                             <div className="space-y-2"><Label>Key</Label><Input name="key" defaultValue={p.key} required /></div>
                                                             <div className="space-y-2"><Label>Stripe Price ID</Label><Input name="stripePriceId" defaultValue={p.stripePriceId} required /></div>
                                                             <div className="space-y-2"><Label>Interval</Label><Input name="interval" defaultValue={p.interval} required /></div>
+                                                            <div className="space-y-2">
+                                                                <Label>Icon Name (e.g. Trophy, Star, Crown, Zap)</Label>
+                                                                <Input name="icon" defaultValue={p.icon || 'Star'} required />
+                                                            </div>
                                                             <div className="space-y-2">
                                                                 <Label>Features (one per line)</Label>
                                                                 <Textarea name="features" defaultValue={p.features?.join('\n')} rows={5} placeholder="- Access to all courses&#10;- Weekly webinars" required />

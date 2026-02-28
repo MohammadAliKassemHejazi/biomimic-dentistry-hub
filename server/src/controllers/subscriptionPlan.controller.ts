@@ -14,10 +14,10 @@ export const getPlans = async (req: Request, res: Response) => {
 export const updatePlan = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { name, features, popular, interval, price, key, stripePriceId } = req.body;
+    const { name, features, popular, interval, price, key, stripePriceId, icon } = req.body;
 
     const [updated] = await SubscriptionPlan.update({
-        name, features, popular, interval, price, key, stripePriceId
+        name, features, popular, interval, price, key, stripePriceId, icon
     }, { where: { id } });
 
     if (updated) {
@@ -55,7 +55,8 @@ export const seedPlans = async (req: Request, res: Response) => {
               'VIP Community Access',
               'Monthly Newsletter'
             ],
-            popular: false
+            popular: false,
+            icon: 'Trophy'
           },
           {
             key: 'silver',
@@ -71,7 +72,8 @@ export const seedPlans = async (req: Request, res: Response) => {
               'Case Study Reviews',
               'Early Course Access'
             ],
-            popular: true
+            popular: true,
+            icon: 'Star'
           },
           {
             key: 'vip',
@@ -87,7 +89,8 @@ export const seedPlans = async (req: Request, res: Response) => {
               'Research Collaboration',
               'Speaking Opportunities'
             ],
-            popular: false
+            popular: false,
+            icon: 'Crown'
           }
         ];
 
