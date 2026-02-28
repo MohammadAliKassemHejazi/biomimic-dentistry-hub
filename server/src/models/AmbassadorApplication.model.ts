@@ -28,6 +28,12 @@ export class AmbassadorApplication extends Model {
   @Column(DataType.TEXT)
   bio?: string;
 
+  @Column(DataType.TEXT)
+  socialMediaLinks?: string;
+
+  @Column(DataType.TEXT)
+  cv?: string;
+
   @Default(AmbassadorApplicationStatus.PENDING)
   @Column(DataType.ENUM(...Object.values(AmbassadorApplicationStatus)))
   status!: AmbassadorApplicationStatus;

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { User, AmbassadorApplication, AmbassadorProfile, BlogPost, Resource, Course, ActivityLog } from '../models';
+import { User, AmbassadorApplication, AmbassadorProfile, BlogPost, Resource, Course, ActivityLog, SiteSetting } from '../models';
 import { UserRole, AmbassadorApplicationStatus, ContentStatus } from '../types/enums';
 import { Sequelize } from 'sequelize-typescript';
 
@@ -23,6 +23,36 @@ export const getUsers = async (req: Request, res: Response) => {
     res.json({ users: formatted });
   } catch (error) {
     console.error('Error fetching users:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+export const uploadPartnershipKit = async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    const fileUrl = `/uploads/${req.file.filename}`;
+
+    await SiteSetting.upsert({
+      key: 'partnership_kit_url',
+      value: fileUrl,
+    });
+
+    res.json({ success: true, url: fileUrl });
+  } catch (error) {
+    console.error('Error uploading partnership kit:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+export const getPartnershipKit = async (req: Request, res: Response) => {
+  try {
+    const setting = await SiteSetting.findOne({ where: { key: 'partnership_kit_url' } });
+    res.json({ url: setting ? setting.value : null });
+  } catch (error) {
+    console.error('Error fetching partnership kit:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };

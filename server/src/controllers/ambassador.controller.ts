@@ -28,7 +28,7 @@ export const listAmbassadors = async (req: Request, res: Response) => {
 
 export const applyAmbassador = async (req: Request, res: Response) => {
   try {
-    const { name, email, country, experience, bio } = req.body;
+    const { name, email, country, experience, bio, social_media_links, cv } = req.body;
     const user = req.user;
 
     if (!user) {
@@ -50,6 +50,8 @@ export const applyAmbassador = async (req: Request, res: Response) => {
       country,
       experience,
       bio,
+      socialMediaLinks: social_media_links,
+      cv,
       userId: user.id
     });
 

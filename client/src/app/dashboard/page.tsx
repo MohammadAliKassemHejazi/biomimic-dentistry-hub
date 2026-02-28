@@ -65,7 +65,7 @@ const Dashboard = () => {
   // Ambassador App State
   const [openAppDialog, setOpenAppDialog] = useState(false);
   const [appLoading, setAppLoading] = useState(false);
-  const [appData, setAppData] = useState({ country: '', experience: '', bio: '' });
+  const [appData, setAppData] = useState({ country: '', experience: '', bio: '', social_media_links: '', cv: '' });
 
   const { data: subscriptionStatus } = useSubscription();
 
@@ -441,6 +441,27 @@ const Dashboard = () => {
                                             required
                                         />
                                         <p className="text-[0.8rem] text-muted-foreground">Share your background and why you want to join us.</p>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="social_media_links">Social Media Links</Label>
+                                        <Input
+                                            id="social_media_links"
+                                            value={appData.social_media_links}
+                                            onChange={(e) => setAppData({...appData, social_media_links: e.target.value})}
+                                            placeholder="e.g. Instagram/Facebook links where you share cases"
+                                            required
+                                        />
+                                        <p className="text-[0.8rem] text-muted-foreground">Where you share your biomimetic cases.</p>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="cv">CV Link (Optional)</Label>
+                                        <Input
+                                            id="cv"
+                                            value={appData.cv}
+                                            onChange={(e) => setAppData({...appData, cv: e.target.value})}
+                                            placeholder="Link to your CV (e.g. Google Drive/Dropbox)"
+                                        />
+                                        <p className="text-[0.8rem] text-muted-foreground">Optional: Provide a link to your curriculum vitae.</p>
                                     </div>
                                 </div>
                                 <DialogFooter>

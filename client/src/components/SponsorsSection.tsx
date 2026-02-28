@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Building2, Award, HandHeart } from 'lucide-react';
+import Link from 'next/link';
 import { api } from '@/lib/api';
 
 interface TrustedPartner {
@@ -16,9 +17,11 @@ interface TrustedPartner {
 
 const SponsorsSection = () => {
   const [sponsors, setSponsors] = useState<TrustedPartner[]>([]);
+  const [partnershipKitUrl, setPartnershipKitUrl] = useState<string | null>(null);
 
   useEffect(() => {
     api.get<TrustedPartner[]>('/partners').then(setSponsors).catch(console.error);
+    api.get<{url: string | null}>('/admin/settings/partnership-kit').then(res => setPartnershipKitUrl(res.url)).catch(console.error);
   }, []);
 
   const getTierColor = (tier: string) => {
@@ -107,12 +110,16 @@ const SponsorsSection = () => {
               students globally and advance biomimetic dentistry practices.
             </p>
             <div className="flex flex-col md:flex-row gap-4 justify-center">
-              <button className="btn-primary">
-                Partnership Opportunities
-              </button>
-              <button className="btn-outline">
-                Download Partnership Kit
-              </button>
+              <Link href="/partnership" passHref>
+                <button className="btn-primary">
+                  Partnership Opportunities
+                </button>
+              </Link>
+              {partnershipKitUrl && (
+                <a href={partnershipKitUrl} target="_blank" rel="noopener noreferrer" className="btn-outline inline-flex items-center justify-center">
+                  Download Partnership Kit
+                </a>
+              )}
             </div>
           </div>
         </div>

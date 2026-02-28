@@ -30,6 +30,12 @@ export class LeadershipMember extends Model {
   twitter?: string;
 
   @Column(DataType.STRING)
+  instagram?: string;
+
+  @Column(DataType.STRING)
+  facebook?: string;
+
+  @Column(DataType.STRING)
   expertise?: string;
 
   @Column(DataType.STRING)
