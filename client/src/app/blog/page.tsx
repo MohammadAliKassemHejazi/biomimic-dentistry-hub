@@ -82,8 +82,15 @@ const Blog = () => {
               />
             </div>
             <div className="flex gap-2 flex-wrap items-center">
-              {user && (
+              {user ? (
                  <Link href="/blog/create">
+                  <Button size="sm" className="gap-2">
+                    <PlusCircle className="h-4 w-4" />
+                    Create Post
+                  </Button>
+                </Link>
+              ) : (
+                 <Link href="/signup">
                   <Button size="sm" className="gap-2">
                     <PlusCircle className="h-4 w-4" />
                     Create Post

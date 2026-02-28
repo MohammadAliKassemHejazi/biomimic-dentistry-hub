@@ -32,6 +32,8 @@ interface Application {
     status: string;
     experience: string;
     bio: string;
+    socialMediaLinks: string;
+    cv: string;
     country: string;
     createdAt: string;
 }
@@ -69,6 +71,8 @@ interface LeadershipMember {
     image: string;
     linkedin?: string;
     twitter?: string;
+    instagram?: string;
+    facebook?: string;
     expertise?: string;
     achievements?: string;
     status?: string;
@@ -94,6 +98,7 @@ export default function AdminDashboard() {
     const [partners, setPartners] = useState<TrustedPartner[]>([]);
     const [members, setMembers] = useState<LeadershipMember[]>([]);
     const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
+    const [partnershipKitUrl, setPartnershipKitUrl] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
 
     // Dialog States
@@ -116,13 +121,14 @@ export default function AdminDashboard() {
     const fetchData = async () => {
         setLoading(true);
         try {
-            const [usersData, appsData, contentData, partnersData, membersData, plansData] = await Promise.all([
+            const [usersData, appsData, contentData, partnersData, membersData, plansData, kitData] = await Promise.all([
                 api.get<{ users: User[] }>('/admin/users'),
                 api.get<Application[]>('/admin/applications'),
                 api.get<{ posts: BlogPost[], resources: Resource[] }>('/admin/content/pending'),
                 api.get<TrustedPartner[]>('/partners'),
                 api.get<LeadershipMember[]>('/leadership'),
-                api.get<SubscriptionPlan[]>('/plans')
+                api.get<SubscriptionPlan[]>('/plans'),
+                api.get<{url: string | null}>('/admin/settings/partnership-kit')
             ]);
             setUsers(usersData.users);
             setApplications(appsData);
@@ -130,6 +136,7 @@ export default function AdminDashboard() {
             setPartners(partnersData);
             setMembers(membersData);
             setPlans(plansData);
+            setPartnershipKitUrl(kitData.url);
         } catch (error) {
             console.error("Failed to fetch admin data", error);
             toast({ title: "Error", description: "Failed to load dashboard data", variant: "destructive" });
@@ -330,13 +337,41 @@ export default function AdminDashboard() {
                                 <CardTitle>Trusted Partners</CardTitle>
                                 <CardDescription>Manage trusted partners and sponsors.</CardDescription>
                             </div>
-                            <Dialog open={partnerDialogOpen} onOpenChange={(open) => {
-                                setPartnerDialogOpen(open);
-                                if (!open) setEditingItem(null);
-                            }}>
-                                <DialogTrigger asChild>
-                                    <Button onClick={() => setEditingItem(null)}><Plus className="mr-2 h-4 w-4"/> Add Partner</Button>
-                                </DialogTrigger>
+                            <div className="flex gap-2">
+                                <Button variant="outline" onClick={() => {
+                                    const input = document.createElement('input');
+                                    input.type = 'file';
+                                    input.accept = 'application/pdf';
+                                    input.onchange = async (e) => {
+                                        const file = (e.target as HTMLInputElement).files?.[0];
+                                        if (file) {
+                                            const formData = new FormData();
+                                            formData.append('file', file);
+                                            try {
+                                                await api.post('/admin/settings/partnership-kit', formData);
+                                                toast({ title: 'Success', description: 'Partnership kit updated' });
+                                                fetchData();
+                                            } catch (error) {
+                                                toast({ title: 'Error', description: 'Failed to update partnership kit', variant: 'destructive' });
+                                            }
+                                        }
+                                    };
+                                    input.click();
+                                }}>
+                                    Upload Partnership Kit
+                                </Button>
+                                {partnershipKitUrl && (
+                                    <Button variant="outline" asChild>
+                                        <a href={partnershipKitUrl} target="_blank" rel="noopener noreferrer">View Kit</a>
+                                    </Button>
+                                )}
+                                <Dialog open={partnerDialogOpen} onOpenChange={(open) => {
+                                    setPartnerDialogOpen(open);
+                                    if (!open) setEditingItem(null);
+                                }}>
+                                    <DialogTrigger asChild>
+                                        <Button onClick={() => setEditingItem(null)}><Plus className="mr-2 h-4 w-4"/> Add Partner</Button>
+                                    </DialogTrigger>
                                 <DialogContent>
                                     <DialogHeader>
                                         <DialogTitle>{editingItem ? 'Edit Partner' : 'Add Partner'}</DialogTitle>
@@ -464,6 +499,16 @@ export default function AdminDashboard() {
                                                 <Input name="twitter" defaultValue={editingItem?.twitter} placeholder="@handle" />
                                             </div>
                                         </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <Label>Instagram</Label>
+                                                <Input name="instagram" defaultValue={editingItem?.instagram} placeholder="Profile URL" />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label>Facebook</Label>
+                                                <Input name="facebook" defaultValue={editingItem?.facebook} placeholder="Profile URL" />
+                                            </div>
+                                        </div>
                                         <Button type="submit" className="w-full">Save</Button>
                                     </form>
                                 </DialogContent>
@@ -579,6 +624,18 @@ export default function AdminDashboard() {
                                                             <p className="text-sm font-medium">Bio:</p>
                                                             <p className="text-sm">{app.bio}</p>
                                                         </div>
+                                                        {app.socialMediaLinks && (
+                                                            <div className="mt-2">
+                                                                <p className="text-sm font-medium">Social Media Links:</p>
+                                                                <p className="text-sm break-all">{app.socialMediaLinks}</p>
+                                                            </div>
+                                                        )}
+                                                        {app.cv && (
+                                                            <div className="mt-2">
+                                                                <p className="text-sm font-medium">CV Link:</p>
+                                                                <a href={app.cv} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-500 hover:underline break-all">{app.cv}</a>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                     <div className="flex items-start gap-2">
                                                         <Button onClick={() => handleApproveApp(app.id)} size="sm" className="bg-green-600 hover:bg-green-700">

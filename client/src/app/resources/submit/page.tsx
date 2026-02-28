@@ -59,8 +59,8 @@ export default function SubmitResourcePage() {
         }
     };
 
-    if (!user || (user.role !== 'ambassador' && user.role !== 'admin')) {
-        return <div className="text-center py-20 pt-32 text-destructive font-bold text-2xl">Access Denied</div>;
+    if (!user) {
+        return <div className="text-center py-20 pt-32 text-destructive font-bold text-2xl">Please log in to submit resources.</div>;
     }
 
     return (

@@ -45,9 +45,8 @@ export const createResource = async (req: Request, res: Response) => {
     const { title, description, file_url, file_name, file_type, access_level, category, tags } = req.body;
     const user = req.user;
 
-    // Check permissions: Admin or Ambassador
-    if (user?.role !== 'admin' && user?.role !== 'ambassador') {
-      return res.status(403).json({ message: 'Only Ambassadors and Admins can create resources' });
+    if (!user) {
+      return res.status(401).json({ message: 'You must be logged in to create a resource' });
     }
 
     const status = user?.role === 'admin' ? ContentStatus.APPROVED : ContentStatus.PENDING;

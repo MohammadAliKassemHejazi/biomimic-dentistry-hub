@@ -3,6 +3,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRight, Heart, Users, Globe, Leaf, Sparkles } from 'lucide-react';
+import Link from 'next/link';
 import heroBg from '../assets/hero-bg.jpg';
 import BiomimeticTooth3D from './BiomimeticTooth3D';
 
@@ -206,40 +207,59 @@ const HeroSection = () => {
               transition={{ duration: 0.8, delay: 0.7 }}
               className="flex flex-col md:flex-row gap-6 justify-center items-center"
             >
-              <motion.button
-                whileHover={{
-                  scale: 1.05,
-                  y: -3
-                }}
-                whileTap={{ scale: 0.95 }}
-                className="btn-hero group relative overflow-hidden"
-              >
-                <span className="relative z-10 flex items-center">
-                  Support Our Mission
-                  <ArrowRight className="w-5 h-5 ml-2 transition-transform group-hover:translate-x-1" />
-                </span>
-              </motion.button>
+              <Link href="/donate" passHref>
+                <motion.button
+                  whileHover={{
+                    scale: 1.05,
+                    y: -3
+                  }}
+                  whileTap={{ scale: 0.95 }}
+                  className="btn-hero group relative overflow-hidden"
+                >
+                  <span className="relative z-10 flex items-center">
+                    Support Our Mission
+                    <ArrowRight className="w-5 h-5 ml-2 transition-transform group-hover:translate-x-1" />
+                  </span>
+                </motion.button>
+              </Link>
 
-              <motion.button
-                whileHover={{
-                  scale: 1.05,
-                  y: -2
-                }}
-                whileTap={{ scale: 0.95 }}
-                className="btn-accent"
-              >
-                Join as Ambassador
-              </motion.button>
+              <Link href="/dashboard" passHref>
+                <motion.button
+                  whileHover={{
+                    scale: 1.05,
+                    y: -2
+                  }}
+                  whileTap={{ scale: 0.95 }}
+                  className="btn-accent"
+                >
+                  Join as Ambassador
+                </motion.button>
+              </Link>
 
-              <motion.button
-                whileHover={{
-                  scale: 1.02
-                }}
-                whileTap={{ scale: 0.95 }}
-                className="btn-outline border-foreground/30 text-foreground hover:bg-foreground hover:text-background"
-              >
-                Learn More
-              </motion.button>
+              <Link href="/signup" passHref>
+                <motion.button
+                  whileHover={{
+                    scale: 1.05,
+                    y: -2
+                  }}
+                  whileTap={{ scale: 0.95 }}
+                  className="btn-accent bg-blue-500 hover:bg-blue-600 border-none text-white shadow-bio-glow"
+                >
+                  Blog Registration
+                </motion.button>
+              </Link>
+
+              <Link href="/about" passHref>
+                <motion.button
+                  whileHover={{
+                    scale: 1.02
+                  }}
+                  whileTap={{ scale: 0.95 }}
+                  className="btn-outline border-foreground/30 text-foreground hover:bg-foreground hover:text-background"
+                >
+                  Learn More
+                </motion.button>
+              </Link>
             </motion.div>
           </div>
 
