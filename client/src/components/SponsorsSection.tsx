@@ -34,19 +34,28 @@ const SponsorsSection = () => {
     }
   };
 
-  const getEmojiForPartner = (partner: TrustedPartner) => {
-    if (partner.logo) return partner.logo;
+  const getLogoContent = (partner: TrustedPartner) => {
+    if (partner.logo) {
+      if (partner.logo.startsWith('http') || partner.logo.startsWith('/')) {
+        const logoUrl = partner.logo.startsWith('/')
+            ? `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000'}${partner.logo}`
+            : partner.logo;
+        return <img src={logoUrl} alt={partner.name} className="w-16 h-16 mx-auto object-contain" />;
+      }
+      return <div className="text-4xl">{partner.logo}</div>;
+    }
 
     // Auto-assign emoji based on role/tier
     const role = (partner.role || '').toLowerCase();
 
-    if (role.includes('tech') || role.includes('equipment')) return '⚙️';
-    if (role.includes('research')) return '🔬';
-    if (role.includes('education')) return '🎓';
-    if (role.includes('material')) return '🧪';
-    if (role.includes('community')) return '🤝';
+    let emoji = '🏢';
+    if (role.includes('tech') || role.includes('equipment')) emoji = '⚙️';
+    else if (role.includes('research')) emoji = '🔬';
+    else if (role.includes('education')) emoji = '🎓';
+    else if (role.includes('material')) emoji = '🧪';
+    else if (role.includes('community')) emoji = '🤝';
 
-    return '🏢';
+    return <div className="text-4xl">{emoji}</div>;
   };
 
   return (
@@ -81,7 +90,9 @@ const SponsorsSection = () => {
 
               {/* Logo and Name */}
               <div className="text-center mb-4">
-                <div className="text-4xl mb-3">{getEmojiForPartner(sponsor)}</div>
+                <div className="mb-3 h-16 flex items-center justify-center">
+                  {getLogoContent(sponsor)}
+                </div>
                 <h3 className="text-xl font-bold text-foreground mb-1">{sponsor.name}</h3>
                 <p className="text-primary font-semibold">{sponsor.role}</p>
               </div>
