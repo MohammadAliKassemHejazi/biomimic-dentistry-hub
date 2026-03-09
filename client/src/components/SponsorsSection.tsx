@@ -20,8 +20,8 @@ const SponsorsSection = () => {
   const [partnershipKitUrl, setPartnershipKitUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    api.get<TrustedPartner[]>('/partners').then(setSponsors).catch(console.error);
-    api.get<{url: string | null}>('/admin/settings/partnership-kit').then(res => setPartnershipKitUrl(res.url)).catch(console.error);
+    api.get<TrustedPartner[]>('/partners', { skipErrorHandling: true }).then(setSponsors).catch(console.error);
+    api.get<{url: string | null}>('/admin/settings/partnership-kit', { skipErrorHandling: true }).then(res => setPartnershipKitUrl(res.url)).catch(console.error);
   }, []);
 
   const getTierColor = (tier: string) => {

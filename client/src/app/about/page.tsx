@@ -22,7 +22,7 @@ const About = () => {
   const [team, setTeam] = useState<LeadershipMember[]>([]);
 
   useEffect(() => {
-    api.get<LeadershipMember[]>('/leadership').then(setTeam).catch(console.error);
+    api.get<LeadershipMember[]>('/leadership', { skipErrorHandling: true }).then(setTeam).catch(console.error);
   }, []);
 
   const values = [

@@ -52,7 +52,7 @@ export default function BlogPostPage() {
 
     const fetchPost = async () => {
         try {
-            const data = await api.get<BlogPost>(`/blog/posts/${slug}`);
+            const data = await api.get<BlogPost>(`/blog/posts/${slug}`, { skipErrorHandling: true });
             setPost(data);
             setFavorited(data.is_favorited);
         } catch (error) {

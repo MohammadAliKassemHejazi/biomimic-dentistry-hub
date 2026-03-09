@@ -50,7 +50,7 @@ const Subscription = () => {
 };
 
   React.useEffect(() => {
-    api.get<any[]>('/plans').then((data) => {
+    api.get<any[]>('/plans', { skipErrorHandling: true }).then((data) => {
         if (data && data.length > 0) {
             const mapped = data.map(p => ({
                 id: p.key, // Using key as id for role matching
