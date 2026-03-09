@@ -33,18 +33,18 @@ const Subscription = () => {
 
   const getIconForKey = (key: string) => {
     switch(key) {
-        case 'basic': return Trophy;
-        case 'vip': return Star;
-        case 'ambassador': return Crown;
+        case 'bronze': return Trophy;
+        case 'silver': return Star;
+        case 'gold': return Crown;
         default: return Star;
     }
   };
 
   const getColorForKey = (key: string) => {
     switch(key) {
-        case 'basic': return 'from-accent-light to-accent';
-        case 'vip': return 'from-gray-300 to-gray-500';
-        case 'ambassador': return 'from-secondary to-secondary-light';
+        case 'bronze': return 'from-accent-light to-accent';
+        case 'silver': return 'from-gray-300 to-gray-500';
+        case 'gold': return 'from-secondary to-secondary-light';
         default: return 'from-primary to-primary-light';
     }
 };
