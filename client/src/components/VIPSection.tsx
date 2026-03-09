@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { Crown, Star, Zap, MessageCircle, BookOpen, Calendar, Trophy, Instagram, Facebook } from 'lucide-react';
 import { api } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface LeadershipMember {
   id: string;
@@ -33,6 +34,7 @@ interface SubscriptionTier {
 const VIPSection = () => {
   const [members, setMembers] = useState<LeadershipMember[]>([]);
   const [plans, setPlans] = useState<SubscriptionTier[]>([]);
+  const { isAuthenticated } = useAuth();
 
   const getEmojiForMember = (member: LeadershipMember) => {
     if (member.image) return member.image;
@@ -70,32 +72,34 @@ const VIPSection = () => {
   };
 
   useEffect(() => {
-    // Fetch Leadership Members
-    api.get<LeadershipMember[]>('/leadership', { skipErrorHandling: true })
-      .then(setMembers)
-      .catch(console.error);
+    if (isAuthenticated) {
+      // Fetch Leadership Members
+      api.get<LeadershipMember[]>('/leadership', { skipErrorHandling: true })
+        .then(setMembers)
+        .catch(console.error);
 
-    // Fetch Subscription Plans
-    api.get<any[]>('/plans', { skipErrorHandling: true })
-      .then(data => {
-        if (data && data.length > 0) {
-           const mappedPlans = data.map(p => ({
-               name: p.name,
-               price: parseFloat(p.price), // backend returns string for decimal
-               interval: p.interval,
-               features: p.features,
-               popular: p.popular,
-               key: p.key,
-               icon: getIconForName(p.icon),
-               color: getColorForKey(p.key)
-           }));
-           // Sort plans by price to ensure correct order (Basic -> VIP -> Ambassador)
-           mappedPlans.sort((a, b) => a.price - b.price);
-           setPlans(mappedPlans);
-        }
-      })
-      .catch(console.error);
-  }, []);
+      // Fetch Subscription Plans
+      api.get<any[]>('/plans', { skipErrorHandling: true })
+        .then(data => {
+          if (data && data.length > 0) {
+             const mappedPlans = data.map(p => ({
+                 name: p.name,
+                 price: parseFloat(p.price), // backend returns string for decimal
+                 interval: p.interval,
+                 features: p.features,
+                 popular: p.popular,
+                 key: p.key,
+                 icon: getIconForName(p.icon),
+                 color: getColorForKey(p.key)
+             }));
+             // Sort plans by price to ensure correct order (Basic -> VIP -> Ambassador)
+             mappedPlans.sort((a, b) => a.price - b.price);
+             setPlans(mappedPlans);
+          }
+        })
+        .catch(console.error);
+    }
+  }, [isAuthenticated]);
 
   const getStatusColor = (status: string) => {
     if (!status) return 'from-muted to-muted-foreground';

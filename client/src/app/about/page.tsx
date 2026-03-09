@@ -7,6 +7,7 @@ import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { api } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface LeadershipMember {
     id: string;
@@ -20,10 +21,13 @@ interface LeadershipMember {
 
 const About = () => {
   const [team, setTeam] = useState<LeadershipMember[]>([]);
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
-    api.get<LeadershipMember[]>('/leadership', { skipErrorHandling: true }).then(setTeam).catch(console.error);
-  }, []);
+    if (isAuthenticated) {
+      api.get<LeadershipMember[]>('/leadership', { skipErrorHandling: true }).then(setTeam).catch(console.error);
+    }
+  }, [isAuthenticated]);
 
   const values = [
     {

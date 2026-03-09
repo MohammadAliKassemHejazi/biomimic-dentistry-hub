@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Building2, Award, HandHeart } from 'lucide-react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface TrustedPartner {
     id: string;
@@ -18,11 +19,14 @@ interface TrustedPartner {
 const SponsorsSection = () => {
   const [sponsors, setSponsors] = useState<TrustedPartner[]>([]);
   const [partnershipKitUrl, setPartnershipKitUrl] = useState<string | null>(null);
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
-    api.get<TrustedPartner[]>('/partners', { skipErrorHandling: true }).then(setSponsors).catch(console.error);
-    api.get<{url: string | null}>('/admin/settings/partnership-kit', { skipErrorHandling: true }).then(res => setPartnershipKitUrl(res.url)).catch(console.error);
-  }, []);
+    if (isAuthenticated) {
+      api.get<TrustedPartner[]>('/partners', { skipErrorHandling: true }).then(setSponsors).catch(console.error);
+      api.get<{url: string | null}>('/admin/settings/partnership-kit', { skipErrorHandling: true }).then(res => setPartnershipKitUrl(res.url)).catch(console.error);
+    }
+  }, [isAuthenticated]);
 
   const getTierColor = (tier: string) => {
     switch (tier) {
