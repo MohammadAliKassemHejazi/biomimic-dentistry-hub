@@ -1,146 +1,150 @@
-# Biomimetic Dentistry Club - Application Functionality Documentation
+# Biomimetic Dentistry Club - Technical and Functional Documentation
 
-This README provides a comprehensive overview of all pages and functionalities within the Biomimetic Dentistry Club application. It outlines the purpose of each page, the specific actions users can take, and the roles required to access them.
+This document serves as a comprehensive guide to the Biomimetic Dentistry Club application, providing both functional descriptions and technical implementation details (state management, API integrations, hooks) for each page and component.
 
-## User Roles and Access Levels
-- **Public:** Accessible to anyone.
-- **Authenticated (User):** Logged in users. Can access basic dashboard, update profile.
-- **Bronze VIP:** Tier 1 paid subscription. Access to `/bronze` exclusive content.
-- **Silver VIP:** Tier 2 paid subscription. Access to `/silver` exclusive content.
-- **Gold VIP:** Tier 3 paid subscription. Full access to VIP features.
-- **Ambassador:** Special status for contributors. Can create blogs and submit resources. Access to `/ambassador`.
-- **Admin:** System administrators. Full access to `/admin` dashboard for managing content, users, and settings.
-
-## Global Navigation Menu
-The main navigation menu varies based on the user's role and authentication status.
-
-### Common Navigation Links:
-- **Home (`/`)**: Navigates to the landing page.
-- **About (`/about`)**: Information about the organization.
-- **Resources (`/resources`)**: Access to educational materials (access varies by tier).
-- **Blog (`/blog`)**: Articles and updates.
-- **Courses (`/courses`)**: Available training programs.
-- **Partnership (`/partnership`)**: Information on partnering with the organization.
-- **Contact (`/contact`)**: Contact form.
-
-### Role-Specific Links (Visible when applicable):
-- **Bronze VIP (`/bronze`)**: Exclusive content for Bronze members.
-- **Silver VIP (`/silver`)**: Exclusive content for Silver members.
-- **VIP Area (`/vip`)**: Exclusive area for higher tiers (likely Gold).
-- **Ambassador (`/ambassador`)**: Tools for ambassadors (create post, submit resource).
-- **Admin Dashboard (`/admin`)**: Management console for administrators.
-
-### User Menu (Authenticated):
-- **Dashboard (`/dashboard`)**: User profile and application status.
-- **Subscription (`/subscription`)**: Manage billing and upgrade plans.
-- **Sign Out**: Logs the user out.
+## Architecture Overview
+- **Frontend Framework:** Next.js (App Router)
+- **Styling:** Tailwind CSS, `lucide-react` for icons
+- **State Management:** React Hooks (`useState`, `useEffect`), Custom Hooks (e.g., `useAuth`, `useSubscription`)
+- **API Interactions:** Centralized via `client/src/lib/api.ts` which handles automatic `FormData` payload detection for file uploads.
+- **Authentication:** Custom JWT-based authentication interacting with the Express/Sequelize backend. Responses contain `{ user, session }`.
+- **Role-Based Access Control:** Routes and UI elements are conditionally rendered based on `user.role` (`bronze`, `silver`, `gold`, `admin`) and the `is_ambassador` boolean flag.
 
 ---
 
-## Page-by-Page Breakdown
+## Global Navigation (`client/src/components/Navigation.tsx`)
+**Implementation:**
+- Fixed navigation bar at the top of the screen.
+- Dynamically renders links based on the `user` object retrieved from the `useAuth` hook.
+- Requires pages beneath it to have top padding (e.g., `pt-20` or `pt-24`) to prevent content overlap.
+
+---
+
+## Page-by-Page Technical Breakdown
 
 ### 1. Home Page (`/`)
-**Purpose:** The main landing page of the application. Introduces the Biomimetic Dentistry Club, showcases sponsors, and highlights VIP members or features.
-**Key Sections:** Hero Section, Sponsors Section, VIP Section.
+- **Purpose:** Landing page highlighting sponsors, VIPs, and a call-to-action.
+- **Components Used:** `HeroSection`, `SponsorsSection`, `VIPSection`, `Footer`.
+- **Technical Detail:** `VIPSection.tsx` and `SponsorsSection.tsx` are marked as `"use client"` to manage states for image loading. They implement a fallback mechanism that assigns an emoji based on the member's title if no image URL is provided.
 
 ### 2. Login Page (`/login`)
-**Purpose:** Allows existing users to authenticate and access their accounts.
-**Buttons & Actions:**
-- **`Sign In`**: Authenticates the user with the provided credentials.
-**Links:**
-- **`Don't have an account? Sign up`**: Navigates to the signup page (`/signup`).
+- **Purpose:** User authentication.
+- **State:**
+  - `email` (string): User input for email.
+  - `password` (string): User input for password.
+  - `loading` (boolean): Disables the submit button while the API request is in flight.
+- **Hooks:** `useAuth` (provides the `login` function).
+- **Action:**
+  - **`Sign In`**: Calls the backend authentication endpoint (`/auth/login`).
 
 ### 3. Signup Page (`/signup`)
-**Purpose:** Registration page for new users to create an account.
-**Buttons & Actions:**
-- **`Sign Up`**: Submits the registration form to create a new user account.
-**Links:**
-- **`Login`**: Navigates to the login page (`/login`).
+- **Purpose:** User registration.
+- **State:** `loading` (boolean).
+- **Hooks:** `useAuth`, `useToast`.
+- **Action:**
+  - **`Sign Up`**: Submits a `FormData` object with user details (email, password, first/last name, specialty, country) to `/auth/register`. Custom backend validation (`validation.ts`) sanitizes the input.
 
 ### 4. Dashboard (`/dashboard`)
-**Purpose:** The central hub for authenticated users. Displays user profile information, current subscription status, ambassador application status, and quick links to relevant areas based on their role.
-**Buttons & Actions:**
-- **`Upgrade Plan`** / **`View Plans`**: Redirects to the subscription page (`/subscription`) to view or change membership tiers.
-- **`Apply Now`** / **`Submit Application`**: Submits an application for Ambassador status.
-- **`Resource Library`**: Navigates to the resources page (`/resources`).
-- **`Browse Courses`**: Navigates to the courses page (`/courses`).
-- **`Get Support`**: Navigates to the contact page (`/contact`).
+- **Purpose:** Central user hub displaying profile, tier, and application status.
+- **State:**
+  - `recentActivity`: Tracks the user's latest interactions.
+  - `openAppDialog` (boolean): Controls the Ambassador Application modal.
+  - `appData` (object): Collects `FormData` inputs (`country`, `experience`, `bio`, `social_media_links`, `cv`).
+  - `appLoading` (boolean): Submission state.
+- **Hooks:** `useAuth`, `useSubscription`, `useRouter`, `useToast`.
+- **API Interactions:**
+  - `POST /ambassador/apply`: Submits the ambassador application as `FormData` (handles CV file upload).
+- **Actions:**
+  - **`Apply Now` / `Submit Application`**: Submits the `appData` state to the backend. Approval adds the `AmbassadorProfile` to the user.
 
 ### 5. Admin Dashboard (`/admin`)
-**Purpose:** The administration console. Restricted to users with the `admin` role. Used for managing site content, partnerships, leadership members, subscription plans, and approving/rejecting user submissions (blogs, resources, ambassador applications).
-**Buttons & Actions:**
-- **`Upload Partnership Kit`**: Opens a form or modal to upload a new partnership kit PDF.
-- **`View Kit`**: Opens the currently uploaded partnership kit in a new tab.
-- **`Add Partner`** / **`Add Member`**: Opens a dialog to add a new Trusted Partner or Leadership Member.
-- **`Add Resource`** / **`Create Resource`**: Opens a modal to submit a new file or resource to the platform.
-- **`Save`**: Saves changes made in any admin form or dialog.
-- **`Seed Default Plans`**: A development utility to populate the database with default Stripe subscription plans.
-- **`Approve`**: Approves a pending submission (blog, resource, or ambassador application).
-- **`Reject`**: Rejects a pending application.
+- **Purpose:** Full administrative control panel for content, users, and settings.
+- **State:**
+  - Lists for: `users`, `applications`, `pendingContent`, `partners`, `members`, `plans`.
+  - `partnershipKitUrl` (string | null): URL to the site-wide partnership document.
+  - Dialog toggles: `partnerDialogOpen`, `memberDialogOpen`, `planDialogOpen`, `resourceDialogOpen`.
+  - `editingItem`: Holds the current object being created/edited in a modal.
+- **Hooks:** `useAuth`, `useToast`.
+- **API Interactions:**
+  - Data Fetching: `GET` requests to `/admin/users`, `/admin/applications`, `/admin/content/pending`, `/partners`, `/leadership`, `/plans`, `/admin/settings/partnership-kit`.
+  - Content Management: `POST` / `PUT` / `DELETE` for `partners`, `leadership`, `resources`.
+  - Approvals: `PATCH /admin/applications/:id/status` (approved/rejected).
+  - Utility: `POST /plans/seed` (creates default Stripe tiers), `POST /admin/settings/partnership-kit` (uploads PDF).
+- **Technical Note:** All dialog forms manually construct `FormData` payloads and bypass libraries like `react-hook-form`. Array fields (e.g., tags) are passed as comma-separated strings to be handled by the backend.
 
 ### 6. Resources Library (`/resources`)
-**Purpose:** A library of educational resources, files, and materials. Access to specific resources is gated based on the user's subscription tier.
-**Buttons & Actions:**
-- **`Download`**: Initiates the download of a selected resource (if the user has the required access tier).
-- **`Upgrade Required`**: Redirects the user to the subscription page if they do not have sufficient access to download the resource.
+- **Purpose:** Gated document and file library.
+- **State:**
+  - `searchTerm` (string): For filtering resources.
+  - `selectedCategory` (string, default: 'all'): Category filter.
+- **Hooks:** `useResources`, `useAuth`, `useToast`, `useRouter`.
+- **Logic:** Compares the resource's `access_level` against the user's current role (`useAuth().user.role`) to enable/disable the download button.
 
 ### 7. Submit Resource (`/resources/submit`)
-**Purpose:** Allows authorized users (Ambassadors, Admins) to upload and submit new resources to the library. Resources submitted by Ambassadors typically require Admin approval.
-**Buttons & Actions:**
-- **`Submit Resource`**: Submits the uploaded file and associated details for review or direct publishing.
+- **Purpose:** Ambassador/Admin form to upload new resources.
+- **State:**
+  - `file` (File | null): Stores the selected file.
+  - `loading` (boolean): Controls submission state.
+- **Hooks:** `useAuth`, `useToast`, `useRouter`.
+- **API Interactions:**
+  - `POST /resources`: Sends a `FormData` payload containing the `file` and metadata. Note: Ambassador submissions default to `PENDING` status on the backend, while Admin submissions are `APPROVED`.
 
-### 8. Blog (`/blog`)
-**Purpose:** The public blog displaying articles, updates, and educational content. Users can view posts and filter by category.
-**Buttons & Actions:**
-- **`Create Post`**: Visible to Ambassadors and Admins, navigates to the blog post creation page (`/blog/create`).
+### 8. Blog List (`/blog`)
+- **Purpose:** Displays published blog posts.
+- **State:**
+  - `searchTerm` (string): Filters posts by title.
+  - `selectedCategory` (string | null): Filters posts by category.
+- **Hooks:** `useBlogPosts`, `useAuth`.
 
 ### 9. Create Blog Post (`/blog/create`)
-**Purpose:** Allows authorized users (Ambassadors, Admins) to draft and submit new blog posts. Posts require Admin approval before becoming public.
-**Buttons & Actions:**
-- **`Submit for Review`**: Submits the drafted blog post to the admin team for review and publishing.
+- **Purpose:** Drafting new blog posts (Ambassadors/Admins only).
+- **State:**
+  - `file` (File | null): For the `featured_image`.
+  - `loading` (boolean).
+- **Hooks:** `useAuth`, `useToast`, `useRouter`.
+- **API Interactions:**
+  - `POST /blog/posts`: Sends `FormData` including the title, content, tags, category, and `file`.
 
 ### 10. Blog Post Detail (`/blog/[slug]`)
-**Purpose:** Displays the full content of a specific blog post.
-**Buttons & Actions:**
-- **`Favorite`**: Toggles the favorite status for the current blog post for the logged-in user.
-- **`Share`**: Opens a sharing dialog or copies the link to the post to the user's clipboard.
+- **Purpose:** Renders full article and handles engagement.
+- **State:**
+  - `post` (object): Fetched article data.
+  - `loading` (boolean).
+  - `favorited` (boolean): Tracks if the current user has favorited the post.
+  - `viewRecorded` (boolean): Ensures a view is only counted once per session.
+- **Hooks:** `useAuth`, `useToast`, `useParams`.
 
 ### 11. Subscription & Billing (`/subscription`)
-**Purpose:** Displays available membership tiers (Bronze, Silver, Gold). Allows users to upgrade their plan via Stripe integration or manage their existing billing.
-**Buttons & Actions:**
-- **`Get Plan`** / **`Upgrade`**: Redirects the user to Stripe Checkout to purchase or upgrade to the selected subscription tier.
-- **`Manage Billing`**: Redirects the user to the Stripe Customer Portal to manage their existing subscription, update payment methods, or cancel.
-- **`Contact our team`**: Navigates to the contact page (`/contact`) for customized or enterprise inquiries.
+- **Purpose:** Handles tier upgrades via Stripe.
+- **State:**
+  - `subscriptionTiers` (array): Fetches available plans from the backend.
+  - `loadingAction` (string | null): Tracks which specific tier's checkout session is being initialized.
+- **Hooks:** `useSubscription`, `useAuth`, `useToast`.
+- **Actions:**
+  - **`Get Plan`**: Initiates a Stripe Checkout Session via the backend integration (`STRIPE_SECRET_KEY` required).
+  - **`Manage Billing`**: Redirects to the Stripe Customer Portal.
 
 ### 12. Ambassador Portal (`/ambassador`)
-**Purpose:** A dedicated portal for users with Ambassador status. Provides quick access to tools for contributing content to the platform.
-**Buttons & Actions:**
-- **`Start Writing`**: Navigates to the blog post creation page (`/blog/create`).
-- **`Upload Resource`**: Navigates to the resource submission page (`/resources/submit`).
+- **Purpose:** Landing page for approved ambassadors.
+- **Hooks:** `useAuth`.
+- **Routing:** Contains links to `/blog/create` and `/resources/submit`.
 
-### 13. Partnership (`/partnership`)
-**Purpose:** Information page for organizations or individuals interested in partnering with the club.
-**Buttons & Actions:**
-- **`Become a Partner`**: Navigates the user to a partnership inquiry section or form.
-- **`Contact Our Team`**: Navigates to the contact page (`/contact`) to get in touch.
+### 13. Courses (`/courses`)
+- **Purpose:** Course catalog.
+- **State:**
+  - `notifyEmails` (object): Tracks the email input state for specific course waitlists (e.g., `{ courseId: emailString }`).
+- **Hooks:** `useCourses`, `useAuth`, `useRouter`, `useToast`.
+- **Actions:**
+  - **`Notify Me`**: Registers interest for unavailable courses.
 
-### 14. Courses (`/courses`)
-**Purpose:** Displays available educational courses or training programs. Users can express interest or enroll depending on course availability.
-**Buttons & Actions:**
-- **`Enroll Now`**: Navigates to course enrollment or checkout (if available).
-- **`Notify Me`**: Allows users to register their interest and be notified when the course becomes available.
+### 14. Tier-Exclusive Pages (`/bronze`, `/silver`, `/vip`)
+- **Purpose:** Protected content areas.
+- **Technical Detail:** These routes perform client-side or middleware validation to ensure the user's role array/string includes the required tier before rendering the premium content.
 
-### 15. About (`/about`)
-**Purpose:** Provides background information about the Biomimetic Dentistry Club's mission, vision, and team.
-**Buttons & Actions:**
-- **`Explore Courses`**: Navigates to the courses page (`/courses`).
-- **`Become an Ambassador`**: Navigates to the ambassador portal (`/ambassador`) or dashboard to apply.
+### 15. Other Informational Pages
+- **`/about`**: Uses `useState` for static `team` array management.
+- **`/partnership`**: Static informational page with mailto/contact links.
+- **`/contact`**: Uses `useState` for `loading` state when submitting the contact form.
 
-### 16. Contact (`/contact`)
-**Purpose:** A contact form for users to send inquiries to the support team.
-**Buttons & Actions:**
-- **`Send Message`**: Submits the contact form data to the backend system.
-
-### 17. Tier-Exclusive Pages (`/bronze`, `/silver`, `/vip`)
-**Purpose:** Exclusive content areas restricted to users with the specific `bronze`, `silver`, or higher subscription tiers.
-**Features:** Contains premium content, videos, or specialized materials only accessible to members holding that tier or higher.
+---
+**Note:** All frontend file paths to images and resources uploaded by users are dynamically constructed by prepending the backend `NEXT_PUBLIC_API_URL` (minus the `/api` path) to ensure correct static file serving from the Express `public/uploads` directory.
