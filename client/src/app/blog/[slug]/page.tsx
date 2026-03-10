@@ -39,20 +39,22 @@ export default function BlogPostPage() {
     const [viewRecorded, setViewRecorded] = useState(false);
 
     useEffect(() => {
-        if (slug) {
+        if (slug && isAuthenticated) {
             fetchPost();
+        } else if (!isAuthenticated) {
+            setLoading(false); // Stop loading if not authenticated
         }
-    }, [slug, user]); // Refetch if user changes (to update is_favorited)
+    }, [slug, user, isAuthenticated]); // Refetch if user changes (to update is_favorited)
 
     useEffect(() => {
-        if (post?.id && !viewRecorded) {
+        if (post?.id && !viewRecorded && isAuthenticated) {
             recordView(post.id);
         }
-    }, [post, viewRecorded]);
+    }, [post, viewRecorded, isAuthenticated]);
 
     const fetchPost = async () => {
         try {
-            const data = await api.get<BlogPost>(`/blog/posts/${slug}`);
+            const data = await api.get<BlogPost>(`/blog/posts/${slug}`, { skipErrorHandling: true });
             setPost(data);
             setFavorited(data.is_favorited);
         } catch (error) {
