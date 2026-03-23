@@ -33,42 +33,44 @@ const Subscription = () => {
 
   const getIconForKey = (key: string) => {
     switch(key) {
-        case 'basic': return Trophy;
-        case 'vip': return Star;
-        case 'ambassador': return Crown;
+        case 'bronze': return Trophy;
+        case 'silver': return Star;
+        case 'gold': return Crown;
         default: return Star;
     }
   };
 
   const getColorForKey = (key: string) => {
     switch(key) {
-        case 'basic': return 'from-accent-light to-accent';
-        case 'vip': return 'from-gray-300 to-gray-500';
-        case 'ambassador': return 'from-secondary to-secondary-light';
+        case 'bronze': return 'from-accent-light to-accent';
+        case 'silver': return 'from-gray-300 to-gray-500';
+        case 'gold': return 'from-secondary to-secondary-light';
         default: return 'from-primary to-primary-light';
     }
 };
 
   React.useEffect(() => {
-    api.get<any[]>('/plans').then((data) => {
-        if (data && data.length > 0) {
-            const mapped = data.map(p => ({
-                id: p.key, // Using key as id for role matching
-                name: p.name,
-                price: parseFloat(p.price),
-                interval: p.interval,
-                stripe_price_id: p.stripePriceId,
-                features: p.features,
-                popular: p.popular,
-                icon: getIconForKey(p.key),
-                color: getColorForKey(p.key)
-            }));
-             // Sort plans by price to ensure correct order
-             mapped.sort((a, b) => a.price - b.price);
-            setSubscriptionTiers(mapped);
-        }
-    }).catch(console.error);
-  }, []);
+    if (isAuthenticated) {
+      api.get<any[]>('/plans', { skipErrorHandling: true }).then((data) => {
+          if (data && data.length > 0) {
+              const mapped = data.map(p => ({
+                  id: p.key, // Using key as id for role matching
+                  name: p.name,
+                  price: parseFloat(p.price),
+                  interval: p.interval,
+                  stripe_price_id: p.stripePriceId,
+                  features: p.features,
+                  popular: p.popular,
+                  icon: getIconForKey(p.key),
+                  color: getColorForKey(p.key)
+              }));
+               // Sort plans by price to ensure correct order
+               mapped.sort((a, b) => a.price - b.price);
+              setSubscriptionTiers(mapped);
+          }
+      }).catch(console.error);
+    }
+  }, [isAuthenticated]);
 
   const createCheckoutSession = async (priceId: string) => {
     if (!isAuthenticated) {

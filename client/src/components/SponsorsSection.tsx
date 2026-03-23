@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Building2, Award, HandHeart } from 'lucide-react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface TrustedPartner {
     id: string;
@@ -18,11 +19,14 @@ interface TrustedPartner {
 const SponsorsSection = () => {
   const [sponsors, setSponsors] = useState<TrustedPartner[]>([]);
   const [partnershipKitUrl, setPartnershipKitUrl] = useState<string | null>(null);
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
-    api.get<TrustedPartner[]>('/partners').then(setSponsors).catch(console.error);
-    api.get<{url: string | null}>('/admin/settings/partnership-kit').then(res => setPartnershipKitUrl(res.url)).catch(console.error);
-  }, []);
+    if (isAuthenticated) {
+      api.get<TrustedPartner[]>('/partners', { skipErrorHandling: true }).then(setSponsors).catch(console.error);
+      api.get<{url: string | null}>('/admin/settings/partnership-kit', { skipErrorHandling: true }).then(res => setPartnershipKitUrl(res.url)).catch(console.error);
+    }
+  }, [isAuthenticated]);
 
   const getTierColor = (tier: string) => {
     switch (tier) {
@@ -34,19 +38,28 @@ const SponsorsSection = () => {
     }
   };
 
-  const getEmojiForPartner = (partner: TrustedPartner) => {
-    if (partner.logo) return partner.logo;
+  const getLogoContent = (partner: TrustedPartner) => {
+    if (partner.logo) {
+      if (partner.logo.startsWith('http') || partner.logo.startsWith('/')) {
+        const logoUrl = partner.logo.startsWith('/')
+            ? `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000'}${partner.logo}`
+            : partner.logo;
+        return <img src={logoUrl} alt={partner.name} className="w-16 h-16 mx-auto object-contain" />;
+      }
+      return <div className="text-4xl">{partner.logo}</div>;
+    }
 
     // Auto-assign emoji based on role/tier
     const role = (partner.role || '').toLowerCase();
 
-    if (role.includes('tech') || role.includes('equipment')) return '⚙️';
-    if (role.includes('research')) return '🔬';
-    if (role.includes('education')) return '🎓';
-    if (role.includes('material')) return '🧪';
-    if (role.includes('community')) return '🤝';
+    let emoji = '🏢';
+    if (role.includes('tech') || role.includes('equipment')) emoji = '⚙️';
+    else if (role.includes('research')) emoji = '🔬';
+    else if (role.includes('education')) emoji = '🎓';
+    else if (role.includes('material')) emoji = '🧪';
+    else if (role.includes('community')) emoji = '🤝';
 
-    return '🏢';
+    return <div className="text-4xl">{emoji}</div>;
   };
 
   return (
@@ -81,7 +94,9 @@ const SponsorsSection = () => {
 
               {/* Logo and Name */}
               <div className="text-center mb-4">
-                <div className="text-4xl mb-3">{getEmojiForPartner(sponsor)}</div>
+                <div className="mb-3 h-16 flex items-center justify-center">
+                  {getLogoContent(sponsor)}
+                </div>
                 <h3 className="text-xl font-bold text-foreground mb-1">{sponsor.name}</h3>
                 <p className="text-primary font-semibold">{sponsor.role}</p>
               </div>

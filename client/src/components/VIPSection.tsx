@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { Crown, Star, Zap, MessageCircle, BookOpen, Calendar, Trophy, Instagram, Facebook } from 'lucide-react';
 import { api } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface LeadershipMember {
   id: string;
@@ -33,21 +34,31 @@ interface SubscriptionTier {
 const VIPSection = () => {
   const [members, setMembers] = useState<LeadershipMember[]>([]);
   const [plans, setPlans] = useState<SubscriptionTier[]>([]);
+  const { isAuthenticated } = useAuth();
 
-  const getEmojiForMember = (member: LeadershipMember) => {
-    if (member.image) return member.image;
+  const getProfileContent = (member: LeadershipMember) => {
+    if (member.image) {
+      if (member.image.startsWith('http') || member.image.startsWith('/')) {
+        const imageUrl = member.image.startsWith('/')
+            ? `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000'}${member.image}`
+            : member.image;
+        return <img src={imageUrl} alt={member.name} className="w-24 h-24 mx-auto rounded-full object-cover shadow-sm border-2 border-primary/10" />;
+      }
+      return <div className="text-6xl">{member.image}</div>;
+    }
 
     // Auto-assign emoji based on title/role
     const title = (member.role || '').toLowerCase();
     const name = (member.name || '').toLowerCase();
 
-    if (title.includes('founder')) return '👩‍⚕️';
-    if (title.includes('education') || title.includes('professor') || name.includes('prof')) return '👨‍🏫';
-    if (title.includes('ambassador')) return '👩‍💼';
-    if (title.includes('research')) return '👨‍🔬';
-    if (name.includes('dr')) return '👨‍⚕️';
+    let emoji = '👤';
+    if (title.includes('founder')) emoji = '👩‍⚕️';
+    else if (title.includes('education') || title.includes('professor') || name.includes('prof')) emoji = '👨‍🏫';
+    else if (title.includes('ambassador')) emoji = '👩‍💼';
+    else if (title.includes('research')) emoji = '👨‍🔬';
+    else if (name.includes('dr')) emoji = '👨‍⚕️';
 
-    return '👤';
+    return <div className="text-6xl">{emoji}</div>;
   };
 
   const getIconForName = (iconName: string) => {
@@ -70,32 +81,34 @@ const VIPSection = () => {
   };
 
   useEffect(() => {
-    // Fetch Leadership Members
-    api.get<LeadershipMember[]>('/leadership')
-      .then(setMembers)
-      .catch(console.error);
+    if (isAuthenticated) {
+      // Fetch Leadership Members
+      api.get<LeadershipMember[]>('/leadership', { skipErrorHandling: true })
+        .then(setMembers)
+        .catch(console.error);
 
-    // Fetch Subscription Plans
-    api.get<any[]>('/plans')
-      .then(data => {
-        if (data && data.length > 0) {
-           const mappedPlans = data.map(p => ({
-               name: p.name,
-               price: parseFloat(p.price), // backend returns string for decimal
-               interval: p.interval,
-               features: p.features,
-               popular: p.popular,
-               key: p.key,
-               icon: getIconForName(p.icon),
-               color: getColorForKey(p.key)
-           }));
-           // Sort plans by price to ensure correct order (Basic -> VIP -> Ambassador)
-           mappedPlans.sort((a, b) => a.price - b.price);
-           setPlans(mappedPlans);
-        }
-      })
-      .catch(console.error);
-  }, []);
+      // Fetch Subscription Plans
+      api.get<any[]>('/plans', { skipErrorHandling: true })
+        .then(data => {
+          if (data && data.length > 0) {
+             const mappedPlans = data.map(p => ({
+                 name: p.name,
+                 price: parseFloat(p.price), // backend returns string for decimal
+                 interval: p.interval,
+                 features: p.features,
+                 popular: p.popular,
+                 key: p.key,
+                 icon: getIconForName(p.icon),
+                 color: getColorForKey(p.key)
+             }));
+             // Sort plans by price to ensure correct order (Basic -> VIP -> Ambassador)
+             mappedPlans.sort((a, b) => a.price - b.price);
+             setPlans(mappedPlans);
+          }
+        })
+        .catch(console.error);
+    }
+  }, [isAuthenticated]);
 
   const getStatusColor = (status: string) => {
     if (!status) return 'from-muted to-muted-foreground';
@@ -140,7 +153,9 @@ const VIPSection = () => {
 
                 {/* Profile Image */}
                 <div className="text-center mb-4">
-                  <div className="text-6xl mb-3">{getEmojiForMember(member)}</div>
+                  <div className="mb-4 flex items-center justify-center">
+                    {getProfileContent(member)}
+                  </div>
                   <h3 className="text-xl font-bold text-foreground mb-1">{member.name}</h3>
                   <p className="text-primary font-semibold text-sm mb-2">{member.role}</p>
                 </div>
