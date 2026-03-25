@@ -16,6 +16,7 @@ import {
   TrustedPartner,
   LeadershipMember,
   SubscriptionPlan,
+  SiteSetting,
 } from '../models';
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -43,6 +44,7 @@ export const sequelize = new Sequelize(databaseUrl, {
     TrustedPartner,
     LeadershipMember,
     SubscriptionPlan,
+    SiteSetting,
   ],
   logging: false, // Set to console.log to see SQL queries
   dialectOptions: {

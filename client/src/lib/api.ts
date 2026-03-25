@@ -72,7 +72,10 @@ async function fetchWithAuth<T>(endpoint: string, options: FetchOptions): Promis
         } catch (e) {
             errorMessage = response.statusText;
         }
-      throw new Error(errorMessage);
+
+        const error = new Error(errorMessage) as any;
+        error.status = response.status;
+        throw error;
     }
 
     // Handle 204 No Content
@@ -84,7 +87,10 @@ async function fetchWithAuth<T>(endpoint: string, options: FetchOptions): Promis
   } catch (error: any) {
     console.error(`API Error [${options.method} ${endpoint}]:`, error);
 
-    if (!skipErrorHandling) {
+    // Skip showing toast if unauthenticated access is generally expected to fail (401/403) unless overridden
+    const isAuthError = error.status === 401 || error.status === 403;
+
+    if (!skipErrorHandling && !isAuthError) {
       toast({
         title: "Error",
         description: error.message || "An unexpected error occurred",
