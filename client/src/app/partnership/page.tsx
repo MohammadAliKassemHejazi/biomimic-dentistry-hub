@@ -11,18 +11,6 @@ import { Button } from '@/components/ui/button';
 export default function PartnershipPage() {
   const tiers = [
     {
-      name: "Free Partnership",
-      icon: <Star className="w-12 h-12 text-muted-foreground" />,
-      color: "from-gray-300 to-gray-500",
-      description: "Join us as a partner in our live courses.",
-      features: [
-        "Partner in live courses",
-        "Logo on course materials",
-        "Community engagement"
-      ],
-      price: "Free"
-    },
-    {
       name: "Silver Partnership",
       icon: <Shield className="w-12 h-12 text-slate-400" />,
       color: "from-slate-400 to-slate-600",
@@ -88,7 +76,7 @@ export default function PartnershipPage() {
             </motion.p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
             {tiers.map((tier, index) => (
               <motion.div
                 key={tier.name}

@@ -6,6 +6,7 @@ import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { useParams } from 'next/navigation';
 import { Loader2, Heart, Share2, Eye, Calendar, User, Clock } from 'lucide-react';
+import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import DOMPurify from 'isomorphic-dompurify';
@@ -124,7 +125,7 @@ export default function BlogPostPage() {
 
             {post.featured_image && (
                 <div className="mb-8 rounded-xl overflow-hidden aspect-video relative">
-                    <img src={post.featured_image} alt={post.title} className="object-cover w-full h-full" />
+                    <Image src={post.featured_image} alt={post.title} fill sizes="100vw" className="object-cover w-full h-full" />
                 </div>
             )}
 

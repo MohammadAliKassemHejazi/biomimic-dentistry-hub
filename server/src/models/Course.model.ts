@@ -1,4 +1,4 @@
-import { Table, Column, Model, DataType, HasMany, Default, PrimaryKey, Unique } from 'sequelize-typescript';
+import { Table, Column, Model, DataType, HasMany, Default, PrimaryKey, Unique, Index } from 'sequelize-typescript';
 import { Purchase } from './Purchase.model';
 import { AccessLevel } from '../types/enums';
 
@@ -16,6 +16,7 @@ export class Course extends Model {
   @Column(DataType.STRING)
   title!: string;
 
+  @Index
   @Unique
   @Column(DataType.STRING)
   slug!: string;
@@ -29,6 +30,7 @@ export class Course extends Model {
   @Column(DataType.STRING)
   featuredImage?: string;
 
+  @Index
   @Default(false)
   @Column(DataType.BOOLEAN)
   comingSoon!: boolean;
@@ -36,6 +38,7 @@ export class Course extends Model {
   @Column(DataType.DATE)
   launchDate?: Date;
 
+  @Index
   @Default(AccessLevel.PUBLIC)
   @Column(DataType.ENUM(...Object.values(AccessLevel)))
   accessLevel!: AccessLevel;

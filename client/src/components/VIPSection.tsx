@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Crown, Star, Zap, MessageCircle, BookOpen, Calendar, Trophy, Instagram, Facebook } from 'lucide-react';
+import Image from 'next/image';
 import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -34,7 +35,6 @@ interface SubscriptionTier {
 const VIPSection = () => {
   const [members, setMembers] = useState<LeadershipMember[]>([]);
   const [plans, setPlans] = useState<SubscriptionTier[]>([]);
-  const { isAuthenticated } = useAuth();
 
   const getProfileContent = (member: LeadershipMember) => {
     if (member.image) {
@@ -42,7 +42,7 @@ const VIPSection = () => {
         const imageUrl = member.image.startsWith('/')
             ? `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000'}${member.image}`
             : member.image;
-        return <img src={imageUrl} alt={member.name} className="w-24 h-24 mx-auto rounded-full object-cover shadow-sm border-2 border-primary/10" />;
+        return <Image src={imageUrl} alt={member.name} width={96} height={96} className="w-24 h-24 mx-auto rounded-full object-cover shadow-sm border-2 border-primary/10" />;
       }
       return <div className="text-6xl">{member.image}</div>;
     }
@@ -61,54 +61,51 @@ const VIPSection = () => {
     return <div className="text-6xl">{emoji}</div>;
   };
 
-  const getIconForName = (iconName: string) => {
-    switch(iconName?.toLowerCase()) {
-        case 'trophy': return Trophy;
-        case 'star': return Star;
-        case 'crown': return Crown;
-        case 'zap': return Zap;
+  const getIconForKey = (key: string) => {
+    switch(key) {
+        case 'bronze': return Trophy;
+        case 'silver': return Star;
+        case 'gold': return Crown;
         default: return Star;
     }
   };
 
   const getColorForKey = (key: string) => {
       switch(key) {
-          case 'basic': return 'from-accent-light to-accent';
-          case 'vip': return 'from-gray-300 to-gray-500';
-          case 'ambassador': return 'from-secondary to-secondary-light';
+          case 'bronze': return 'from-accent-light to-accent';
+          case 'silver': return 'from-gray-300 to-gray-500';
+          case 'gold': return 'from-secondary to-secondary-light';
           default: return 'from-primary to-primary-light';
       }
   };
 
   useEffect(() => {
-    if (isAuthenticated) {
-      // Fetch Leadership Members
-      api.get<LeadershipMember[]>('/leadership', { skipErrorHandling: true })
-        .then(setMembers)
-        .catch(console.error);
+    // Fetch Leadership Members
+    api.get<LeadershipMember[]>('/leadership', { skipErrorHandling: true })
+      .then(setMembers)
+      .catch(console.error);
 
-      // Fetch Subscription Plans
-      api.get<any[]>('/plans', { skipErrorHandling: true })
-        .then(data => {
-          if (data && data.length > 0) {
-             const mappedPlans = data.map(p => ({
-                 name: p.name,
-                 price: parseFloat(p.price), // backend returns string for decimal
-                 interval: p.interval,
-                 features: p.features,
-                 popular: p.popular,
-                 key: p.key,
-                 icon: getIconForName(p.icon),
-                 color: getColorForKey(p.key)
-             }));
-             // Sort plans by price to ensure correct order (Basic -> VIP -> Ambassador)
-             mappedPlans.sort((a, b) => a.price - b.price);
-             setPlans(mappedPlans);
-          }
-        })
-        .catch(console.error);
-    }
-  }, [isAuthenticated]);
+    // Fetch Subscription Plans
+    api.get<any[]>('/plans', { skipErrorHandling: true })
+      .then(data => {
+        if (data && data.length > 0) {
+         const mappedPlans = data.map(p => ({
+             name: p.name,
+             price: parseFloat(p.price), // backend returns string for decimal
+             interval: p.interval,
+             features: p.features,
+             popular: p.popular,
+             key: p.key,
+             icon: getIconForKey(p.key),
+             color: getColorForKey(p.key)
+         }));
+         // Sort plans by price to ensure correct order
+         mappedPlans.sort((a, b) => a.price - b.price);
+         setPlans(mappedPlans);
+        }
+      })
+      .catch(console.error);
+  }, []);
 
   const getStatusColor = (status: string) => {
     if (!status) return 'from-muted to-muted-foreground';
@@ -265,13 +262,13 @@ const VIPSection = () => {
                   </ul>
 
                   {/* CTA Button */}
-                  <button className={`w-full font-semibold py-3 rounded-lg transition-smooth ${
+                  <a href="/subscription" className={`block w-full text-center font-semibold py-3 rounded-lg transition-smooth ${
                     tier.popular
                       ? 'bg-secondary text-secondary-foreground hover:bg-secondary/90'
                       : 'bg-primary text-primary-foreground hover:bg-primary/90'
                   }`}>
                     Choose {tier.name}
-                  </button>
+                  </a>
                 </div>
               );
             })}

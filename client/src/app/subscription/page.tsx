@@ -50,27 +50,25 @@ const Subscription = () => {
 };
 
   React.useEffect(() => {
-    if (isAuthenticated) {
-      api.get<any[]>('/plans', { skipErrorHandling: true }).then((data) => {
-          if (data && data.length > 0) {
-              const mapped = data.map(p => ({
-                  id: p.key, // Using key as id for role matching
-                  name: p.name,
-                  price: parseFloat(p.price),
-                  interval: p.interval,
-                  stripe_price_id: p.stripePriceId,
-                  features: p.features,
-                  popular: p.popular,
-                  icon: getIconForKey(p.key),
-                  color: getColorForKey(p.key)
-              }));
-               // Sort plans by price to ensure correct order
-               mapped.sort((a, b) => a.price - b.price);
-              setSubscriptionTiers(mapped);
-          }
-      }).catch(console.error);
-    }
-  }, [isAuthenticated]);
+    api.get<any[]>('/plans', { skipErrorHandling: true }).then((data) => {
+        if (data && data.length > 0) {
+            const mapped = data.map(p => ({
+                id: p.key, // Using key as id for role matching
+                name: p.name,
+                price: parseFloat(p.price),
+                interval: p.interval,
+                stripe_price_id: p.stripePriceId,
+                features: p.features,
+                popular: p.popular,
+                icon: getIconForKey(p.key),
+                color: getColorForKey(p.key)
+            }));
+             // Sort plans by price to ensure correct order
+             mapped.sort((a, b) => a.price - b.price);
+            setSubscriptionTiers(mapped);
+        }
+    }).catch(console.error);
+  }, []);
 
   const createCheckoutSession = async (priceId: string) => {
     if (!isAuthenticated) {

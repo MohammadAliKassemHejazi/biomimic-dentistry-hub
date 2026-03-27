@@ -5,7 +5,11 @@ import { motion } from 'framer-motion';
 import { ArrowRight, Heart, Users, Globe, Leaf, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import heroBg from '../assets/hero-bg.jpg';
-import BiomimeticTooth3D from './BiomimeticTooth3D';
+import dynamic from 'next/dynamic';
+
+const BiomimeticTooth3D = dynamic(() => import('./BiomimeticTooth3D'), {
+  ssr: false,
+});
 
 const HeroSection = () => {
   return (
@@ -207,7 +211,7 @@ const HeroSection = () => {
               transition={{ duration: 0.8, delay: 0.7 }}
               className="flex flex-col md:flex-row gap-6 justify-center items-center"
             >
-              <Link href="/donate" passHref>
+              <Link href="/contact" passHref>
                 <motion.button
                   whileHover={{
                     scale: 1.05,
@@ -223,7 +227,7 @@ const HeroSection = () => {
                 </motion.button>
               </Link>
 
-              <Link href="/dashboard" passHref>
+              <Link href="/dashboard?apply=ambassador" passHref>
                 <motion.button
                   whileHover={{
                     scale: 1.05,
@@ -236,7 +240,7 @@ const HeroSection = () => {
                 </motion.button>
               </Link>
 
-              <Link href="/signup" passHref>
+              <Link href="/blog" passHref>
                 <motion.button
                   whileHover={{
                     scale: 1.05,

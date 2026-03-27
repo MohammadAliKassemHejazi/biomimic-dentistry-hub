@@ -1,4 +1,4 @@
-import { Table, Column, Model, DataType, BelongsTo, ForeignKey, Default, PrimaryKey } from 'sequelize-typescript';
+import { Table, Column, Model, DataType, BelongsTo, ForeignKey, Default, PrimaryKey, Index } from 'sequelize-typescript';
 import { User } from './User.model';
 import { AccessLevel, ContentStatus } from '../types/enums';
 
@@ -31,10 +31,12 @@ export class Resource extends Model {
   @Column(DataType.STRING)
   fileType?: string;
 
+  @Index
   @Default(AccessLevel.PUBLIC)
   @Column(DataType.ENUM(...Object.values(AccessLevel)))
   accessLevel!: AccessLevel;
 
+  @Index
   @Column(DataType.STRING)
   category?: string;
 
@@ -45,10 +47,12 @@ export class Resource extends Model {
   @Column(DataType.INTEGER)
   downloadCount!: number;
 
+  @Index
   @Default(ContentStatus.APPROVED)
   @Column(DataType.ENUM(...Object.values(ContentStatus)))
   status!: ContentStatus;
 
+  @Index
   @ForeignKey(() => User)
   @Column(DataType.UUID)
   createdById?: string;

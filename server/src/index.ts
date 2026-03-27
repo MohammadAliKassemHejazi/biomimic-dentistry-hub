@@ -15,6 +15,7 @@ if (missingEnvVars.length > 0) {
 import cors from 'cors';
 import helmet from 'helmet';
 import path from 'path';
+import compression from 'compression';
 import authRoutes from './routes/auth.routes';
 import courseRoutes from './routes/course.routes';
 import resourceRoutes from './routes/resource.routes';
@@ -32,12 +33,15 @@ import { seedDefaultAdmin } from './utils/seed';
 const app = express();
 const port = process.env.PORT || 5000;
 
+app.use(compression());
 app.use(cors());
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 app.use(express.json());
-app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
+app.use('/uploads', express.static(path.join(__dirname, '../public/uploads'), {
+  maxAge: '1d', // Cache static files for 1 day
+}));
 
 // Database connection
 sequelize.authenticate()

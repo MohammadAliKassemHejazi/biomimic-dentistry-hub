@@ -65,6 +65,16 @@ const Dashboard = () => {
   // Ambassador App State
   const [openAppDialog, setOpenAppDialog] = useState(false);
   const [appLoading, setAppLoading] = useState(false);
+
+  useEffect(() => {
+    // Check if we should open the application dialog based on query params
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.get('apply') === 'ambassador' && !user?.is_ambassador && user?.role !== 'admin') {
+      setOpenAppDialog(true);
+      // Optional: Clean up URL after opening
+      window.history.replaceState({}, '', '/dashboard');
+    }
+  }, [user]);
   const [appData, setAppData] = useState({ country: '', experience: '', bio: '', social_media_links: '', cv: '' });
 
   const { data: subscriptionStatus } = useSubscription();
