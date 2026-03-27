@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Building2, Award, HandHeart } from 'lucide-react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
@@ -44,7 +45,7 @@ const SponsorsSection = () => {
         const logoUrl = partner.logo.startsWith('/')
             ? `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000'}${partner.logo}`
             : partner.logo;
-        return <img src={logoUrl} alt={partner.name} className="w-16 h-16 mx-auto object-contain" />;
+        return <Image src={logoUrl} alt={partner.name} width={64} height={64} className="w-16 h-16 mx-auto object-contain" />;
       }
       return <div className="text-4xl">{partner.logo}</div>;
     }

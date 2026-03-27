@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Crown, Star, Zap, MessageCircle, BookOpen, Calendar, Trophy, Instagram, Facebook } from 'lucide-react';
+import Image from 'next/image';
 import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -41,7 +42,7 @@ const VIPSection = () => {
         const imageUrl = member.image.startsWith('/')
             ? `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000'}${member.image}`
             : member.image;
-        return <img src={imageUrl} alt={member.name} className="w-24 h-24 mx-auto rounded-full object-cover shadow-sm border-2 border-primary/10" />;
+        return <Image src={imageUrl} alt={member.name} width={96} height={96} className="w-24 h-24 mx-auto rounded-full object-cover shadow-sm border-2 border-primary/10" />;
       }
       return <div className="text-6xl">{member.image}</div>;
     }

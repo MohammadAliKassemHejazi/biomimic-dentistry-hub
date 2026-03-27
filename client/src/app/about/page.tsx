@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Stethoscope, Users, Globe, Award, Heart, BookOpen } from 'lucide-react';
+import Image from 'next/image';
 import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -212,8 +213,8 @@ const About = () => {
                     >
                         <Card className="h-full hover-scale overflow-hidden">
                              {member.image && (
-                                <div className="aspect-square overflow-hidden bg-muted">
-                                    <img src={member.image} alt={member.name} className="w-full h-full object-cover transition-transform duration-300 hover:scale-105" />
+                                <div className="aspect-square overflow-hidden bg-muted relative">
+                                    <Image src={member.image} alt={member.name} fill sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" className="object-cover transition-transform duration-300 hover:scale-105" />
                                 </div>
                             )}
                             <CardHeader>
