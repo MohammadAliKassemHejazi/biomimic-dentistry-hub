@@ -1,4 +1,4 @@
-import { Table, Column, Model, DataType, BelongsTo, HasMany, ForeignKey, Default, PrimaryKey, Unique } from 'sequelize-typescript';
+import { Table, Column, Model, DataType, BelongsTo, HasMany, ForeignKey, Default, PrimaryKey, Unique, Index } from 'sequelize-typescript';
 import { User } from './User.model';
 import { Favorite } from './Favorite.model';
 import { BlogView } from './BlogView.model';
@@ -18,6 +18,7 @@ export class BlogPost extends Model {
   @Column(DataType.STRING)
   title!: string;
 
+  @Index
   @Unique
   @Column(DataType.STRING)
   slug!: string;
@@ -31,6 +32,7 @@ export class BlogPost extends Model {
   @Column(DataType.STRING)
   featuredImage?: string;
 
+  @Index
   @Column(DataType.STRING)
   category?: string;
 
@@ -40,10 +42,12 @@ export class BlogPost extends Model {
   @Column(DataType.INTEGER)
   readTime?: number;
 
+  @Index
   @Default(ContentStatus.PENDING)
   @Column(DataType.ENUM(...Object.values(ContentStatus)))
   status!: ContentStatus;
 
+  @Index
   @ForeignKey(() => User)
   @Column(DataType.UUID)
   authorId!: string;

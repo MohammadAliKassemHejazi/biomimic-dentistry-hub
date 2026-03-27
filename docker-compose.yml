@@ -8,6 +8,12 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: ${POSTGRES_DB:-app_db}
+    command: >
+      postgres
+      -c autovacuum=on
+      -c track_counts=on
+      -c autovacuum_max_workers=3
+      -c autovacuum_naptime=1min
     ports:
       - "5432:5432"
     volumes:

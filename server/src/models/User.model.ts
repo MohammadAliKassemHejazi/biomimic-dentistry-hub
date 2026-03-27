@@ -1,4 +1,4 @@
-import { Table, Column, Model, DataType, HasMany, HasOne, Unique, Default, PrimaryKey } from 'sequelize-typescript';
+import { Table, Column, Model, DataType, HasMany, HasOne, Unique, Default, PrimaryKey, Index } from 'sequelize-typescript';
 import { Resource } from './Resource.model';
 import { Purchase } from './Purchase.model';
 import { BlogPost } from './BlogPost.model';
@@ -35,6 +35,7 @@ export class User extends Model {
   @Column(DataType.STRING)
   lastName?: string;
 
+  @Index
   @Default(UserRole.USER)
   @Column(DataType.ENUM(...Object.values(UserRole)))
   role!: UserRole;
@@ -42,6 +43,7 @@ export class User extends Model {
   @Column(DataType.STRING)
   avatarUrl?: string;
 
+  @Index
   @Column(DataType.STRING)
   stripeCustomerId?: string;
 
