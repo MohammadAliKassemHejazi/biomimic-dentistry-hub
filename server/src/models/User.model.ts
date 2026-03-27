@@ -1,4 +1,4 @@
-import { Table, Column, Model, DataType, HasMany, HasOne, Unique, Default, PrimaryKey, Index } from 'sequelize-typescript';
+import { Table, Column, Model, DataType, HasMany, HasOne, Unique, Default, PrimaryKey, } from 'sequelize-typescript';
 import { Resource } from './Resource.model';
 import { Purchase } from './Purchase.model';
 import { BlogPost } from './BlogPost.model';
@@ -15,6 +15,10 @@ import { UserRole } from '../types/enums';
   tableName: 'users',
   timestamps: true,
   underscored: true,
+  indexes: [
+    { name: 'users_role', fields: ['role'] },
+    { name: 'users_stripe_customer_id', fields: ['stripe_customer_id'] }
+  ],
 })
 export class User extends Model {
   @PrimaryKey
@@ -35,7 +39,6 @@ export class User extends Model {
   @Column(DataType.STRING)
   lastName?: string;
 
-  @Index
   @Default(UserRole.USER)
   @Column(DataType.ENUM(...Object.values(UserRole)))
   role!: UserRole;
@@ -43,7 +46,6 @@ export class User extends Model {
   @Column(DataType.STRING)
   avatarUrl?: string;
 
-  @Index
   @Column({ type: DataType.STRING, field: 'stripe_customer_id' })
   stripeCustomerId?: string;
 

@@ -1,4 +1,4 @@
-import { Table, Column, Model, DataType, HasMany, Default, PrimaryKey, Unique, Index } from 'sequelize-typescript';
+import { Table, Column, Model, DataType, HasMany, Default, PrimaryKey, Unique, } from 'sequelize-typescript';
 import { Purchase } from './Purchase.model';
 import { AccessLevel } from '../types/enums';
 
@@ -6,6 +6,11 @@ import { AccessLevel } from '../types/enums';
   tableName: 'courses',
   timestamps: true,
   underscored: true,
+  indexes: [
+    { name: 'courses_slug', fields: ['slug'] },
+    { name: 'courses_coming_soon', fields: ['coming_soon'] },
+    { name: 'courses_access_level', fields: ['access_level'] }
+  ],
 })
 export class Course extends Model {
   @PrimaryKey
@@ -16,7 +21,6 @@ export class Course extends Model {
   @Column(DataType.STRING)
   title!: string;
 
-  @Index
   @Unique
   @Column(DataType.STRING)
   slug!: string;
@@ -30,7 +34,6 @@ export class Course extends Model {
   @Column(DataType.STRING)
   featuredImage?: string;
 
-  @Index
   @Default(false)
   @Column(DataType.BOOLEAN)
   comingSoon!: boolean;
@@ -38,7 +41,6 @@ export class Course extends Model {
   @Column(DataType.DATE)
   launchDate?: Date;
 
-  @Index
   @Default(AccessLevel.PUBLIC)
   @Column(DataType.ENUM(...Object.values(AccessLevel)))
   accessLevel!: AccessLevel;

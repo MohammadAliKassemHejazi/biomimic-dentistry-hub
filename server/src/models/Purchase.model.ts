@@ -1,4 +1,4 @@
-import { Table, Column, Model, DataType, BelongsTo, ForeignKey, Default, PrimaryKey, Index } from 'sequelize-typescript';
+import { Table, Column, Model, DataType, BelongsTo, ForeignKey, Default, PrimaryKey, } from 'sequelize-typescript';
 import { User } from './User.model';
 import { Course } from './Course.model';
 import { PurchaseStatus } from '../types/enums';
@@ -12,6 +12,9 @@ import { PurchaseStatus } from '../types/enums';
       unique: true,
       fields: ['user_id', 'course_id'],
     },
+    { name: 'purchases_user_id', fields: ['user_id'] },
+    { name: 'purchases_course_id', fields: ['course_id'] },
+    { name: 'purchases_status', fields: ['status'] }
   ],
 })
 export class Purchase extends Model {
@@ -20,7 +23,6 @@ export class Purchase extends Model {
   @Column(DataType.UUID)
   id!: string;
 
-  @Index
   @ForeignKey(() => User)
   @Column(DataType.UUID)
   userId!: string;
@@ -28,7 +30,6 @@ export class Purchase extends Model {
   @BelongsTo(() => User)
   user!: User;
 
-  @Index
   @ForeignKey(() => Course)
   @Column(DataType.UUID)
   courseId!: string;
@@ -42,7 +43,6 @@ export class Purchase extends Model {
   @Column(DataType.DECIMAL)
   amount!: number;
 
-  @Index
   @Default(PurchaseStatus.PENDING)
   @Column(DataType.ENUM(...Object.values(PurchaseStatus)))
   status!: PurchaseStatus;
