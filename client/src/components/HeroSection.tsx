@@ -5,7 +5,11 @@ import { motion } from 'framer-motion';
 import { ArrowRight, Heart, Users, Globe, Leaf, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import heroBg from '../assets/hero-bg.jpg';
-import BiomimeticTooth3D from './BiomimeticTooth3D';
+import dynamic from 'next/dynamic';
+
+const BiomimeticTooth3D = dynamic(() => import('./BiomimeticTooth3D'), {
+  ssr: false,
+});
 
 const HeroSection = () => {
   return (

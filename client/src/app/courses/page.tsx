@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Clock, Calendar, Users, Star, Bell } from 'lucide-react';
+import Image from 'next/image';
 import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -150,11 +151,13 @@ const Courses = () => {
                 >
                   <Card className="h-full hover-scale">
                     {course.featured_image && (
-                      <div className="aspect-video overflow-hidden rounded-t-lg">
-                        <img
+                      <div className="aspect-video overflow-hidden rounded-t-lg relative">
+                        <Image
                           src={course.featured_image}
                           alt={course.title}
-                          className="w-full h-full object-cover"
+                          fill
+                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                          className="object-cover"
                         />
                       </div>
                     )}
