@@ -13,6 +13,12 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
+  redis:
+    image: redis:7-alpine
+    restart: always
+    ports:
+      - "6379:6379"
+
   server:
     build:
       context: ./server
@@ -26,9 +32,11 @@ services:
       - DATABASE_URL=postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-app_db}
       - JWT_SECRET=${JWT_SECRET:-dev_secret_key_123}
       - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-sk_test_placeholder}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
       - PORT=5000
     depends_on:
       - db
+      - redis
     # Use polling for file changes (better compatibility across OS)
     command: npm run dev
 
