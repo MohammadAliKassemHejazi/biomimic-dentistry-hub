@@ -44,7 +44,7 @@ export class User extends Model {
   avatarUrl?: string;
 
   @Index
-  @Column(DataType.STRING)
+  @Column({ type: DataType.STRING, field: 'stripe_customer_id' })
   stripeCustomerId?: string;
 
   @HasMany(() => Resource)
