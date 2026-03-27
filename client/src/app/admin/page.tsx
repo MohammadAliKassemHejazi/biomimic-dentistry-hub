@@ -415,7 +415,8 @@ export default function AdminDashboard() {
                                         <Button type="submit" className="w-full">Save</Button>
                                     </form>
                                 </DialogContent>
-                            </Dialog>
+                                </Dialog>
+                            </div>
                         </CardHeader>
                         <CardContent>
                             <Table>
