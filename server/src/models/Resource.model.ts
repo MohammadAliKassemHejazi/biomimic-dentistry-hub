@@ -1,4 +1,4 @@
-import { Table, Column, Model, DataType, BelongsTo, ForeignKey, Default, PrimaryKey, Index } from 'sequelize-typescript';
+import { Table, Column, Model, DataType, BelongsTo, ForeignKey, Default, PrimaryKey, } from 'sequelize-typescript';
 import { User } from './User.model';
 import { AccessLevel, ContentStatus } from '../types/enums';
 
@@ -6,6 +6,12 @@ import { AccessLevel, ContentStatus } from '../types/enums';
   tableName: 'resources',
   timestamps: true,
   underscored: true,
+  indexes: [
+    { name: 'resources_access_level', fields: ['access_level'] },
+    { name: 'resources_category', fields: ['category'] },
+    { name: 'resources_status', fields: ['status'] },
+    { name: 'resources_created_by_id', fields: ['created_by_id'] }
+  ],
 })
 export class Resource extends Model {
   @PrimaryKey
@@ -31,12 +37,10 @@ export class Resource extends Model {
   @Column(DataType.STRING)
   fileType?: string;
 
-  @Index
   @Default(AccessLevel.PUBLIC)
   @Column(DataType.ENUM(...Object.values(AccessLevel)))
   accessLevel!: AccessLevel;
 
-  @Index
   @Column(DataType.STRING)
   category?: string;
 
@@ -47,12 +51,10 @@ export class Resource extends Model {
   @Column(DataType.INTEGER)
   downloadCount!: number;
 
-  @Index
   @Default(ContentStatus.APPROVED)
   @Column(DataType.ENUM(...Object.values(ContentStatus)))
   status!: ContentStatus;
 
-  @Index
   @ForeignKey(() => User)
   @Column(DataType.UUID)
   createdById?: string;
