@@ -12,8 +12,12 @@ const generateSlug = (title: string) => {
 
 export const getPosts = async (req: Request, res: Response) => {
   try {
-    const { published, status } = req.query as { published?: string, status?: string };
+    const { published, status, page, limit } = req.query as { published?: string, status?: string, page?: string, limit?: string };
     const user = req.user;
+
+    const pageNum = parseInt(page as string, 10) || 1;
+    const limitNum = parseInt(limit as string, 10) || 10;
+    const offset = (pageNum - 1) * limitNum;
 
     const where: any = {};
 
@@ -28,8 +32,8 @@ export const getPosts = async (req: Request, res: Response) => {
     }
 
     const include: any[] = [
-      { model: User, as: 'author' },
-      { model: BlogView, as: 'views' }
+      { model: User, as: 'author', attributes: ['firstName', 'lastName'] },
+      { model: BlogView, as: 'views', attributes: ['id'] }
     ];
 
     if (user) {
@@ -37,14 +41,19 @@ export const getPosts = async (req: Request, res: Response) => {
         model: Favorite,
         as: 'favorites',
         where: { userId: user.id },
-        required: false
+        required: false,
+        attributes: ['id']
       });
     }
 
-    const posts = await BlogPost.findAll({
+    const { count, rows: posts } = await BlogPost.findAndCountAll({
       where,
       include,
       order: [['createdAt', 'DESC']],
+      limit: limitNum,
+      offset,
+      distinct: true,
+      attributes: ['id', 'title', 'slug', 'excerpt', 'featuredImage', 'category', 'tags', 'readTime', 'createdAt', 'status']
     });
 
     const formatted = posts.map((p) => ({
@@ -52,7 +61,6 @@ export const getPosts = async (req: Request, res: Response) => {
       title: p.title,
       slug: p.slug,
       excerpt: p.excerpt,
-      content: p.content,
       featured_image: p.featuredImage,
       category: p.category,
       tags: p.tags ? p.tags.split(',') : [],
@@ -67,7 +75,15 @@ export const getPosts = async (req: Request, res: Response) => {
       },
     }));
 
-    res.json(formatted);
+    res.json({
+      data: formatted,
+      meta: {
+        total: count,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(count / limitNum)
+      }
+    });
   } catch (error) {
     console.error('Error fetching blog posts:', error);
     res.status(500).json({ message: 'Internal server error' });

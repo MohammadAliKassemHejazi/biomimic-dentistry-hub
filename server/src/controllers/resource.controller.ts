@@ -5,7 +5,13 @@ import { logActivity } from '../utils/activity';
 
 export const getResources = async (req: Request, res: Response) => {
   try {
+    const { page, limit } = req.query as { page?: string, limit?: string };
     const user = req.user;
+
+    const pageNum = parseInt(page as string, 10) || 1;
+    const limitNum = parseInt(limit as string, 10) || 10;
+    const offset = (pageNum - 1) * limitNum;
+
     const where: any = {};
 
     // If not admin, only show approved resources
@@ -13,9 +19,12 @@ export const getResources = async (req: Request, res: Response) => {
       where.status = ContentStatus.APPROVED;
     }
 
-    const resources = await Resource.findAll({
+    const { count, rows: resources } = await Resource.findAndCountAll({
       where,
       order: [['createdAt', 'DESC']],
+      limit: limitNum,
+      offset,
+      attributes: ['id', 'title', 'description', 'fileUrl', 'fileName', 'fileType', 'accessLevel', 'category', 'tags', 'downloadCount', 'createdAt', 'status']
     });
 
     const formatted = resources.map(r => ({
@@ -33,7 +42,15 @@ export const getResources = async (req: Request, res: Response) => {
       status: r.status
     }));
 
-    res.json(formatted);
+    res.json({
+      data: formatted,
+      meta: {
+        total: count,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(count / limitNum)
+      }
+    });
   } catch (error) {
     console.error('Error fetching resources:', error);
     res.status(500).json({ message: 'Internal server error' });
