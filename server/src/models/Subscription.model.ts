@@ -1,4 +1,4 @@
-import { Table, Column, Model, DataType, BelongsTo, ForeignKey, Default, PrimaryKey, Unique } from 'sequelize-typescript';
+import { Table, Column, Model, DataType, BelongsTo, ForeignKey, Default, PrimaryKey, Unique, Index } from 'sequelize-typescript';
 import { User } from './User.model';
 import { SubscriptionStatus } from '../types/enums';
 
@@ -13,6 +13,7 @@ export class Subscription extends Model {
   @Column(DataType.UUID)
   id!: string;
 
+  @Index
   @ForeignKey(() => User)
   @Unique
   @Column(DataType.UUID)
@@ -21,6 +22,7 @@ export class Subscription extends Model {
   @BelongsTo(() => User)
   user!: User;
 
+  @Index
   @Unique
   @Column(DataType.STRING)
   stripeSubscriptionId!: string;
@@ -28,6 +30,7 @@ export class Subscription extends Model {
   @Column(DataType.STRING)
   stripePriceId!: string;
 
+  @Index
   @Column(DataType.ENUM(...Object.values(SubscriptionStatus)))
   status!: SubscriptionStatus;
 
