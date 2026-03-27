@@ -23,8 +23,11 @@ const SponsorsSection = () => {
   const { isAuthenticated } = useAuth();
 
   useEffect(() => {
+    api.get<TrustedPartner[]>('/partners', { skipErrorHandling: true }).then(setSponsors).catch(console.error);
+  }, []);
+
+  useEffect(() => {
     if (isAuthenticated) {
-      api.get<TrustedPartner[]>('/partners', { skipErrorHandling: true }).then(setSponsors).catch(console.error);
       api.get<{url: string | null}>('/admin/settings/partnership-kit', { skipErrorHandling: true }).then(res => setPartnershipKitUrl(res.url)).catch(console.error);
     }
   }, [isAuthenticated]);
@@ -45,7 +48,7 @@ const SponsorsSection = () => {
         const logoUrl = partner.logo.startsWith('/')
             ? `${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000'}${partner.logo}`
             : partner.logo;
-        return <Image src={logoUrl} alt={partner.name} width={64} height={64} className="w-16 h-16 mx-auto object-contain" />;
+        return <Image unoptimized src={logoUrl} alt={partner.name} width={64} height={64} className="w-16 h-16 mx-auto object-contain" />;
       }
       return <div className="text-4xl">{partner.logo}</div>;
     }
