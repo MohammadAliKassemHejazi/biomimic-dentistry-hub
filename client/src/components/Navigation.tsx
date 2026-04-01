@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X, User, LogOut, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
@@ -38,9 +38,9 @@ interface NavItem {
   href: string;
 }
 
-const DropdownNav = ({ title, items, className = "" }: { title: string, items: NavItem[], className?: string }) => {
+const DropdownNav = memo(({ title, items, className = "" }: { title: string, items: NavItem[], className?: string }) => {
   const pathname = usePathname();
-  const isActive = (href: string) => pathname === href;
+  const isActive = useCallback((href: string) => pathname === href, [pathname]);
 
   return (
     <DropdownMenu modal={false}>
@@ -64,7 +64,8 @@ const DropdownNav = ({ title, items, className = "" }: { title: string, items: N
       </DropdownMenuContent>
     </DropdownMenu>
   );
-};
+});
+DropdownNav.displayName = 'DropdownNav';
 
 const Navigation = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -75,15 +76,15 @@ const Navigation = () => {
   const userName = user?.first_name || user?.email?.split('@')[0] || 'User';
   const isAmbassador = user?.is_ambassador || userRole === 'ambassador';
 
-  const isActive = (href: string) => pathname === href;
+  const isActive = useCallback((href: string) => pathname === href, [pathname]);
 
-  const linkClass = (href: string) => `text-white/90 hover:text-white transition-colors font-medium px-3 py-2 rounded-md hover:bg-white/10 ${
+  const linkClass = useCallback((href: string) => `text-white/90 hover:text-white transition-colors font-medium px-3 py-2 rounded-md hover:bg-white/10 ${
     isActive(href) ? 'text-secondary bg-white/5' : ''
-  }`;
+  }`, [isActive]);
 
-  const mobileLinkClass = (href: string) => `block px-4 py-3 text-white/90 hover:text-white hover:bg-white/10 rounded-lg transition-colors ${
+  const mobileLinkClass = useCallback((href: string) => `block px-4 py-3 text-white/90 hover:text-white hover:bg-white/10 rounded-lg transition-colors ${
     isActive(href) ? 'text-secondary bg-white/5' : ''
-  }`;
+  }`, [isActive]);
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-primary shadow-soft">
@@ -376,4 +377,4 @@ const Navigation = () => {
   );
 };
 
-export default Navigation;
+export default memo(Navigation);

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Search, Clock, User, Calendar, Tag, FileText, PlusCircle } from 'lucide-react';
 import Image from 'next/image';
@@ -20,22 +20,22 @@ const Blog = () => {
 
   const { data: posts = [], isLoading: loading } = useBlogPosts(true);
 
-  const filteredPosts = posts.filter(post => {
+  const filteredPosts = useMemo(() => posts.filter(post => {
     const matchesSearch = post.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          post.excerpt.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = !selectedCategory || post.category === selectedCategory;
     return matchesSearch && matchesCategory;
-  });
+  }), [posts, searchTerm, selectedCategory]);
 
-  const categories = [...new Set(posts.map(post => post.category))];
+  const categories = useMemo(() => [...new Set(posts.map(post => post.category))], [posts]);
 
-  const formatDate = (dateString: string) => {
+  const formatDate = useMemo(() => (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric'
     });
-  };
+  }, []);
 
   if (loading) {
     return (
