@@ -8,6 +8,7 @@ import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/contexts/AuthContext';
+import Image from 'next/image';
 import ThemeToggle from './ThemeToggle';
 import LanguageToggle from './LanguageToggle';
 
@@ -92,16 +93,16 @@ const Navigation = () => {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-3">
-            <motion.div
-              whileHover={{ scale: 1.05 }}
-              className="w-10 h-10 bg-secondary rounded-lg flex items-center justify-center"
-            >
-              <span className="text-secondary-foreground font-bold text-lg">B</span>
+            <motion.div whileHover={{ scale: 1.05 }}>
+              <Image
+                src="/logo.png"
+                alt="Biomimetic Dentistry Club"
+                width={120}
+                height={40}
+                className="h-10 w-auto object-contain"
+                priority
+              />
             </motion.div>
-            <div>
-              <h1 className="text-xl font-bold text-primary-foreground">Biomimetic Dentistry</h1>
-              <p className="text-xs text-primary-foreground/70 -mt-1">Club</p>
-            </div>
           </Link>
 
           <div className="flex items-center space-x-4">
@@ -233,6 +234,19 @@ const Navigation = () => {
             className="md:hidden border-t border-white/20 bg-primary/95 backdrop-blur-md"
           >
             <div className="py-4 space-y-2">
+              {/* Mobile Logo */}
+              <div className="px-4 pb-2 border-b border-white/20 mb-2">
+                <Link href="/" onClick={() => setIsMenuOpen(false)}>
+                  <Image
+                    src="/logo.png"
+                    alt="Biomimetic Dentistry Club"
+                    width={120}
+                    height={40}
+                    className="h-9 w-auto object-contain"
+                  />
+                </Link>
+              </div>
+
               {/* Home */}
               <Link
                 href="/"
