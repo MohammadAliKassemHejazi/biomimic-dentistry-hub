@@ -6,8 +6,6 @@ services:
     rootDir: server
     buildCommand: npm install && npm run build
     startCommand: npm start
-    plan: free
-
     envVars:
       - key: NODE_ENV
         value: production
@@ -48,16 +46,15 @@ services:
 
       # Set to true for the very first deploy to create DB schema, then set back to false
       - key: SYNC_DB
-        value: false
+        value: "false"
 
   # ── Next.js Client ───────────────────────────────────────────────────────────
   - type: web
     name: biomimic-client
     runtime: node
     rootDir: client
-    buildCommand: npm install && npm run build
+    buildCommand: npm install --include=dev && npm run build
     startCommand: npm start
-    plan: free
 
     envVars:
       - key: NODE_ENV

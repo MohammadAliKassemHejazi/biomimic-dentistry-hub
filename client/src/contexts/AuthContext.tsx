@@ -10,7 +10,7 @@ interface User {
   email: string;
   first_name?: string;
   last_name?: string;
-  role: 'user' | 'admin' | 'ambassador' | 'bronze' | 'silver' | 'vip';
+  role: 'user' | 'admin' | 'ambassador' | 'bronze' | 'silver' | 'vip' | 'gold';
   is_ambassador?: boolean;
 }
 
