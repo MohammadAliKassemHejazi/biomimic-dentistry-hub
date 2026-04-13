@@ -286,28 +286,19 @@ const HeroSection = () => {
             >
               "Biomimetic dentistry isn't just about technique—it's about{' '}
               <motion.span
-                whileHover={{
-                  color: "hsl(var(--primary-light))",
-                  textShadow: "0 0 10px rgba(136, 201, 161, 0.3)"
-                }}
+                whileHover={{ textShadow: "0 0 10px rgba(136, 201, 161, 0.3)" }}
                 className="text-primary-light font-semibold cursor-pointer"
               >
                 preserving natural tooth structure
               </motion.span>, {' '}
               <motion.span
-                whileHover={{
-                  color: "hsl(var(--secondary))",
-                  textShadow: "0 0 10px rgba(181, 226, 250, 0.3)"
-                }}
+                whileHover={{ textShadow: "0 0 10px rgba(181, 226, 250, 0.3)" }}
                 className="text-secondary font-semibold cursor-pointer"
               >
                 respecting biology
               </motion.span>, and{' '}
               <motion.span
-                whileHover={{
-                  color: "hsl(var(--accent))",
-                  textShadow: "0 0 10px rgba(232, 180, 184, 0.3)"
-                }}
+                whileHover={{ textShadow: "0 0 10px rgba(232, 180, 184, 0.3)" }}
                 className="text-accent font-semibold cursor-pointer"
               >
                 making quality care accessible to all

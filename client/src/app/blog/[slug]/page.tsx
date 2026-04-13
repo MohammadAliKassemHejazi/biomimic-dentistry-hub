@@ -30,9 +30,17 @@ interface BlogPost {
     };
 }
 
+const SERVER_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api').replace('/api', '');
+
+function resolveImageUrl(path: string | null | undefined): string | null {
+    if (!path) return null;
+    if (path.startsWith('http')) return path;
+    return `${SERVER_URL}${path}`;
+}
+
 export default function BlogPostPage() {
     const { slug } = useParams();
-    const { user } = useAuth();
+    const { user, isAuthenticated } = useAuth();
     const { toast } = useToast();
     const [post, setPost] = useState<BlogPost | null>(null);
     const [loading, setLoading] = useState(true);
@@ -40,12 +48,10 @@ export default function BlogPostPage() {
     const [viewRecorded, setViewRecorded] = useState(false);
 
     useEffect(() => {
-        if (slug && isAuthenticated) {
+        if (slug) {
             fetchPost();
-        } else if (!isAuthenticated) {
-            setLoading(false); // Stop loading if not authenticated
         }
-    }, [slug, user, isAuthenticated]); // Refetch if user changes (to update is_favorited)
+    }, [slug, user]); // Refetch if user changes (to update is_favorited)
 
     useEffect(() => {
         if (post?.id && !viewRecorded && isAuthenticated) {
@@ -123,9 +129,9 @@ export default function BlogPostPage() {
                 </div>
             </div>
 
-            {post.featured_image && (
+            {post.featured_image && resolveImageUrl(post.featured_image) && (
                 <div className="mb-8 rounded-xl overflow-hidden aspect-video relative">
-                    <Image src={post.featured_image} alt={post.title} fill sizes="100vw" className="object-cover w-full h-full" />
+                    <Image src={resolveImageUrl(post.featured_image)!} alt={post.title} fill sizes="100vw" className="object-cover w-full h-full" />
                 </div>
             )}
 

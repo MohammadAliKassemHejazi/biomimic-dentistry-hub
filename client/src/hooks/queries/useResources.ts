@@ -18,6 +18,9 @@ export interface Resource {
 export function useResources() {
   return useQuery<Resource[]>({
     queryKey: ['resources'],
-    queryFn: () => api.get<Resource[]>('/resources'),
+    queryFn: async () => {
+      const res = await api.get<{ data: Resource[] } | Resource[]>('/resources');
+      return Array.isArray(res) ? res : (res as { data: Resource[] }).data ?? [];
+    },
   });
 }

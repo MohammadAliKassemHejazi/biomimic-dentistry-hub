@@ -20,7 +20,7 @@ const learnItems = [
 
 const communityItems = [
   { name: 'About', href: '/about' },
-  { name: 'Ambassadors', href: '/ambassadors' },
+  { name: 'Ambassadors', href: '/ambassador' },
   { name: 'Contact', href: '/contact' },
 ];
 

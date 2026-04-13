@@ -25,3 +25,8 @@ dist-ssr
 
 server/package-lock.json
 client/package-lock.json
+
+# Environment files — never commit secrets
+.env
+.env.local
+.env.*.local

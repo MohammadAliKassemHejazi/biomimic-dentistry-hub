@@ -21,7 +21,10 @@ export interface BlogPost {
 export function useBlogPosts(published = true) {
   return useQuery<BlogPost[]>({
     queryKey: ['blog', { published }],
-    queryFn: () => api.get<BlogPost[]>(`/blog/posts?published=${published}`),
+    queryFn: async () => {
+      const res = await api.get<{ data: BlogPost[] } | BlogPost[]>(`/blog/posts?published=${published}`);
+      return Array.isArray(res) ? res : (res as { data: BlogPost[] }).data ?? [];
+    },
   });
 }
 

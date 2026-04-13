@@ -8,20 +8,26 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const { signIn } = useAuth();
+  const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
       await signIn(email, password);
-      // Redirect handled in AuthContext or here if preferred
-      // router.push('/dashboard'); // AuthContext usually handles this
+    } catch (error: any) {
+      toast({
+        title: 'Login failed',
+        description: error?.message || 'Invalid email or password.',
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }

@@ -34,7 +34,10 @@ const app = express();
 const port = process.env.PORT || 5000;
 
 app.use(compression());
-app.use(cors());
+app.use(cors({
+  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  credentials: true,
+}));
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
@@ -47,8 +50,8 @@ app.use('/uploads', express.static(path.join(__dirname, '../public/uploads'), {
 sequelize.authenticate()
   .then(async () => {
     console.log('Database connected via Sequelize');
-    // In development, sync models to update schema if needed
-    if (process.env.NODE_ENV !== 'production') {
+    // Sync schema in development, or in production when SYNC_DB=true (first deploy only)
+    if (process.env.NODE_ENV !== 'production' || process.env.SYNC_DB === 'true') {
       await sequelize.sync({ alter: true });
       console.log('Database synced');
     }

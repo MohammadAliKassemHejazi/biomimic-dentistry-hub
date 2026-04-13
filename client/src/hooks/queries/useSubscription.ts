@@ -7,9 +7,11 @@ export interface SubscriptionStatus {
   subscription_end: string | null;
 }
 
-export function useSubscription() {
+export function useSubscription(enabled = true) {
   return useQuery<SubscriptionStatus>({
     queryKey: ['subscription'],
-    queryFn: () => api.get<SubscriptionStatus>('/subscriptions/status'),
+    queryFn: () => api.get<SubscriptionStatus>('/subscriptions/status', { skipErrorHandling: true }),
+    enabled,
+    retry: false,
   });
 }

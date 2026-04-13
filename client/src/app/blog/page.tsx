@@ -13,6 +13,14 @@ import { Input } from '@/components/ui/input';
 import { useBlogPosts } from '@/hooks/queries/useBlog';
 import { useAuth } from '@/contexts/AuthContext';
 
+const SERVER_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api').replace('/api', '');
+
+function resolveImageUrl(path: string | null | undefined): string | null {
+  if (!path) return null;
+  if (path.startsWith('http')) return path;
+  return `${SERVER_URL}${path}`;
+}
+
 const Blog = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -152,10 +160,10 @@ const Blog = () => {
                 >
                   <Link href={`/blog/${post.slug}`} className="block h-full">
                     <Card className="h-full hover-scale group">
-                      {post.featured_image ? (
+                      {resolveImageUrl(post.featured_image) ? (
                         <div className="aspect-video overflow-hidden rounded-t-lg relative">
                           <Image
-                            src={post.featured_image}
+                            src={resolveImageUrl(post.featured_image)!}
                             alt={post.title}
                             fill
                             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
