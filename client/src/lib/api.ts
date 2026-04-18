@@ -6,6 +6,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 interface FetchOptions extends RequestInit {
   headers?: Record<string, string>;
   skipErrorHandling?: boolean;
+  requiresAuth?: boolean;
 }
 
 export const api = {
@@ -43,6 +44,13 @@ export const api = {
 
 async function fetchWithAuth<T>(endpoint: string, options: FetchOptions): Promise<T> {
   const token = Cookies.get('token');
+  const requiresAuth = options.requiresAuth !== false;
+
+  if (requiresAuth && !token) {
+    const error = new Error('Authorization header missing') as any;
+    error.status = 401;
+    throw error;
+  }
 
   const headers: Record<string, string> = {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),

@@ -23,7 +23,7 @@ const SponsorsSection = () => {
   const { isAuthenticated } = useAuth();
 
   useEffect(() => {
-    api.get<TrustedPartner[]>('/partners', { skipErrorHandling: true }).then(setSponsors).catch(console.error);
+    api.get<TrustedPartner[]>('/partners', { skipErrorHandling: true, requiresAuth: false }).then(setSponsors).catch(console.error);
   }, []);
 
   useEffect(() => {

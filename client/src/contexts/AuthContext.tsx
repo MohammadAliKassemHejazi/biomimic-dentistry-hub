@@ -51,7 +51,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       setUser(userData);
     } catch (error) {
-      console.error('Failed to fetch user profile:', error);
       Cookies.remove('token');
       setUser(null);
     } finally {
@@ -64,10 +63,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const response = await api.post<{
         user: User;
         session: { access_token: string };
-      }>('/auth/login', {
-        email,
-        password,
-      });
+      }>('/auth/login', { email, password }, { requiresAuth: false });
 
       const { user, session } = response;
       const token = session.access_token;
@@ -97,10 +93,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const response = await api.post<{
         user: User;
         session: { access_token: string };
-      }>(
-        '/auth/register',
-        { email, password, firstName, lastName }
-      );
+      }>('/auth/register', { email, password, firstName, lastName }, { requiresAuth: false });
 
       const { user, session } = response;
       const token = session.access_token;

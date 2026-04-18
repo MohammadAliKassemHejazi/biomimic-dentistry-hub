@@ -12,6 +12,7 @@ export default function PartnershipPage() {
   const tiers = [
     {
       name: "Silver Partnership",
+      tier: "silver",
       icon: <Shield className="w-12 h-12 text-slate-400" />,
       color: "from-slate-400 to-slate-600",
       description: "Gain visibility and collaborate with our growing network.",
@@ -25,6 +26,7 @@ export default function PartnershipPage() {
     },
     {
       name: "Gold Partnership",
+      tier: "gold",
       icon: <Award className="w-12 h-12 text-yellow-500" />,
       color: "from-yellow-400 to-yellow-600",
       description: "Deep integration and premium exposure to our VIPs.",
@@ -39,6 +41,7 @@ export default function PartnershipPage() {
     },
     {
       name: "VIP Partnership",
+      tier: "vip",
       icon: <Zap className="w-12 h-12 text-primary" />,
       color: "from-primary to-primary-light",
       description: "The ultimate partnership for maximum impact and reach.",
@@ -115,7 +118,7 @@ export default function PartnershipPage() {
                       variant={tier.popular ? "default" : "outline"}
                       asChild
                     >
-                      <Link href="/contact">
+                      <Link href={`/partnership/apply?tier=${tier.tier}`}>
                         Become a Partner
                       </Link>
                     </Button>

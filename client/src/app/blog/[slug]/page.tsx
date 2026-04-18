@@ -5,11 +5,19 @@ import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { useParams } from 'next/navigation';
-import { Loader2, Heart, Share2, Eye, Calendar, User, Clock } from 'lucide-react';
+import { Loader2, Heart, Share2, Eye, Calendar, User, Clock, Copy, MessageCircle, Twitter, Facebook, Mail } from 'lucide-react';
 import Image from 'next/image';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import DOMPurify from 'isomorphic-dompurify';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface BlogPost {
     id: string;
@@ -96,16 +104,34 @@ export default function BlogPostPage() {
         }
     };
 
-    const handleShare = () => {
-        navigator.clipboard.writeText(window.location.href);
+    const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
+
+    const handleCopyLink = () => {
+        navigator.clipboard.writeText(currentUrl);
         toast({ title: "Link Copied", description: "Blog post link copied to clipboard." });
+    };
+
+    const handleShareWhatsApp = () => {
+        window.open(`https://wa.me/?text=${encodeURIComponent((post?.title ?? '') + ' ' + currentUrl)}`, '_blank');
+    };
+
+    const handleShareTwitter = () => {
+        window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(currentUrl)}&text=${encodeURIComponent(post?.title ?? '')}`, '_blank');
+    };
+
+    const handleShareFacebook = () => {
+        window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(currentUrl)}`, '_blank');
+    };
+
+    const handleShareEmail = () => {
+        window.open(`mailto:?subject=${encodeURIComponent(post?.title ?? '')}&body=${encodeURIComponent(currentUrl)}`, '_blank');
     };
 
     if (loading) return <div className="flex justify-center p-20"><Loader2 className="animate-spin" /></div>;
     if (!post) return <div className="text-center p-20">Post not found</div>;
 
     return (
-        <div className="container mx-auto py-12 px-4 max-w-4xl">
+        <div className="container mx-auto pt-24 pb-12 px-4 max-w-4xl">
             <div className="mb-8">
                 <Badge variant="secondary" className="mb-4">{post.category}</Badge>
                 <h1 className="text-4xl font-bold mb-4">{post.title}</h1>
@@ -150,10 +176,38 @@ export default function BlogPostPage() {
                         <Heart className={`mr-2 h-4 w-4 ${favorited ? "fill-current" : ""}`} />
                         {favorited ? "Favorited" : "Favorite"}
                     </Button>
-                    <Button variant="outline" onClick={handleShare}>
-                        <Share2 className="mr-2 h-4 w-4" />
-                        Share
-                    </Button>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline">
+                                <Share2 className="mr-2 h-4 w-4" />
+                                Share
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuLabel>Share this post</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={handleCopyLink}>
+                                <Copy className="mr-2 h-4 w-4" />
+                                Copy Link
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={handleShareWhatsApp}>
+                                <MessageCircle className="mr-2 h-4 w-4" />
+                                WhatsApp
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={handleShareTwitter}>
+                                <Twitter className="mr-2 h-4 w-4" />
+                                Twitter / X
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={handleShareFacebook}>
+                                <Facebook className="mr-2 h-4 w-4" />
+                                Facebook
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={handleShareEmail}>
+                                <Mail className="mr-2 h-4 w-4" />
+                                Email
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
             </div>
         </div>

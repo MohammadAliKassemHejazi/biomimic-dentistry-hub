@@ -15,9 +15,37 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, Trash, Edit } from 'lucide-react';
+import { Plus, Trash, Edit, Mail, Handshake, Eye } from 'lucide-react';
 
 // Types
+interface ContactMessage {
+    id: string;
+    name: string;
+    email: string;
+    subject: string;
+    message: string;
+    status: 'new' | 'read' | 'replied';
+    createdAt: string;
+}
+
+interface PartnerApplication {
+    id: string;
+    name: string;
+    email: string;
+    companyName?: string;
+    message: string;
+    tier?: string;
+    applicationFile?: string;
+    status: string;
+    createdAt: string;
+}
+
+interface PartnerTemplates {
+    silver: string | null;
+    gold: string | null;
+    vip: string | null;
+}
+
 interface User {
     id: string;
     email: string;
@@ -100,7 +128,12 @@ export default function AdminDashboard() {
     const [members, setMembers] = useState<LeadershipMember[]>([]);
     const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
     const [partnershipKitUrl, setPartnershipKitUrl] = useState<string | null>(null);
+    const [messages, setMessages] = useState<ContactMessage[]>([]);
+    const [partnerApplications, setPartnerApplications] = useState<PartnerApplication[]>([]);
+    const [partnerTemplates, setPartnerTemplates] = useState<PartnerTemplates>({ silver: null, gold: null, vip: null });
+    const [selectedMessage, setSelectedMessage] = useState<ContactMessage | null>(null);
     const [loading, setLoading] = useState(true);
+    const API_BASE = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') ?? 'http://localhost:5000';
 
     // Dialog States
     const [partnerDialogOpen, setPartnerDialogOpen] = useState(false);
@@ -122,14 +155,17 @@ export default function AdminDashboard() {
     const fetchData = async () => {
         setLoading(true);
         try {
-            const [usersData, appsData, contentData, partnersData, membersData, plansData, kitData] = await Promise.all([
+            const [usersData, appsData, contentData, partnersData, membersData, plansData, kitData, messagesData, partnerAppsData, templatesData] = await Promise.all([
                 api.get<{ users: User[] }>('/admin/users'),
                 api.get<Application[]>('/admin/applications'),
                 api.get<{ posts: BlogPost[], resources: Resource[] }>('/admin/content/pending'),
                 api.get<TrustedPartner[]>('/partners'),
                 api.get<LeadershipMember[]>('/leadership'),
                 api.get<SubscriptionPlan[]>('/plans'),
-                api.get<{url: string | null}>('/admin/settings/partnership-kit')
+                api.get<{url: string | null}>('/admin/settings/partnership-kit'),
+                api.get<ContactMessage[]>('/contact'),
+                api.get<PartnerApplication[]>('/admin/partner-applications'),
+                api.get<PartnerTemplates>('/admin/settings/partner-templates'),
             ]);
             setUsers(usersData.users);
             setApplications(appsData);
@@ -138,6 +174,9 @@ export default function AdminDashboard() {
             setMembers(membersData);
             setPlans(plansData);
             setPartnershipKitUrl(kitData.url);
+            setMessages(messagesData);
+            setPartnerApplications(partnerAppsData);
+            setPartnerTemplates(templatesData);
         } catch (error) {
             console.error("Failed to fetch admin data", error);
             toast({ title: "Error", description: "Failed to load dashboard data", variant: "destructive" });
@@ -268,6 +307,46 @@ export default function AdminDashboard() {
         }
     };
 
+    const handleMessageStatus = async (id: string, status: string) => {
+        try {
+            await api.patch(`/contact/${id}/status`, { status });
+            setMessages(prev => prev.map(m => m.id === id ? { ...m, status: status as ContactMessage['status'] } : m));
+        } catch {
+            toast({ title: 'Error', description: 'Failed to update status', variant: 'destructive' });
+        }
+    };
+
+    const handlePartnerAppStatus = async (id: string, status: string) => {
+        try {
+            await api.patch(`/admin/partner-applications/${id}/status`, { status });
+            toast({ title: status === 'approved' ? 'Approved' : 'Rejected', description: `Application ${status}` });
+            fetchData();
+        } catch {
+            toast({ title: 'Error', description: 'Failed to update status', variant: 'destructive' });
+        }
+    };
+
+    const handleTemplateUpload = async (tier: string) => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.pdf,.doc,.docx,.odt,application/pdf';
+        input.onchange = async (e) => {
+            const file = (e.target as HTMLInputElement).files?.[0];
+            if (file) {
+                const formData = new FormData();
+                formData.append('file', file);
+                try {
+                    await api.post(`/admin/settings/partner-templates/${tier}`, formData);
+                    toast({ title: 'Success', description: `${tier} template uploaded` });
+                    fetchData();
+                } catch {
+                    toast({ title: 'Error', description: 'Failed to upload template', variant: 'destructive' });
+                }
+            }
+        };
+        input.click();
+    };
+
     const handlePlanSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         const formData = new FormData(e.target as HTMLFormElement);
@@ -308,12 +387,28 @@ export default function AdminDashboard() {
             </h1>
 
             <Tabs defaultValue="applications" className="space-y-4">
-                <TabsList>
+                <TabsList className="flex-wrap h-auto gap-1">
                     <TabsTrigger value="applications" className="relative">
                         Ambassador Applications
                         {applications.length > 0 && (
                             <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] text-white">
                                 {applications.length}
+                            </span>
+                        )}
+                    </TabsTrigger>
+                    <TabsTrigger value="partner-applications" className="relative">
+                        Partner Applications
+                        {partnerApplications.filter(a => a.status === 'pending').length > 0 && (
+                            <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] text-white">
+                                {partnerApplications.filter(a => a.status === 'pending').length}
+                            </span>
+                        )}
+                    </TabsTrigger>
+                    <TabsTrigger value="messages" className="relative">
+                        Messages
+                        {messages.filter(m => m.status === 'new').length > 0 && (
+                            <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] text-white">
+                                {messages.filter(m => m.status === 'new').length}
                             </span>
                         )}
                     </TabsTrigger>
@@ -330,6 +425,175 @@ export default function AdminDashboard() {
                     <TabsTrigger value="leadership">Leadership</TabsTrigger>
                     <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
                 </TabsList>
+
+                <TabsContent value="messages">
+                    <div className="grid md:grid-cols-2 gap-6">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2"><Mail className="h-5 w-5" /> Contact Messages</CardTitle>
+                                <CardDescription>Messages submitted via the contact form.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                {messages.length === 0 ? (
+                                    <p className="text-muted-foreground text-center py-8">No messages yet.</p>
+                                ) : (
+                                    <div className="space-y-2">
+                                        {messages.map(msg => (
+                                            <div
+                                                key={msg.id}
+                                                className={`border rounded-lg p-3 cursor-pointer transition-colors ${selectedMessage?.id === msg.id ? 'border-primary bg-primary/5' : 'hover:bg-muted/50'}`}
+                                                onClick={() => {
+                                                    setSelectedMessage(msg);
+                                                    if (msg.status === 'new') handleMessageStatus(msg.id, 'read');
+                                                }}
+                                            >
+                                                <div className="flex justify-between items-start gap-2">
+                                                    <div className="min-w-0">
+                                                        <p className="font-medium text-sm truncate">{msg.name}</p>
+                                                        <p className="text-xs text-muted-foreground truncate">{msg.subject}</p>
+                                                    </div>
+                                                    <Badge variant={msg.status === 'new' ? 'destructive' : msg.status === 'replied' ? 'default' : 'secondary'} className="shrink-0 text-[10px]">
+                                                        {msg.status}
+                                                    </Badge>
+                                                </div>
+                                                <p className="text-xs text-muted-foreground mt-1">{new Date(msg.createdAt).toLocaleDateString()}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Message Detail</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                {selectedMessage ? (
+                                    <div className="space-y-4">
+                                        <div>
+                                            <p className="text-xs text-muted-foreground">From</p>
+                                            <p className="font-semibold">{selectedMessage.name}</p>
+                                            <p className="text-sm text-muted-foreground">{selectedMessage.email}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs text-muted-foreground">Subject</p>
+                                            <p className="font-medium">{selectedMessage.subject}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs text-muted-foreground">Message</p>
+                                            <p className="text-sm whitespace-pre-wrap bg-muted/30 rounded-md p-3 mt-1">{selectedMessage.message}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-xs text-muted-foreground mb-2">Date: {new Date(selectedMessage.createdAt).toLocaleString()}</p>
+                                        </div>
+                                        <div className="flex gap-2 flex-wrap">
+                                            <Button size="sm" variant="outline" onClick={() => handleMessageStatus(selectedMessage.id, 'read')}>
+                                                <Eye className="mr-1 h-3 w-3" /> Mark Read
+                                            </Button>
+                                            <Button size="sm" onClick={() => handleMessageStatus(selectedMessage.id, 'replied')}>
+                                                Mark Replied
+                                            </Button>
+                                            <Button size="sm" variant="outline" asChild>
+                                                <a href={`mailto:${selectedMessage.email}?subject=Re: ${encodeURIComponent(selectedMessage.subject)}`}>
+                                                    Reply via Email
+                                                </a>
+                                            </Button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <p className="text-muted-foreground text-center py-8 text-sm">Select a message to view details.</p>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </div>
+                </TabsContent>
+
+                <TabsContent value="partner-applications">
+                    <div className="space-y-6">
+                        {/* Partner Templates */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2"><Handshake className="h-5 w-5" /> Partnership Templates</CardTitle>
+                                <CardDescription>Upload downloadable application templates for each partnership tier.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="grid md:grid-cols-3 gap-4">
+                                    {(['silver', 'gold', 'vip'] as const).map(tier => (
+                                        <div key={tier} className="border rounded-lg p-4 space-y-3">
+                                            <p className="font-semibold capitalize">{tier} Template</p>
+                                            {partnerTemplates[tier] ? (
+                                                <div className="space-y-2">
+                                                    <p className="text-xs text-green-600 font-medium">Template uploaded</p>
+                                                    <Button variant="outline" size="sm" asChild className="w-full">
+                                                        <a href={`${API_BASE}${partnerTemplates[tier]}`} target="_blank" rel="noopener noreferrer">View</a>
+                                                    </Button>
+                                                </div>
+                                            ) : (
+                                                <p className="text-xs text-muted-foreground">No template uploaded</p>
+                                            )}
+                                            <Button size="sm" className="w-full" onClick={() => handleTemplateUpload(tier)}>
+                                                {partnerTemplates[tier] ? 'Replace Template' : 'Upload Template'}
+                                            </Button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Partner Applications */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Partnership Applications</CardTitle>
+                                <CardDescription>Review and process partnership applications.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                {partnerApplications.length === 0 ? (
+                                    <p className="text-muted-foreground text-center py-8">No applications yet.</p>
+                                ) : (
+                                    <div className="space-y-4">
+                                        {partnerApplications.map(app => (
+                                            <Card key={app.id} className="bg-muted/50">
+                                                <CardContent className="p-4">
+                                                    <div className="flex flex-col md:flex-row justify-between gap-4">
+                                                        <div className="space-y-1 min-w-0">
+                                                            <div className="flex items-center gap-2 flex-wrap">
+                                                                <h3 className="font-semibold">{app.name}</h3>
+                                                                {app.tier && <Badge variant="outline" className="capitalize">{app.tier}</Badge>}
+                                                                <Badge variant={app.status === 'pending' ? 'secondary' : app.status === 'approved' ? 'default' : 'destructive'}>
+                                                                    {app.status}
+                                                                </Badge>
+                                                            </div>
+                                                            <p className="text-sm text-muted-foreground">{app.email}{app.companyName ? ` • ${app.companyName}` : ''}</p>
+                                                            <p className="text-sm mt-2">{app.message}</p>
+                                                            {app.applicationFile && (
+                                                                <Button variant="link" size="sm" asChild className="p-0 h-auto">
+                                                                    <a href={`${API_BASE}${app.applicationFile}`} target="_blank" rel="noopener noreferrer">
+                                                                        View submitted template
+                                                                    </a>
+                                                                </Button>
+                                                            )}
+                                                            <p className="text-xs text-muted-foreground">{new Date(app.createdAt).toLocaleDateString()}</p>
+                                                        </div>
+                                                        {app.status === 'pending' && (
+                                                            <div className="flex items-start gap-2 shrink-0">
+                                                                <Button onClick={() => handlePartnerAppStatus(app.id, 'approved')} size="sm" className="bg-green-600 hover:bg-green-700">
+                                                                    <Check className="mr-1 h-4 w-4" /> Approve
+                                                                </Button>
+                                                                <Button onClick={() => handlePartnerAppStatus(app.id, 'rejected')} variant="destructive" size="sm">
+                                                                    <X className="mr-1 h-4 w-4" /> Reject
+                                                                </Button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </CardContent>
+                                            </Card>
+                                        ))}
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </div>
+                </TabsContent>
 
                 <TabsContent value="partners">
                     <Card>

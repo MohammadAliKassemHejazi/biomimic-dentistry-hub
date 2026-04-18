@@ -6,11 +6,6 @@ import Footer from '@/components/Footer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import {
   User,
@@ -53,7 +48,6 @@ interface StatsResponse {
 const Dashboard = () => {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const router = useRouter();
-  const { toast } = useToast();
 
   const [stats, setStats] = useState<UserStats>({
     totalDownloads: 0,
@@ -62,20 +56,6 @@ const Dashboard = () => {
   });
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
 
-  // Ambassador App State
-  const [openAppDialog, setOpenAppDialog] = useState(false);
-  const [appLoading, setAppLoading] = useState(false);
-
-  useEffect(() => {
-    // Check if we should open the application dialog based on query params
-    const searchParams = new URLSearchParams(window.location.search);
-    if (searchParams.get('apply') === 'ambassador' && !user?.is_ambassador && user?.role !== 'admin') {
-      setOpenAppDialog(true);
-      // Optional: Clean up URL after opening
-      window.history.replaceState({}, '', '/dashboard');
-    }
-  }, [user]);
-  const [appData, setAppData] = useState({ country: '', experience: '', bio: '', social_media_links: '', cv: '' });
 
   const { data: subscriptionStatus } = useSubscription();
 
@@ -100,21 +80,6 @@ const Dashboard = () => {
       console.error('Error fetching stats:', error);
     }
   };
-
-  const handleSubmitApplication = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAppLoading(true);
-    try {
-        await api.post('/ambassador/apply', appData);
-        toast({ title: "Application Submitted", description: "We will review your application shortly." });
-        setOpenAppDialog(false);
-    } catch (error: any) {
-        toast({ title: "Error", description: error.message || "Failed to submit application", variant: "destructive" });
-    } finally {
-        setAppLoading(false);
-    }
-  };
-
 
   const getRoleIcon = (role: string) => {
     switch (role) {
@@ -405,83 +370,9 @@ const Dashboard = () => {
                     <p className="text-sm text-muted-foreground mb-4">
                       Join our team of ambassadors and contribute to the community.
                     </p>
-                    <Dialog open={openAppDialog} onOpenChange={setOpenAppDialog}>
-                        <DialogTrigger asChild>
-                            <Button className="w-full" variant="secondary">
-                                Apply Now
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-[425px]">
-                            <DialogHeader>
-                                <DialogTitle>Ambassador Application</DialogTitle>
-                                <DialogDescription>Tell us about yourself and why you want to be an ambassador.</DialogDescription>
-                            </DialogHeader>
-                            <form onSubmit={handleSubmitApplication}>
-                                <div className="space-y-4 py-4">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="country">Country</Label>
-                                        <Input
-                                            id="country"
-                                            value={appData.country}
-                                            onChange={(e) => setAppData({...appData, country: e.target.value})}
-                                            placeholder="e.g. United Kingdom"
-                                            required
-                                        />
-                                        <p className="text-[0.8rem] text-muted-foreground">Where are you currently practicing?</p>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="experience">Years of Experience</Label>
-                                        <Input
-                                            id="experience"
-                                            value={appData.experience}
-                                            onChange={(e) => setAppData({...appData, experience: e.target.value})}
-                                            placeholder="e.g. 5 years"
-                                            required
-                                        />
-                                        <p className="text-[0.8rem] text-muted-foreground">How long have you been in the dental field?</p>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="bio">Bio / Motivation</Label>
-                                        <Textarea
-                                            id="bio"
-                                            value={appData.bio}
-                                            onChange={(e) => setAppData({...appData, bio: e.target.value})}
-                                            placeholder="I am passionate about biomimetic dentistry because..."
-                                            rows={4}
-                                            required
-                                        />
-                                        <p className="text-[0.8rem] text-muted-foreground">Share your background and why you want to join us.</p>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="social_media_links">Social Media Links</Label>
-                                        <Input
-                                            id="social_media_links"
-                                            value={appData.social_media_links}
-                                            onChange={(e) => setAppData({...appData, social_media_links: e.target.value})}
-                                            placeholder="e.g. Instagram/Facebook links where you share cases"
-                                            required
-                                        />
-                                        <p className="text-[0.8rem] text-muted-foreground">Where you share your biomimetic cases.</p>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="cv">CV Link (Optional)</Label>
-                                        <Input
-                                            id="cv"
-                                            value={appData.cv}
-                                            onChange={(e) => setAppData({...appData, cv: e.target.value})}
-                                            placeholder="Link to your CV (e.g. Google Drive/Dropbox)"
-                                        />
-                                        <p className="text-[0.8rem] text-muted-foreground">Optional: Provide a link to your curriculum vitae.</p>
-                                    </div>
-                                </div>
-                                <DialogFooter>
-                                    <Button type="submit" disabled={appLoading} className="w-full sm:w-auto">
-                                        {appLoading ? "Submitting..." : "Submit Application"}
-                                    </Button>
-                                </DialogFooter>
-                            </form>
-                        </DialogContent>
-                    </Dialog>
+                    <Button className="w-full" variant="secondary" asChild>
+                        <Link href="/ambassador/apply">Apply Now</Link>
+                    </Button>
                   </CardContent>
                 </Card>
               )}

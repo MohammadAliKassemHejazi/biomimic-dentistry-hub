@@ -81,12 +81,12 @@ const VIPSection = () => {
 
   useEffect(() => {
     // Fetch Leadership Members
-    api.get<LeadershipMember[]>('/leadership', { skipErrorHandling: true })
+    api.get<LeadershipMember[]>('/leadership', { skipErrorHandling: true, requiresAuth: false })
       .then(setMembers)
       .catch(console.error);
 
     // Fetch Subscription Plans
-    api.get<any[]>('/plans', { skipErrorHandling: true })
+    api.get<any[]>('/plans', { skipErrorHandling: true, requiresAuth: false })
       .then(data => {
         if (data && data.length > 0) {
          const mappedPlans = data.map(p => ({

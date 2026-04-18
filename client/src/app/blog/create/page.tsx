@@ -18,6 +18,7 @@ export default function CreateBlogPage() {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
     const [file, setFile] = useState<File | null>(null);
+    const [contentImages, setContentImages] = useState<File[]>([]);
     const [formData, setFormData] = useState({
         title: '',
         excerpt: '',
@@ -39,6 +40,7 @@ export default function CreateBlogPage() {
             if (file) {
                 data.append('featured_image', file);
             }
+            contentImages.forEach(img => data.append('images', img));
             await api.post('/blog/posts', data);
             toast({ title: "Success", description: "Blog post submitted for review." });
             router.push('/blog');
@@ -144,6 +146,43 @@ export default function CreateBlogPage() {
                                 </div>
                                 <p className="text-[0.8rem] text-muted-foreground">Direct link to an image.</p>
                             </div>
+                        </div>
+
+                        <div className="space-y-2 p-4 bg-secondary/10 rounded-lg border border-secondary/20">
+                            <Label>Content Images (up to 10)</Label>
+                            <Input
+                                type="file"
+                                multiple
+                                accept="image/*"
+                                className="bg-background"
+                                onChange={e => {
+                                    const selected = Array.from(e.target.files || []).slice(0, 10);
+                                    setContentImages(selected);
+                                }}
+                            />
+                            <p className="text-[0.8rem] text-muted-foreground">
+                                Select 1–10 images to attach to this post.
+                            </p>
+                            {contentImages.length > 0 && (
+                                <div className="flex flex-wrap gap-2 pt-2">
+                                    {contentImages.map((img, i) => (
+                                        <div key={i} className="relative group">
+                                            <img
+                                                src={URL.createObjectURL(img)}
+                                                alt={img.name}
+                                                className="h-16 w-16 object-cover rounded border"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setContentImages(prev => prev.filter((_, idx) => idx !== i))}
+                                                className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full w-4 h-4 text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                                            >
+                                                ×
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
 
                         <div className="space-y-2">

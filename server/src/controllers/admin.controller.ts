@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import { User, AmbassadorApplication, AmbassadorProfile, BlogPost, Resource, Course, ActivityLog, SiteSetting } from '../models';
-import { UserRole, AmbassadorApplicationStatus, ContentStatus } from '../types/enums';
+import { User, AmbassadorApplication, AmbassadorProfile, BlogPost, Resource, Course, ActivityLog, SiteSetting, PartnershipRequest } from '../models';
+import { UserRole, AmbassadorApplicationStatus, ContentStatus, PartnershipRequestStatus } from '../types/enums';
 import { Sequelize } from 'sequelize-typescript';
 
 export const getUsers = async (req: Request, res: Response) => {
@@ -160,6 +160,71 @@ export const updateUserRole = async (req: Request, res: Response) => {
     res.json({ success: true, message: "User role updated successfully" });
   } catch (error) {
     console.error('Error updating user role:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+export const uploadPartnerTemplate = async (req: Request, res: Response) => {
+  try {
+    const { tier } = req.params as { tier: string };
+    const validTiers = ['silver', 'gold', 'vip'];
+    if (!validTiers.includes(tier)) {
+      return res.status(400).json({ message: 'Invalid tier' });
+    }
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+    const fileUrl = `/uploads/${req.file.filename}`;
+    await SiteSetting.upsert({ key: `partner_template_${tier}_url`, value: fileUrl });
+    res.json({ success: true, url: fileUrl });
+  } catch (error) {
+    console.error('Error uploading partner template:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+export const getPartnerTemplates = async (req: Request, res: Response) => {
+  try {
+    const tiers = ['silver', 'gold', 'vip'];
+    const settings = await SiteSetting.findAll({
+      where: { key: tiers.map(t => `partner_template_${t}_url`) },
+    });
+    const templates: Record<string, string | null> = { silver: null, gold: null, vip: null };
+    settings.forEach(s => {
+      const tier = s.key.replace('partner_template_', '').replace('_url', '');
+      templates[tier] = s.value;
+    });
+    res.json(templates);
+  } catch (error) {
+    console.error('Error fetching partner templates:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+export const getPartnerApplications = async (req: Request, res: Response) => {
+  try {
+    const applications = await PartnershipRequest.findAll({
+      order: [['createdAt', 'DESC']],
+      include: [User],
+    });
+    res.json(applications);
+  } catch (error) {
+    console.error('Error fetching partner applications:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+export const updatePartnerApplicationStatus = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params as { id: string };
+    const { status } = req.body;
+    if (!['approved', 'rejected'].includes(status)) {
+      return res.status(400).json({ message: 'Invalid status' });
+    }
+    await PartnershipRequest.update({ status }, { where: { id } });
+    res.json({ message: `Application ${status}` });
+  } catch (error) {
+    console.error('Error updating partner application status:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };

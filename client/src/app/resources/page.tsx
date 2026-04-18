@@ -109,7 +109,7 @@ const Resources = () => {
           >
             <h1 className="text-4xl font-bold text-foreground mb-4">Resource Library</h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Access exclusive dental resources, research papers, and educational materials
+              Access exclusive dental resources, research papers, and educational materials and upload your own to share with the community.
             </p>
           </motion.div>
 

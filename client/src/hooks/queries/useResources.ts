@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import Cookies from 'js-cookie';
 import { api } from '@/lib/api';
 
 export interface Resource {
@@ -16,8 +17,10 @@ export interface Resource {
 }
 
 export function useResources() {
+  const hasToken = !!Cookies.get('token');
   return useQuery<Resource[]>({
     queryKey: ['resources'],
+    enabled: hasToken,
     queryFn: async () => {
       const res = await api.get<{ data: Resource[] } | Resource[]>('/resources');
       return Array.isArray(res) ? res : (res as { data: Resource[] }).data ?? [];

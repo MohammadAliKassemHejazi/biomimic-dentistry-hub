@@ -19,47 +19,56 @@ export const upload = multer({
   },
 });
 
-export const processImage = async (req: Request, res: Response, next: NextFunction) => {
-  if (!req.file) return next();
+async function processSingleFile(file: Express.Multer.File): Promise<void> {
+  const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
 
-  // If the file is not an image, just save it to disk directly
-  if (!req.file.mimetype.startsWith('image/')) {
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-      const ext = path.extname(req.file.originalname);
-      const filename = req.file.fieldname + '-' + uniqueSuffix + ext;
-      const filepath = path.join(uploadDir, filename);
-
-      fs.writeFileSync(filepath, req.file.buffer);
-
-      req.file.filename = filename;
-      req.file.path = filepath;
-      return next();
+  if (!file.mimetype.startsWith('image/')) {
+    const ext = path.extname(file.originalname);
+    const filename = file.fieldname + '-' + uniqueSuffix + ext;
+    const filepath = path.join(uploadDir, filename);
+    fs.writeFileSync(filepath, file.buffer);
+    file.filename = filename;
+    file.path = filepath;
+    return;
   }
 
-  const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-  // We'll convert images to webp to save space
-  const filename = req.file.fieldname + '-' + uniqueSuffix + '.webp';
+  const filename = file.fieldname + '-' + uniqueSuffix + '.webp';
   const filepath = path.join(uploadDir, filename);
 
+  await sharp(file.buffer)
+    .resize(1200, 1200, { fit: sharp.fit.inside, withoutEnlargement: true })
+    .webp({ quality: 80 })
+    .toFile(filepath);
+
+  file.filename = filename;
+  file.path = filepath;
+  file.mimetype = 'image/webp';
+  const stat = fs.statSync(filepath);
+  file.size = stat.size;
+}
+
+export const processImage = async (req: Request, res: Response, next: NextFunction) => {
+  if (!req.file) return next();
   try {
-    await sharp(req.file.buffer)
-      .resize(1200, 1200, {
-        fit: sharp.fit.inside,
-        withoutEnlargement: true,
-      })
-      .webp({ quality: 80 })
-      .toFile(filepath);
-
-    req.file.filename = filename;
-    req.file.path = filepath;
-    req.file.mimetype = 'image/webp';
-    // Optionally update req.file.size
-    const stat = fs.statSync(filepath);
-    req.file.size = stat.size;
-
+    await processSingleFile(req.file);
     next();
   } catch (error) {
     console.error('Error processing image:', error);
+    next(error);
+  }
+};
+
+export const processImages = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const featuredFile = (req.files as any)?.featured_image?.[0];
+    const contentFiles: Express.Multer.File[] = (req.files as any)?.images || [];
+
+    if (featuredFile) await processSingleFile(featuredFile);
+    await Promise.all(contentFiles.map(processSingleFile));
+
+    next();
+  } catch (error) {
+    console.error('Error processing images:', error);
     next(error);
   }
 };

@@ -221,13 +221,13 @@ const HeroSection = () => {
                   className="btn-hero group relative overflow-hidden"
                 >
                   <span className="relative z-10 flex items-center">
-                    Support Our Mission
+                    Get In Touch
                     <ArrowRight className="w-5 h-5 ml-2 transition-transform group-hover:translate-x-1" />
                   </span>
                 </motion.button>
               </Link>
 
-              <Link href="/dashboard?apply=ambassador" passHref>
+              <Link href="/ambassador/apply" passHref>
                 <motion.button
                   whileHover={{
                     scale: 1.05,

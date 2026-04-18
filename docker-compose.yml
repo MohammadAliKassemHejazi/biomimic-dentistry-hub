@@ -60,10 +60,9 @@ services:
       - ./client:/app
       - /app/node_modules
     environment:
+      - APP_ENV=${APP_ENV:-development}
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:5000/api}
-      # Internal Docker URL used by Next.js rewrites (server-side only)
       - SERVER_INTERNAL_URL=http://server:5000
-      # Enable polling for hot reloading
       - WATCHPACK_POLLING=true
     depends_on:
       - server

@@ -44,7 +44,11 @@ export default function SignupPage() {
         description: "Account created successfully"
       });
     } catch (error: any) {
-        // Error handling done in AuthContext usually, but explicit toast here is good too
+      toast({
+        title: "Sign Up Failed",
+        description: error.message || "An unexpected error occurred",
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }

@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, User, LogOut, ChevronDown } from 'lucide-react';
+import { Menu, X, User, LogOut, ChevronDown, Heart } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -16,18 +16,18 @@ import LanguageToggle from './LanguageToggle';
 const learnItems = [
   { name: 'Courses', href: '/courses' },
   { name: 'Resources', href: '/resources' },
-  { name: 'Blog', href: '/blog' },
 ];
 
 const communityItems = [
+  { name: 'Blog', href: '/blog' },
   { name: 'About', href: '/about' },
-  { name: 'Ambassadors', href: '/ambassador' },
   { name: 'Contact', href: '/contact' },
 ];
 
 const accountItems = [
   { name: 'Dashboard', href: '/dashboard' },
   { name: 'Subscription', href: '/subscription' },
+  { name: 'My Favorites', href: '/blog/favorites' },
 ];
 
 const adminItems = [
@@ -166,6 +166,12 @@ const Navigation = () => {
                     <DropdownMenuItem asChild>
                       <Link href="/subscription" className="cursor-pointer">
                         Subscription
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/blog/favorites" className="cursor-pointer">
+                        <Heart className="mr-2 h-4 w-4" />
+                        My Favorites
                       </Link>
                     </DropdownMenuItem>
 

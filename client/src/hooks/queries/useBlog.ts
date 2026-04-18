@@ -12,6 +12,8 @@ export interface BlogPost {
   tags: string[];
   read_time: number;
   created_at: string;
+  is_favorited?: boolean;
+  view_count?: number;
   profiles: {
     first_name: string;
     last_name: string;
@@ -33,5 +35,12 @@ export function useBlogPost(slug: string) {
     queryKey: ['blog', slug],
     queryFn: () => api.get<BlogPost>(`/blog/posts/${slug}`),
     enabled: !!slug,
+  });
+}
+
+export function useFavoritePosts() {
+  return useQuery<BlogPost[]>({
+    queryKey: ['blog', 'favorites'],
+    queryFn: () => api.get<BlogPost[]>('/blog/favorites'),
   });
 }

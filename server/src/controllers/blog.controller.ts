@@ -163,9 +163,15 @@ export const createPost = async (req: Request, res: Response) => {
     const status = user.role === 'admin' ? ContentStatus.APPROVED : ContentStatus.PENDING;
 
     let finalFeaturedImage = featured_image;
-    if (req.file) {
-      finalFeaturedImage = `/uploads/${req.file.filename}`;
+    const filesMap = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+    const featuredFile = filesMap?.featured_image?.[0];
+    const contentFiles = filesMap?.images || [];
+
+    if (featuredFile) {
+      finalFeaturedImage = `/uploads/${featuredFile.filename}`;
     }
+
+    const imageUrls = contentFiles.map(f => `/uploads/${f.filename}`);
 
     const post = await BlogPost.create({
         title,
@@ -173,6 +179,7 @@ export const createPost = async (req: Request, res: Response) => {
         excerpt,
         content,
         featuredImage: finalFeaturedImage,
+        images: imageUrls,
         category,
         tags: Array.isArray(tags) ? tags.join(',') : tags,
         readTime: read_time ? parseInt(read_time) : undefined,
@@ -215,6 +222,53 @@ export const toggleFavorite = async (req: Request, res: Response) => {
     }
   } catch (error) {
     console.error('Error toggling favorite:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+export const getFavorites = async (req: Request, res: Response) => {
+  try {
+    const user = req.user;
+    if (!user) return res.status(401).json({ message: 'Unauthorized' });
+
+    const favorites = await Favorite.findAll({
+      where: { userId: user.id },
+      include: [
+        {
+          model: BlogPost,
+          as: 'blogPost',
+          include: [
+            { model: User, as: 'author', attributes: ['firstName', 'lastName'] },
+            { model: BlogView, as: 'views', attributes: ['id'] }
+          ]
+        }
+      ]
+    });
+
+    const posts = favorites
+      .map((fav: any) => fav.blogPost)
+      .filter(Boolean)
+      .map((p: any) => ({
+        id: p.id,
+        title: p.title,
+        slug: p.slug,
+        excerpt: p.excerpt,
+        featured_image: p.featuredImage,
+        category: p.category,
+        tags: p.tags ? p.tags.split(',') : [],
+        read_time: p.readTime,
+        created_at: p.createdAt,
+        view_count: p.views?.length || 0,
+        is_favorited: true,
+        profiles: {
+          first_name: p.author?.firstName,
+          last_name: p.author?.lastName,
+        },
+      }));
+
+    res.json(posts);
+  } catch (error) {
+    console.error('Error fetching favorites:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };

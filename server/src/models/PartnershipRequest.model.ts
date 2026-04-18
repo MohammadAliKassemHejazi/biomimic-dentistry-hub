@@ -25,6 +25,12 @@ export class PartnershipRequest extends Model {
   @Column(DataType.TEXT)
   message!: string;
 
+  @Column(DataType.STRING)
+  tier?: string;
+
+  @Column(DataType.STRING)
+  applicationFile?: string;
+
   @Default(PartnershipRequestStatus.PENDING)
   @Column(DataType.ENUM(...Object.values(PartnershipRequestStatus)))
   status!: PartnershipRequestStatus;

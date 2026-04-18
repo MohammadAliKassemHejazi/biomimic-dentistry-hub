@@ -37,6 +37,10 @@ export class BlogPost extends Model {
   @Column(DataType.STRING)
   featuredImage?: string;
 
+  @Default([])
+  @Column(DataType.ARRAY(DataType.STRING))
+  images!: string[];
+
   @Column(DataType.STRING)
   category?: string;
 
