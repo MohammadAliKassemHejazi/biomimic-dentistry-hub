@@ -1,8 +1,35 @@
-import React from 'react';
+'use client';
+
+import React, { useState } from 'react';
 import { Heart, Mail, MapPin, Phone, Instagram, Linkedin, Youtube, Globe } from 'lucide-react';
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
+  const [email, setEmail] = useState('');
+  const [subscribeStatus, setSubscribeStatus] = useState<'idle' | 'loading' | 'success' | 'error' | 'exists'>('idle');
+
+  const handleSubscribe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) return;
+    setSubscribeStatus('loading');
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/newsletter`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      if (res.ok) {
+        setSubscribeStatus('success');
+        setEmail('');
+      } else if (res.status === 409) {
+        setSubscribeStatus('exists');
+      } else {
+        setSubscribeStatus('error');
+      }
+    } catch {
+      setSubscribeStatus('error');
+    }
+  };
 
   const footerSections = [
     {
@@ -90,7 +117,7 @@ const Footer = () => {
           </div>
 
           {/* Links Sections */}
-          {footerSections.map((section, index) => (
+          {footerSections.map((section) => (
             <div key={section.title}>
               <h4 className="text-lg font-semibold mb-4 text-secondary">{section.title}</h4>
               <ul className="space-y-3">
@@ -116,16 +143,33 @@ const Footer = () => {
             <p className="text-primary-foreground/90 mb-6">
               Get the latest updates on courses, research, and community events delivered to your inbox.
             </p>
-            <div className="flex flex-col md:flex-row gap-4 max-w-md mx-auto">
-              <input
-                type="email"
-                placeholder="Enter your email"
-                className="flex-1 px-4 py-3 rounded-lg bg-primary-foreground/20 text-primary-foreground placeholder:text-primary-foreground/60 border border-primary-foreground/30 focus:outline-none focus:ring-2 focus:ring-secondary"
-              />
-              <button className="bg-secondary text-secondary-foreground px-6 py-3 rounded-lg font-semibold hover:bg-secondary/90 transition-smooth">
-                Subscribe
-              </button>
-            </div>
+            {subscribeStatus === 'success' ? (
+              <p className="text-secondary font-semibold">You&apos;re subscribed! Thank you.</p>
+            ) : (
+              <form onSubmit={handleSubscribe} className="flex flex-col md:flex-row gap-4 max-w-md mx-auto">
+                <input
+                  type="email"
+                  placeholder="Enter your email"
+                  value={email}
+                  onChange={(e) => { setEmail(e.target.value); setSubscribeStatus('idle'); }}
+                  required
+                  className="flex-1 px-4 py-3 rounded-lg bg-primary-foreground/20 text-primary-foreground placeholder:text-primary-foreground/60 border border-primary-foreground/30 focus:outline-none focus:ring-2 focus:ring-secondary"
+                />
+                <button
+                  type="submit"
+                  disabled={subscribeStatus === 'loading'}
+                  className="bg-secondary text-secondary-foreground px-6 py-3 rounded-lg font-semibold hover:bg-secondary/90 transition-smooth disabled:opacity-60"
+                >
+                  {subscribeStatus === 'loading' ? 'Subscribing…' : 'Subscribe'}
+                </button>
+              </form>
+            )}
+            {subscribeStatus === 'exists' && (
+              <p className="text-yellow-300 text-sm mt-2">This email is already subscribed.</p>
+            )}
+            {subscribeStatus === 'error' && (
+              <p className="text-red-400 text-sm mt-2">Something went wrong. Please try again.</p>
+            )}
           </div>
         </div>
       </div>

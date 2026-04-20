@@ -16,6 +16,7 @@ import { useRouter } from 'next/navigation';
 
 const Courses = () => {
   const [notifyEmails, setNotifyEmails] = useState<{ [key: string]: string }>({});
+  const [comingSoonEmail, setComingSoonEmail] = useState('');
   const { isAuthenticated, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
@@ -32,8 +33,7 @@ const Courses = () => {
     const email = notifyEmails[courseId];
     if (!email) {
       toast({
-        title: "Error",
-        description: "Please enter your email address",
+        title: "Failed",
         variant: "destructive",
       });
       return;
@@ -47,6 +47,21 @@ const Courses = () => {
     });
 
     setNotifyEmails({ ...notifyEmails, [courseId]: '' });
+  };
+
+  const handleComingSoonNotify = async () => {
+    if (!comingSoonEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(comingSoonEmail)) {
+      toast({
+        title: "Failed",
+        variant: "destructive",
+      });
+      return;
+    }
+    toast({
+      title: "You're on the list!",
+      description: "We'll notify you as soon as courses launch.",
+    });
+    setComingSoonEmail('');
   };
 
   const formatPrice = (price: number) => {
@@ -131,8 +146,11 @@ const Courses = () => {
                     type="email"
                     placeholder="Enter your email"
                     className="flex-1"
+                    value={comingSoonEmail}
+                    onChange={(e) => setComingSoonEmail(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleComingSoonNotify()}
                   />
-                  <Button variant="default">
+                  <Button variant="default" onClick={handleComingSoonNotify}>
                     <Bell className="mr-2 h-4 w-4" />
                     Notify Me
                   </Button>

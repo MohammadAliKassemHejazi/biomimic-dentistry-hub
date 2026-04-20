@@ -43,8 +43,7 @@ const Resources = () => {
   const downloadResource = async (resource: Resource) => {
     if (!canAccessResource(resource)) {
       toast({
-        title: "Access Denied",
-        description: "You need a higher membership level to access this resource.",
+        title: "Failed",
         variant: "destructive",
       });
       return;

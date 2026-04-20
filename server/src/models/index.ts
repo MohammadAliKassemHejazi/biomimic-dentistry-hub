@@ -15,3 +15,4 @@ export * from './TrustedPartner.model';
 export * from './LeadershipMember.model';
 export * from './SubscriptionPlan.model';
 export * from './SiteSetting.model';
+export * from './NewsletterSubscriber.model';

@@ -57,7 +57,7 @@ export default function PartnerApplyPage() {
   const API_BASE = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') ?? 'http://localhost:5000';
 
   useEffect(() => {
-    api.get<Templates>('/admin/settings/partner-templates').then(setTemplates).catch(() => {});
+    api.get<Templates>('/admin/settings/partner-templates', { requiresAuth: false }).then(setTemplates).catch(() => {});
   }, []);
 
   const tierInfo = TIER_CONFIG[tier];
@@ -79,12 +79,12 @@ export default function PartnerApplyPage() {
       body.append('tier', tier);
       if (applicationFile) body.append('applicationFile', applicationFile);
 
-      await api.post('/partnership/apply', body);
+      await api.post('/partnership/apply', body, { requiresAuth: false });
       toast({ title: 'Application Submitted!', description: "We'll review your application and get back to you soon." });
       setFormData({ name: '', email: '', companyName: '', message: '' });
       setApplicationFile(null);
     } catch {
-      toast({ title: 'Error', description: 'Failed to submit application. Please try again.', variant: 'destructive' });
+      toast({ title: 'Failed', variant: 'destructive' });
     } finally {
       setLoading(false);
     }

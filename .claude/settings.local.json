@@ -3,7 +3,11 @@
     "allow": [
       "Bash(xargs grep:*)",
       "Bash(xargs ls:*)",
-      "Bash(xargs cat *)"
+      "Bash(xargs cat *)",
+      "Bash(grep -v \":0$\")",
+      "Bash(sort -t: -k2 -rn)",
+      "Bash(sed \"s/'$//\")",
+      "Bash(sed 's/.*api\\\\.\\\\\\([a-z]*\\\\\\)\\([`'\"'\"']\\\\\\([^'\"'\"'`]*\\\\\\).*/api.\\\\1\\(\\\\x27\\\\2/g')"
     ]
   }
 }

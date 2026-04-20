@@ -45,7 +45,7 @@ export default function CreateBlogPage() {
             toast({ title: "Success", description: "Blog post submitted for review." });
             router.push('/blog');
         } catch (error: any) {
-            toast({ title: "Error", description: error.message || "Failed to create post", variant: "destructive" });
+            toast({ title: "Failed", variant: "destructive" });
         } finally {
             setLoading(false);
         }

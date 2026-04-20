@@ -24,8 +24,7 @@ const Login = () => {
       await signIn(email, password);
     } catch (error: any) {
       toast({
-        title: 'Login failed',
-        description: error?.message || 'Invalid email or password.',
+        title: 'Failed',
         variant: 'destructive',
       });
     } finally {

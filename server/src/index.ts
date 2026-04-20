@@ -29,6 +29,7 @@ import trustedPartnerRoutes from './routes/trustedPartner.routes';
 import leadershipMemberRoutes from './routes/leadershipMember.routes';
 import subscriptionPlanRoutes from './routes/subscriptionPlan.routes';
 import partnershipRoutes from './routes/partnership.routes';
+import newsletterRoutes from './routes/newsletter.routes';
 import { seedDefaultAdmin } from './utils/seed';
 
 const app = express();
@@ -76,6 +77,7 @@ app.use('/api/partners', trustedPartnerRoutes);
 app.use('/api/leadership', leadershipMemberRoutes);
 app.use('/api/plans', subscriptionPlanRoutes);
 app.use('/api/partnership', partnershipRoutes);
+app.use('/api/newsletter', newsletterRoutes);
 
 app.get('/', (req: Request, res: Response) => {
   res.send('Server is running');

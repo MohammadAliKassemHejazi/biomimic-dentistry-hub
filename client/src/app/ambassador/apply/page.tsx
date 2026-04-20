@@ -61,7 +61,7 @@ export default function AmbassadorApplyPage() {
       toast({ title: 'Application Submitted', description: 'We will review your application shortly.' });
       router.push('/dashboard');
     } catch (error: any) {
-      toast({ title: 'Error', description: error.message || 'Failed to submit application', variant: 'destructive' });
+      toast({ title: 'Failed', variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }

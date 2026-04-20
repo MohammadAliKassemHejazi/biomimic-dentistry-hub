@@ -53,7 +53,7 @@ export default function SubmitResourcePage() {
             toast({ title: "Success", description: "Resource submitted for review." });
             router.push('/ambassador');
         } catch (error: any) {
-            toast({ title: "Error", description: error.message || "Failed to submit resource", variant: "destructive" });
+            toast({ title: "Failed", variant: "destructive" });
         } finally {
             setLoading(false);
         }

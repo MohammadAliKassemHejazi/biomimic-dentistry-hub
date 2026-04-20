@@ -25,7 +25,7 @@ const Contact = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      await api.post('/contact', formData);
+      await api.post('/contact', formData, { requiresAuth: false });
       toast({
         title: "Message Sent!",
         description: "We'll get back to you within 24 hours.",
@@ -33,8 +33,7 @@ const Contact = () => {
       setFormData({ name: '', email: '', subject: '', message: '' });
     } catch {
       toast({
-        title: "Error",
-        description: "Failed to send message. Please try again.",
+        title: "Failed",
         variant: "destructive",
       });
     } finally {

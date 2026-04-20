@@ -142,7 +142,7 @@ const Subscription = () => {
   };
 
   React.useEffect(() => {
-    api.get<any[]>('/plans', { skipErrorHandling: true }).then((data) => {
+    api.get<any[]>('/plans', { requiresAuth: false, skipErrorHandling: true }).then((data) => {
       if (data && data.length > 0) {
         const mapped = data.map(p => ({
           id: p.key,
@@ -165,8 +165,7 @@ const Subscription = () => {
   const openPaymentModal = (tier: SubscriptionTier) => {
     if (!isAuthenticated) {
       toast({
-        title: 'Authentication Required',
-        description: 'Please log in to subscribe.',
+        title: 'Failed',
         variant: 'destructive',
       });
       return;
@@ -184,7 +183,7 @@ const Subscription = () => {
       if (url) window.open(url, '_blank');
       setSelectedTier(null);
     } catch {
-      toast({ title: 'Error', description: 'Could not start Stripe checkout.', variant: 'destructive' });
+      toast({ title: 'Failed', variant: 'destructive' });
     } finally {
       setPaymentLoadingMethod(null);
     }
@@ -200,7 +199,7 @@ const Subscription = () => {
       if (url) window.location.href = url;
       setSelectedTier(null);
     } catch {
-      toast({ title: 'Error', description: 'Could not start PayPal checkout.', variant: 'destructive' });
+      toast({ title: 'Failed', variant: 'destructive' });
     } finally {
       setPaymentLoadingMethod(null);
     }

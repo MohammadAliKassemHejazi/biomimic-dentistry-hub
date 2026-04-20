@@ -100,8 +100,8 @@ async function fetchWithAuth<T>(endpoint: string, options: FetchOptions): Promis
 
     if (!skipErrorHandling && !isAuthError) {
       toast({
-        title: "Error",
-        description: error.message || "An unexpected error occurred",
+        title: "Failed",
+        description: error.message || undefined,
         variant: "destructive",
       });
     }

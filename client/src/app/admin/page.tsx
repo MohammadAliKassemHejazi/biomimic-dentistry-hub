@@ -106,6 +106,12 @@ interface LeadershipMember {
     status?: string;
 }
 
+interface NewsletterSubscriber {
+    id: string;
+    email: string;
+    createdAt: string;
+}
+
 interface SubscriptionPlan {
     id: string;
     key: string;
@@ -131,8 +137,10 @@ export default function AdminDashboard() {
     const [messages, setMessages] = useState<ContactMessage[]>([]);
     const [partnerApplications, setPartnerApplications] = useState<PartnerApplication[]>([]);
     const [partnerTemplates, setPartnerTemplates] = useState<PartnerTemplates>({ silver: null, gold: null, vip: null });
+    const [newsletterSubscribers, setNewsletterSubscribers] = useState<NewsletterSubscriber[]>([]);
     const [selectedMessage, setSelectedMessage] = useState<ContactMessage | null>(null);
     const [loading, setLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState('applications');
     const API_BASE = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') ?? 'http://localhost:5000';
 
     // Dialog States
@@ -152,10 +160,10 @@ export default function AdminDashboard() {
         }
     }, [user, authLoading]);
 
-    const fetchData = async () => {
-        setLoading(true);
+    const fetchData = async (silent = false) => {
+        if (!silent) setLoading(true);
         try {
-            const [usersData, appsData, contentData, partnersData, membersData, plansData, kitData, messagesData, partnerAppsData, templatesData] = await Promise.all([
+            const [usersData, appsData, contentData, partnersData, membersData, plansData, kitData, messagesData, partnerAppsData, templatesData, subscribersData] = await Promise.all([
                 api.get<{ users: User[] }>('/admin/users'),
                 api.get<Application[]>('/admin/applications'),
                 api.get<{ posts: BlogPost[], resources: Resource[] }>('/admin/content/pending'),
@@ -166,6 +174,7 @@ export default function AdminDashboard() {
                 api.get<ContactMessage[]>('/contact'),
                 api.get<PartnerApplication[]>('/admin/partner-applications'),
                 api.get<PartnerTemplates>('/admin/settings/partner-templates'),
+                api.get<NewsletterSubscriber[]>('/newsletter'),
             ]);
             setUsers(usersData.users);
             setApplications(appsData);
@@ -177,9 +186,10 @@ export default function AdminDashboard() {
             setMessages(messagesData);
             setPartnerApplications(partnerAppsData);
             setPartnerTemplates(templatesData);
+            setNewsletterSubscribers(subscribersData);
         } catch (error) {
             console.error("Failed to fetch admin data", error);
-            toast({ title: "Error", description: "Failed to load dashboard data", variant: "destructive" });
+            toast({ title: "Failed", variant: "destructive" });
         } finally {
             setLoading(false);
         }
@@ -189,9 +199,9 @@ export default function AdminDashboard() {
         try {
             await api.patch(`/admin/applications/${id}/status`, { status: 'approved' });
             toast({ title: "Approved", description: "Application approved" });
-            fetchData();
+            fetchData(true);
         } catch (error) {
-            toast({ title: "Error", description: "Failed to approve", variant: "destructive" });
+            toast({ title: "Failed", variant: "destructive" });
         }
     };
 
@@ -199,9 +209,9 @@ export default function AdminDashboard() {
         try {
             await api.patch(`/admin/applications/${id}/status`, { status: 'rejected' });
             toast({ title: "Rejected", description: "Application rejected" });
-            fetchData();
+            fetchData(true);
         } catch (error) {
-             toast({ title: "Error", description: "Failed to reject", variant: "destructive" });
+             toast({ title: "Failed", variant: "destructive" });
         }
     };
 
@@ -217,9 +227,9 @@ export default function AdminDashboard() {
             }
 
             toast({ title: "Approved", description: "Content approved" });
-            fetchData();
+            fetchData(true);
         } catch (error) {
-             toast({ title: "Error", description: "Failed to approve", variant: "destructive" });
+             toast({ title: "Failed", variant: "destructive" });
         }
     };
 
@@ -227,11 +237,21 @@ export default function AdminDashboard() {
         try {
             await api.patch(`/admin/users/${userId}/role`, { role: newRole });
              toast({ title: "Success", description: "User role updated" });
-             fetchData();
+             fetchData(true);
         } catch (error) {
-            toast({ title: "Error", description: "Failed to update role", variant: "destructive" });
+            toast({ title: "Failed", variant: "destructive" });
         }
     }
+
+    const handleDeleteSubscriber = async (id: string) => {
+        try {
+            await api.delete(`/newsletter/${id}`);
+            toast({ title: 'Removed', description: 'Subscriber removed' });
+            setNewsletterSubscribers(prev => prev.filter(s => s.id !== id));
+        } catch {
+            toast({ title: 'Failed', variant: 'destructive' });
+        }
+    };
 
     const handleResourceSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -240,8 +260,9 @@ export default function AdminDashboard() {
             await api.post('/resources', formData);
             toast({ title: "Success", description: "Resource created" });
             setResourceDialogOpen(false);
+            fetchData(true);
         } catch (error) {
-            toast({ title: "Error", description: "Failed to create resource", variant: "destructive" });
+            toast({ title: "Failed", variant: "destructive" });
         }
     };
 
@@ -259,9 +280,9 @@ export default function AdminDashboard() {
             }
             setPartnerDialogOpen(false);
             setEditingItem(null);
-            fetchData();
+            fetchData(true);
         } catch (error) {
-            toast({ title: "Error", description: "Failed to save partner", variant: "destructive" });
+            toast({ title: "Failed", variant: "destructive" });
         }
     };
 
@@ -270,9 +291,9 @@ export default function AdminDashboard() {
         try {
             await api.delete(`/partners/${id}`);
             toast({ title: "Success", description: "Partner deleted" });
-            fetchData();
+            fetchData(true);
         } catch (error) {
-            toast({ title: "Error", description: "Failed to delete partner", variant: "destructive" });
+            toast({ title: "Failed", variant: "destructive" });
         }
     };
 
@@ -290,9 +311,9 @@ export default function AdminDashboard() {
             }
             setMemberDialogOpen(false);
             setEditingItem(null);
-            fetchData();
+            fetchData(true);
         } catch (error) {
-            toast({ title: "Error", description: "Failed to save member", variant: "destructive" });
+            toast({ title: "Failed", variant: "destructive" });
         }
     };
 
@@ -301,9 +322,9 @@ export default function AdminDashboard() {
         try {
             await api.delete(`/leadership/${id}`);
             toast({ title: "Success", description: "Member deleted" });
-            fetchData();
+            fetchData(true);
         } catch (error) {
-            toast({ title: "Error", description: "Failed to delete member", variant: "destructive" });
+            toast({ title: "Failed", variant: "destructive" });
         }
     };
 
@@ -312,7 +333,7 @@ export default function AdminDashboard() {
             await api.patch(`/contact/${id}/status`, { status });
             setMessages(prev => prev.map(m => m.id === id ? { ...m, status: status as ContactMessage['status'] } : m));
         } catch {
-            toast({ title: 'Error', description: 'Failed to update status', variant: 'destructive' });
+            toast({ title: 'Failed', variant: 'destructive' });
         }
     };
 
@@ -320,9 +341,9 @@ export default function AdminDashboard() {
         try {
             await api.patch(`/admin/partner-applications/${id}/status`, { status });
             toast({ title: status === 'approved' ? 'Approved' : 'Rejected', description: `Application ${status}` });
-            fetchData();
+            fetchData(true);
         } catch {
-            toast({ title: 'Error', description: 'Failed to update status', variant: 'destructive' });
+            toast({ title: 'Failed', variant: 'destructive' });
         }
     };
 
@@ -338,9 +359,9 @@ export default function AdminDashboard() {
                 try {
                     await api.post(`/admin/settings/partner-templates/${tier}`, formData);
                     toast({ title: 'Success', description: `${tier} template uploaded` });
-                    fetchData();
+                    fetchData(true);
                 } catch {
-                    toast({ title: 'Error', description: 'Failed to upload template', variant: 'destructive' });
+                    toast({ title: 'Failed', variant: 'destructive' });
                 }
             }
         };
@@ -362,9 +383,9 @@ export default function AdminDashboard() {
             toast({ title: "Success", description: "Plan updated" });
             setPlanDialogOpen(false);
             setEditingItem(null);
-            fetchData();
+            fetchData(true);
         } catch (error) {
-            toast({ title: "Error", description: "Failed to update plan", variant: "destructive" });
+            toast({ title: "Failed", variant: "destructive" });
         }
     };
 
@@ -386,7 +407,7 @@ export default function AdminDashboard() {
                 Admin Dashboard
             </h1>
 
-            <Tabs defaultValue="applications" className="space-y-4">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
                 <TabsList className="flex-wrap h-auto gap-1">
                     <TabsTrigger value="applications" className="relative">
                         Ambassador Applications
@@ -424,6 +445,14 @@ export default function AdminDashboard() {
                     <TabsTrigger value="partners">Partners</TabsTrigger>
                     <TabsTrigger value="leadership">Leadership</TabsTrigger>
                     <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
+                    <TabsTrigger value="newsletter">
+                        Newsletter
+                        {newsletterSubscribers.length > 0 && (
+                            <span className="ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground px-1">
+                                {newsletterSubscribers.length}
+                            </span>
+                        )}
+                    </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="messages">
@@ -615,9 +644,9 @@ export default function AdminDashboard() {
                                             try {
                                                 await api.post('/admin/settings/partnership-kit', formData);
                                                 toast({ title: 'Success', description: 'Partnership kit updated' });
-                                                fetchData();
+                                                fetchData(true);
                                             } catch (error) {
-                                                toast({ title: 'Error', description: 'Failed to update partnership kit', variant: 'destructive' });
+                                                toast({ title: 'Failed', variant: 'destructive' });
                                             }
                                         }
                                     };
@@ -810,7 +839,7 @@ export default function AdminDashboard() {
                             {plans.length === 0 && (
                                 <Button onClick={async () => {
                                     await api.post('/plans/seed', {});
-                                    fetchData();
+                                    fetchData(true);
                                 }} variant="outline" size="sm">
                                     Seed Default Plans
                                 </Button>
@@ -903,7 +932,7 @@ export default function AdminDashboard() {
                                                         {app.cv && (
                                                             <div className="mt-2">
                                                                 <p className="text-sm font-medium">CV Link:</p>
-                                                                <a href={app.cv} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-500 hover:underline break-all">{app.cv}</a>
+                                                                <a href={app.cv.startsWith('/') ? `${API_BASE}${app.cv}` : app.cv} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-500 hover:underline break-all">{app.cv}</a>
                                                             </div>
                                                         )}
                                                     </div>
@@ -1045,6 +1074,45 @@ export default function AdminDashboard() {
                             </CardContent>
                         </Card>
                     </div>
+                </TabsContent>
+
+                <TabsContent value="newsletter">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><Mail className="h-5 w-5" /> Newsletter Subscribers</CardTitle>
+                            <CardDescription>Emails collected from the footer subscription form.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {newsletterSubscribers.length === 0 ? (
+                                <p className="text-muted-foreground text-center py-8">No subscribers yet.</p>
+                            ) : (
+                                <div className="rounded-md border">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Email</TableHead>
+                                                <TableHead>Subscribed On</TableHead>
+                                                <TableHead>Actions</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {newsletterSubscribers.map(s => (
+                                                <TableRow key={s.id}>
+                                                    <TableCell className="font-medium">{s.email}</TableCell>
+                                                    <TableCell>{new Date(s.createdAt).toLocaleDateString()}</TableCell>
+                                                    <TableCell>
+                                                        <Button variant="ghost" size="sm" onClick={() => handleDeleteSubscriber(s.id)} className="text-destructive">
+                                                            <Trash className="h-4 w-4" />
+                                                        </Button>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
                 </TabsContent>
 
                  <TabsContent value="users">

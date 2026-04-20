@@ -69,7 +69,7 @@ export default function BlogPostPage() {
 
     const fetchPost = async () => {
         try {
-            const data = await api.get<BlogPost>(`/blog/posts/${slug}`, { skipErrorHandling: true });
+            const data = await api.get<BlogPost>(`/blog/posts/${slug}`, { requiresAuth: false, skipErrorHandling: true });
             setPost(data);
             setFavorited(data.is_favorited);
         } catch (error) {
@@ -100,7 +100,7 @@ export default function BlogPostPage() {
             setFavorited(res.favorited);
             toast({ title: res.favorited ? "Added to Favorites" : "Removed from Favorites" });
         } catch (error) {
-            toast({ title: "Error", variant: "destructive" });
+            toast({ title: "Failed", variant: "destructive" });
         }
     };
 
