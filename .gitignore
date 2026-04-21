@@ -29,4 +29,6 @@ client/package-lock.json
 # Environment files — never commit secrets
 .env
 .env.local
+.env.development
+.env.production
 .env.*.local
