@@ -1,6 +1,6 @@
 import 'reflect-metadata'; // Required for sequelize-typescript
 import 'dotenv/config'; // Load env vars before other imports
-import express, { Request, Response } from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import { sequelize } from './config/database';
 
 // Check for required environment variables
@@ -35,6 +35,9 @@ import { seedDefaultAdmin } from './utils/seed';
 const app = express();
 const port = process.env.PORT || 5000;
 
+// SV-17: trust the first proxy (Render/ingress) so req.ip is accurate for dedupe/rate-limit.
+app.set('trust proxy', 1);
+
 app.use(compression());
 app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:3000',
@@ -43,12 +46,13 @@ app.use(cors({
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
-app.use(express.json());
+// SV-18: explicit body limit. Blog content may be large; pick 1MB.
+app.use(express.json({ limit: '1mb' }));
 app.use('/uploads', express.static(path.join(__dirname, '../public/uploads'), {
   maxAge: '1d', // Cache static files for 1 day
 }));
 
-// Database connection
+// SV-02: Database connection — exit hard on failure so Render/Docker restarts cleanly.
 sequelize.authenticate()
   .then(async () => {
     console.log('Database connected via Sequelize');
@@ -61,6 +65,7 @@ sequelize.authenticate()
   })
   .catch((err: any) => {
     console.error('Unable to connect to the database:', err);
+    process.exit(1);
   });
 
 // Routes
@@ -81,6 +86,17 @@ app.use('/api/newsletter', newsletterRoutes);
 
 app.get('/', (req: Request, res: Response) => {
   res.send('Server is running');
+});
+
+// SV-04: Global error handler. Contract: { message: string } (frozen by architect).
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
+  console.error('Unhandled error:', err);
+  const status = typeof err?.status === 'number' ? err.status : 500;
+  const message = process.env.NODE_ENV === 'production'
+    ? (status < 500 ? (err?.message || 'Request failed') : 'Internal server error')
+    : (err?.message || 'Internal server error');
+  res.status(status).json({ message });
 });
 
 app.listen(port, () => {

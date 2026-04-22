@@ -12,10 +12,13 @@ import { cacheMiddleware } from '../middleware/cache';
 
 const router = express.Router();
 
+// SV-01: every /admin/* route must be behind authenticate + isAdmin.
+// Previously `/settings/partnership-kit` and `/settings/partner-templates` were mounted
+// BEFORE `router.use(authenticate, isAdmin)` and were therefore publicly readable.
+router.use(authenticate, isAdmin);
+
 router.get('/settings/partnership-kit', cacheMiddleware(3600), getPartnershipKit);
 router.get('/settings/partner-templates', getPartnerTemplates);
-
-router.use(authenticate, isAdmin);
 
 router.get('/users', getUsers);
 router.patch('/users/:userId/role', updateUserRole);

@@ -1,12 +1,19 @@
 import { Request, Response } from 'express';
 import { NewsletterSubscriber } from '../models';
+import { isValidEmail } from '../utils/validation';
 
 export const subscribe = async (req: Request, res: Response) => {
   try {
     const { email } = req.body;
-    if (!email) return res.status(400).json({ message: 'Email is required' });
 
-    const [, created] = await NewsletterSubscriber.findOrCreate({ where: { email } });
+    // SV-10: was only checking truthy — would save 'x', '  ', 'not-an-email' into the table.
+    if (!email || typeof email !== 'string' || !isValidEmail(email)) {
+      return res.status(400).json({ message: 'A valid email is required' });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const [, created] = await NewsletterSubscriber.findOrCreate({ where: { email: normalizedEmail } });
 
     if (!created) return res.status(409).json({ message: 'Email already subscribed' });
 

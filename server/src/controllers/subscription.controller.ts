@@ -22,10 +22,14 @@ export const getStatus = async (req: Request, res: Response) => {
       });
     }
 
+    // SV-09: currentPeriodEnd can be null (e.g. lifetime / trialing without set end) —
+    // guard the .toISOString() call so we don't crash with a 500.
     res.json({
       subscribed: true,
       product_id: subscription.stripePriceId,
-      subscription_end: subscription.currentPeriodEnd.toISOString(),
+      subscription_end: subscription.currentPeriodEnd
+        ? subscription.currentPeriodEnd.toISOString()
+        : null,
     });
   } catch (error) {
     console.error('Error fetching subscription status:', error);
@@ -40,6 +44,18 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
     const userEmail = req.user?.email;
 
     if (!userId || !userEmail) return res.status(401).json({ message: 'Unauthorized' });
+
+    if (typeof price_id !== 'string' || !price_id) {
+      return res.status(400).json({ message: 'price_id is required' });
+    }
+
+    // SV-03: validate price_id against our registered SubscriptionPlan table.
+    // Previously the server blindly forwarded ANY price_id to Stripe, which meant a
+    // client could check out against a $0.01 test price or an unrelated product.
+    const plan = await SubscriptionPlan.findOne({ where: { stripePriceId: price_id } });
+    if (!plan) {
+      return res.status(400).json({ message: 'Invalid price_id' });
+    }
 
     let customerId = req.user?.stripeCustomerId;
 
@@ -56,10 +72,11 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
 
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
-      line_items: [{ price: price_id, quantity: 1 }],
+      line_items: [{ price: plan.stripePriceId, quantity: 1 }],
       mode: 'subscription',
       success_url: `${process.env.CLIENT_URL || 'http://localhost:3000'}/subscription?success=true`,
       cancel_url: `${process.env.CLIENT_URL || 'http://localhost:3000'}/subscription?canceled=true`,
+      metadata: { userId: userId as string, planKey: plan.key },
     });
 
     res.json({ url: session.url });
