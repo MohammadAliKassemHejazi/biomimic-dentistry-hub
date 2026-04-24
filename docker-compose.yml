@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   db:
     image: postgres:15
@@ -46,6 +44,10 @@ services:
       - CLIENT_URL=${CLIENT_URL:-http://localhost:3000}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
       - PORT=5000
+      - WATCHPACK_POLLING=true
+      - SEED_ADMIN_EMAIL=${SEED_ADMIN_EMAIL:-admin@admin.com}
+      - SEED_ADMIN_PASSWORD=${SEED_ADMIN_PASSWORD:-12345543211234554321}
+      - SYNC_DB=${SYNC_DB:-true}
     depends_on:
       - db
       - redis

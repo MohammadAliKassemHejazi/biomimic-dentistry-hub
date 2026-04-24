@@ -1,41 +1,50 @@
 /**
- * Centralized, fail-fast runtime env helper.
+ * Centralized env helper for public client-side variables.
  *
- * Architect decision (Iter 2 #1, #6): throws at module-import time on the
- * client bundle if the required NEXT_PUBLIC_* vars are missing. Next.js inlines
- * these at build time, so a missing value would otherwise ship as literal
- * `undefined` and silently point at `http://localhost:5000`.
+ * IMPORTANT — Next.js / Turbopack bundler rule:
+ *   NEXT_PUBLIC_* vars are only inlined into the browser bundle when accessed
+ *   with STATIC dot-notation at the exact call site:
+ *       process.env.NEXT_PUBLIC_FOO   ✓  (inlined)
+ *       process.env[someVar]          ✗  (undefined in browser)
  *
- * Do not add localhost fallbacks here.
+ *   Every variable is therefore read inline below and passed to `requireVar`
+ *   which only handles the error message — it does NOT call process.env itself.
  */
 
-const readRequired = (key: string, fallback?: string): string => {
-  const v = process.env[key];
-  if (v && v.trim().length > 0) return v;
+/**
+ * Validate a pre-read env value and return it, or throw / return fallback.
+ * `name` is only used in the error message.
+ */
+const requireVar = (name: string, value: string | undefined, fallback?: string): string => {
+  if (value && value.trim().length > 0) return value.trim();
   if (fallback !== undefined) return fallback;
-  // We throw lazily: importers that evaluate this module in a server/build
-  // context where the env is legitimately absent will crash loudly — which
-  // is the architect-mandated behavior.
   throw new Error(
-    `[env] Missing required environment variable: ${key}. ` +
-      `Set it in .env.local (dev) or render.yaml / host env (prod) before building.`
+    `[env] Missing required environment variable: ${name}. ` +
+      `Set it in .env.local (dev) or the host environment (prod) before building.`
   );
 };
 
-/** API base URL, e.g. "https://api.example.com/api". No trailing slash. */
-export const API_URL: string = readRequired('NEXT_PUBLIC_API_URL').replace(/\/$/, '');
+// ─── Exported constants ───────────────────────────────────────────────────────
+
+/** API base URL, e.g. "http://localhost:5000/api". No trailing slash. */
+export const API_URL: string = requireVar(
+  'NEXT_PUBLIC_API_URL',
+  process.env.NEXT_PUBLIC_API_URL        // static — inlined by bundler
+).replace(/\/$/, '');
 
 /** Server origin without the /api suffix — used for rewriting upload URLs. */
 export const SERVER_ORIGIN: string = API_URL.replace(/\/api$/, '');
 
 /**
  * Public canonical site origin, e.g. "https://biomimeticdentistry.org".
- * Falls back to the production literal if the env var is not set, because
- * metadata / sitemap must resolve even during a pre-deploy build.
+ * Falls back to the production literal so metadata / sitemap resolves
+ * even during a pre-deploy build where NEXT_PUBLIC_SITE_URL may not be set.
  */
-export const SITE_URL: string =
-  process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') ||
-  'https://biomimeticdentistry.org';
+export const SITE_URL: string = requireVar(
+  'NEXT_PUBLIC_SITE_URL',
+  process.env.NEXT_PUBLIC_SITE_URL,      // static — inlined by bundler
+  'https://biomimeticdentistry.org'
+).replace(/\/$/, '');
 
 /** Build an absolute URL relative to SITE_URL. */
 export const absoluteUrl = (path: string): string => {
