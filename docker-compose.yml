@@ -35,8 +35,10 @@ services:
       - ./server:/app
       - /app/node_modules
     environment:
+      - NODE_ENV=${NODE_ENV:-development}
       - DATABASE_URL=postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-app_db}
-      - JWT_SECRET=${JWT_SECRET:-dev_secret_key_123}
+      # SV-07 (Iter 2 K batch): no default — compose will fail loudly if JWT_SECRET is unset.
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}
       - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-sk_test_placeholder}
       - PAYPAL_CLIENT_ID=${PAYPAL_CLIENT_ID:-}
       - PAYPAL_CLIENT_SECRET=${PAYPAL_CLIENT_SECRET:-}
@@ -62,6 +64,7 @@ services:
     environment:
       - APP_ENV=${APP_ENV:-development}
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:5000/api}
+      - NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
       - SERVER_INTERNAL_URL=http://server:5000
       - WATCHPACK_POLLING=true
     depends_on:

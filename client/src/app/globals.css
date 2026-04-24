@@ -204,6 +204,10 @@
     --transition-bounce: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
     --transition-breathe: all 2s ease-in-out;
 
+    /* Shared transitions (consumed by .card-hover, utility classes) */
+    --transition-smooth: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    --transition-bouncy: all 0.45s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
     /* Typography scale */
     --font-size-xs: 0.75rem;
     --font-size-sm: 0.875rem;

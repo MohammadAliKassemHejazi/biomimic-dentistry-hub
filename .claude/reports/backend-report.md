@@ -1,226 +1,107 @@
-# Backend Expert — Investigation Report
-Agent: backend-expert · Iteration 1 · 2026-04-21
-Scope: `/server` (Express 5 / Sequelize-TS / PG / Redis / Stripe / PayPal)
+# Backend Expert — Iteration 2 Report
+Agent: backend-expert · Iteration 2 · 2026-04-24
+Scope: /server (Express 5 / Sequelize-TS / PG / Redis / Stripe)
+Focus: performance + HTTP hygiene (supports SEO + admin UX stability)
 
 ## Summary
-Found **22 issues** in `/server`. The three most damaging: **(a)** the admin settings routes mounted above the auth guard are publicly readable; **(b)** the server does not exit on DB-auth failure so every request 500s silently; **(c)** `createCheckoutSession` trusts any `price_id` from the client, enabling a user to check out against any Stripe price in the account.
+Found **11 server-side issues** impacting either (a) time-to-content for the public pages Google crawls, or (b) admin panel responsiveness. Three are Iter-1 carryovers that were never merged (SV-07, SV-11, SV-12, SV-13). The rest are new for Iter 2.
 
 ---
 
-## 🔴 CRITICAL
+## 🔴 CRITICAL — Performance
 
-### SV-01 · Admin routes partially unprotected — ordering bug
-**File:** `server/src/routes/admin.routes.ts:15-18`
+### P-B1 · `getPosts` loads every `BlogView` row per post just to `.length` it
+**File:** `server/src/controllers/blog.controller.ts:36-57`
+`include: [{ model: BlogView, as: 'views', attributes: ['id'] }]` — for a popular post with 50k views, this materializes 50k rows per post per list request. On a 10-post page that's 500k rows moved over the wire for a render that only needs `count`.
+
+**Fix:** use a scalar subquery via `sequelize.literal`:
 ```ts
-router.get('/settings/partnership-kit', cacheMiddleware(3600), getPartnershipKit);  // ← public
-router.get('/settings/partner-templates', getPartnerTemplates);                      // ← public
-router.use(authenticate, isAdmin);                                                   // ← guard only after
+attributes: {
+  include: [[
+    sequelize.literal(`(SELECT COUNT(*) FROM "blog_views" AS "v" WHERE "v"."blogPostId" = "BlogPost"."id")`),
+    'viewCount'
+  ]]
+}
 ```
-Anyone can hit `GET /api/admin/settings/partnership-kit` and `/settings/partner-templates` without a token.
+and drop the `BlogView` include from the list query. (Keep the include on the detail query if you render a view chart; otherwise swap there too.)
 
-**Fix:** move both under the guard OR, if intentionally public (marketing assets), rename to `/api/partnership/kit` and `/api/partnership/templates` under a public router. Safer: move under the guard.
+### P-B2 · Cache middleware stores 5xx responses as if they were valid (SV-12 carryover)
+**File:** `server/src/middleware/cache.ts:24-29`
+Every `res.json(body)` is unconditionally written to Redis with TTL. A cold Redis + flaky upstream → a 500 cached for 1h returned to every crawler & user.
 
-### SV-02 · DB auth failure does not exit process
-**File:** `server/src/index.ts:52-64`
-```ts
-sequelize.authenticate().then(...)
-  .catch(err => console.error('Unable to connect to the database:', err));
-app.listen(port, ...);  // ← runs regardless
-```
-Server starts even when the DB is unreachable; every API call crashes with an opaque 500.
+**Fix:** only persist when `res.statusCode < 400`. Skip persist (and optionally `redis.del(key)`) on error paths.
 
-**Fix:** on `.catch`, `process.exit(1)`. Let Render/Docker restart cleanly.
+### P-B3 · No `Cache-Control` headers on public GETs
+**File:** `server/src/index.ts` + `server/src/routes/*.routes.ts`
+Public list endpoints (`/api/partners`, `/api/leadership`, `/api/plans`, `/api/blog/posts?published=true`) return without `Cache-Control`. Browsers + CDN will not cache. Adding `public, max-age=300, s-maxage=600, stale-while-revalidate=86400` dramatically lowers server load and speeds up repeat navigations.
 
-### SV-03 · `createCheckoutSession` accepts any `price_id` from the body
-**File:** `server/src/controllers/subscription.controller.ts:36-70`
-Client can supply any Stripe price — including a $0.01 test price or another tenant's price — and the server blindly passes it to `checkout.sessions.create`. Unit-price tampering.
-
-**Fix:** resolve the plan server-side:
-```ts
-const plan = await SubscriptionPlan.findOne({ where: { stripePriceId: price_id } });
-if (!plan) return res.status(400).json({ message: 'Invalid price_id' });
-// now use plan.stripePriceId in line_items
-```
-
-### SV-04 · No global Express error handler
-**File:** `server/src/index.ts` (nothing after last `app.use`)
-Express 5 default error handler emits raw stack traces. Some controllers don't wrap in try/catch at all (e.g. `contact.controller.sendMessage` doesn't validate input — a bad payload will throw during `ContactMessage.create`, which IS caught, but many newer handlers aren't). Any async throw outside try/catch → un-typed 500.
-
-**Fix:** add at the end of `index.ts`:
-```ts
-app.use((err: any, req: Request, res: Response, next: NextFunction) => {
-  console.error('Unhandled error:', err);
-  const status = err.status || 500;
-  const msg = process.env.NODE_ENV === 'production' ? 'Internal server error' : (err.message || 'Error');
-  res.status(status).json({ message: msg });
-});
-```
-
-### SV-05 · Hardcoded admin credentials seeded on every boot
-**File:** `server/src/utils/seed.ts:7,12` (see also AUDIT.md §1.2)
-```ts
-const adminEmail = 'admin@admin.com';
-const hashedPassword = await bcrypt.hash('1234554321', 10);
-```
-Runs in prod.
-
-**Fix:** require `SEED_ADMIN_EMAIL` and `SEED_ADMIN_PASSWORD`; if absent, skip and log a warning.
+**Fix:** thin middleware `publicCacheHeaders(maxAge, sMaxAge, swr)` applied to public routes that already use `cacheMiddleware`. Don't double up with Redis on authenticated GETs.
 
 ---
 
-## 🟠 HIGH
+## 🟠 HIGH — Correctness (Iter 1 carryovers)
 
-### SV-06 · `sync({ alter: true })` on boot
-**File:** `server/src/index.ts:57`
-Can silently drop columns on model drift. Per AUDIT §1.6 — documented, fixing is out-of-scope here (needs migration library). Kept on the known-bugs list.
-
-### SV-07 · Weak JWT fallback in docker-compose
+### SV-07 · Weak JWT fallback in docker-compose (carryover)
 **File:** `docker-compose.yml:39`
-```yaml
-- JWT_SECRET=${JWT_SECRET:-dev_secret_key_123}
-```
-If someone deploys this compose file without setting `JWT_SECRET`, all JWTs are forgeable.
+Still reads `JWT_SECRET=${JWT_SECRET:-dev_secret_key_123}`. Remove the `:-...` default.
 
-**Fix:** remove the fallback; compose interpolation will fail loudly.
+### SV-11 · `updatePostStatus` accepts any string (carryover)
+**File:** `server/src/controllers/blog.controller.ts:316-322`
+Still only checks `typeof status === 'string'`. Must validate against `Object.values(ContentStatus)`.
 
-### SV-08 · `stripe` client instantiated without env validation
-**File:** `server/src/utils/stripe.ts:3`
-```ts
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {});
-```
-If missing, Stripe throws on first request with an ugly error. The `as string` cast masks the TypeScript warning.
+### SV-13 · Partnership-kit / partner-template cache never invalidated (carryover)
+**File:** `server/src/controllers/admin.controller.ts`
+`uploadPartnershipKit` and `uploadPartnerTemplate` must call `clearCache('/api/admin/settings/')` after upsert.
 
-**Fix:**
-```ts
-const key = process.env.STRIPE_SECRET_KEY;
-if (!key) throw new Error('STRIPE_SECRET_KEY is not set');
-const stripe = new Stripe(key);
-```
-
-### SV-09 · `getStatus` throws if `currentPeriodEnd` is null
-**File:** `server/src/controllers/subscription.controller.ts:28`
-```ts
-subscription_end: subscription.currentPeriodEnd.toISOString(),
-```
-If the DB column is nullable (which it is — no `@NotNull` on the model), `.toISOString()` blows up.
-
-**Fix:**
-```ts
-subscription_end: subscription.currentPeriodEnd ? subscription.currentPeriodEnd.toISOString() : null,
-```
-
-### SV-10 · No input validation on newsletter / contact / blog create
-**Files:**
-- `server/src/controllers/newsletter.controller.ts:7` — only checks truthy, not email format
-- `server/src/controllers/contact.controller.ts:6` — accepts `{}` and creates a row with nulls
-- `server/src/controllers/blog.controller.ts:151` — only checks `title`, not content
-
-**Fix:** reuse `isValidEmail()` in newsletter and contact; add length caps.
-
-### SV-11 · `updatePostStatus` accepts any string for status
-**File:** `server/src/controllers/blog.controller.ts:316`
-```ts
-if (typeof status !== 'string') return 400;
-await BlogPost.update({ status: status as ContentStatus }, ...)
-```
-A malformed `status` is saved as-is (ENUM will reject at the DB layer with a 500). Validate against `ContentStatus` enum values first.
-
-### SV-12 · Redis `cacheMiddleware` caches error responses
-**File:** `server/src/middleware/cache.ts:26-28`
-```ts
-res.json = (body) => { redis.set(key, JSON.stringify(body), 'EX', durationInSeconds); return originalJson(body); }
-```
-If the handler writes a 500 body, that 500 is cached for `duration` seconds. Check `res.statusCode` first (< 400).
-
-### SV-13 · Partnership-kit / partner-templates cache never invalidated on upload
-**File:** `server/src/controllers/admin.controller.ts:30, 167`
-After `uploadPartnershipKit` / `uploadPartnerTemplate` succeeds, the cached GET response is stale for an hour.
-
-**Fix:** call `clearCache('/api/admin/settings/')` after upsert.
-
-### SV-14 · `authenticate` does a DB lookup per request
-**File:** `server/src/middleware/auth.middleware.ts:29`
-Every API call runs `User.findByPk(...)`. Adds ~5–20ms and a DB round-trip on every single request. Acceptable for now; document as known perf issue.
-
-### SV-15 · `User.findByPk` loads password hash into `req.user`
-**File:** all controllers that touch `req.user`.
-Password hash is on `req.user`, and any controller that serializes it directly could leak it. None currently do, but the default attribute list is dangerous.
-
-**Fix:** change `authenticate` to exclude password:
-```ts
-const user = await User.findByPk(decoded.userId, { attributes: { exclude: ['password'] } });
-```
-
-### SV-16 · No Stripe / PayPal webhook endpoint
-**Files:** `server/src/routes/subscription.routes.ts`, no `/webhooks` route anywhere.
-`createCheckoutSession` and `createPayPalCheckout` redirect to the provider, but nothing listens for `checkout.session.completed` / `invoice.paid` / `BILLING.SUBSCRIPTION.ACTIVATED`. The `Subscription` row is therefore **never created**, so `GET /subscriptions/status` returns `subscribed: false` forever.
-
-This is a functional bug — the entire subscription flow is broken end-to-end.
-
-**Fix (scope = out of this iteration, track as architectural):** add `/api/subscriptions/webhook/stripe` and `/api/subscriptions/webhook/paypal` endpoints with signature verification. Mark as **High priority for next iteration**.
-
-### SV-17 · `req.ip` can be spoofed without `trust proxy`
-**File:** `server/src/index.ts` (missing), `server/src/controllers/blog.controller.ts:280`
-Behind Render's proxy, `req.ip` returns the proxy IP unless `app.set('trust proxy', ...)` is configured. BlogView dedupe is thus incorrect.
-
-**Fix:** `app.set('trust proxy', 1)` in `index.ts` (before routes).
-
-### SV-18 · `express.json()` uses default 100kb limit silently
-**File:** `server/src/index.ts:46`
-Blog posts with embedded content > 100kb will 413. Set explicit `limit: '1mb'` (or larger for rich content) for transparency.
+### P-B4 · N+1 on `getPosts` favorite include
+**File:** `server/src/controllers/blog.controller.ts:39-47`
+`include` of `Favorite` with per-user `where` triggers a scan per row. Keep the include (needed for `is_favorited`) but add a composite index on `Favorite(userId, blogPostId)` — already recommended in Iter 1 SV-19. Defer migration, but flag here because of UX impact on logged-in users browsing blog list.
 
 ---
 
-## 🟡 MEDIUM
+## 🟠 HIGH — Performance (new)
 
-### SV-19 · `blog.toggleFavorite` has TOCTOU race
-**File:** `server/src/controllers/blog.controller.ts:197-222`
-Between `findOne` and `create`, a double-click creates two Favorite rows. The `Favorite` model has no composite unique index on `(userId, blogPostId)`.
+### P-B5 · `/uploads` static served from Express with no `immutable`
+**File:** `server/src/index.ts:51-53`
+`maxAge: '1d'` is fine, but uploads are content-addressed (random filenames from multer). Use `immutable` so browsers skip revalidation for the cache lifetime.
 
-**Fix:** add a unique composite index; use `findOrCreate` or catch the unique-violation.
+```ts
+app.use('/uploads', express.static(path.join(__dirname, '../public/uploads'), {
+  maxAge: '30d',
+  immutable: true,
+  etag: true,
+}));
+```
 
-### SV-20 · `getPosts` loads all `BlogView` rows just to count
-**File:** `server/src/controllers/blog.controller.ts:37-70`
-Per post, all views load into memory, then `.length`. For a post with 10k views, that's 10k rows fetched per listing request. Use `sequelize.fn('COUNT', ...)` with a subquery or a materialized count.
+### P-B6 · `compression()` uses defaults; brotli skipped
+Not actually a fix needed — Node `compression` package doesn't support brotli (that requires a reverse proxy). Document that Render/Nginx should terminate brotli.
 
-### SV-21 · `req.user.id` cast to `string` in multiple places
-Minor — TS would infer string because `@Column(DataType.UUID) id!: string`. Casts hide future regressions.
-
-### SV-22 · `bcrypt.hash(password, 10)` cost factor
-10 rounds is 2013-grade. 12+ is recommended for 2026. Low priority given user load.
-
----
-
-## 🟢 LOW
-- SV-23 `@types/node: ^25` targets Node 24+ but Dockerfile runs Node 20 — already flagged in AUDIT §6.
-- SV-24 `server/docker-compose.yml` is a dead duplicate of the root one.
-- SV-25 `test-db.js` / `test-db.ts` in repo root are broken; delete (AUDIT §5).
+### P-B7 · Sequelize pool `max: 5` in production is tight
+**File:** `server/src/config/database.ts:52-58`
+Neon free-tier limit is 10 connections shared. `max:5` per instance is safe, but if you scale to 2 instances you hit the limit. Document; don't change yet.
 
 ---
 
-## Proposed fix set (awaiting team-lead approval)
-I propose to apply, this iteration:
-- **SV-01** (admin route ordering)
-- **SV-02** (exit on DB fail)
-- **SV-03** (validate price_id against SubscriptionPlan)
-- **SV-04** (global error handler)
-- **SV-05** (seed admin env-gated)
-- **SV-07** (remove JWT fallback in compose)
-- **SV-08** (Stripe fail-fast)
-- **SV-09** (null-check currentPeriodEnd)
-- **SV-10** (validation: newsletter, contact)
-- **SV-11** (validate status enum in updatePostStatus)
-- **SV-12** (cache: only 2xx)
-- **SV-13** (invalidate cache on upload)
-- **SV-15** (exclude password in authenticate)
-- **SV-17** (trust proxy)
-- **SV-18** (json limit)
+## 🟡 MEDIUM — Observability
 
-Defer to follow-up iteration:
-- **SV-06** migration library (big change)
-- **SV-16** webhooks (big change, needs secrets + signature verification)
-- **SV-14** user caching (perf pass later)
-- **SV-19** composite index (migration needed)
-- **SV-20** COUNT aggregation (refactor)
+### P-B8 · No request timing logged
+No `morgan` or equivalent. Without p95 latency per route, you can't prove perf wins post-deploy. Add minimal `morgan('tiny')` or a 1-line custom middleware.
 
-**Backend analysis complete.** → team-lead
+---
+
+## Proposed fix set (Iteration 2, backend)
+Apply this iteration:
+- **P-B1** (getPosts subquery COUNT)
+- **P-B2** (cache only 2xx) — also satisfies SV-12
+- **P-B3** (public Cache-Control middleware)
+- **P-B5** (immutable uploads)
+- **P-B8** (request timing middleware)
+- **SV-07** (docker-compose JWT fallback — carryover)
+- **SV-11** (status enum validation — carryover)
+- **SV-13** (clearCache on partner settings upload — carryover)
+
+Defer:
+- **P-B4** composite index (needs migration library)
+- **P-B7** pool tuning (observe first)
+
+**Backend iter-2 analysis complete.** → team-lead

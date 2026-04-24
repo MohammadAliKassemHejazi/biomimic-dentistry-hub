@@ -48,7 +48,7 @@ const DropdownNav = memo(({ title, items, className = "" }: { title: string, ite
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className={`text-white/90 hover:text-white hover:bg-white/10 ${className}`}>
           {title}
-          <ChevronDown className="ml-1 h-4 w-4" />
+          <ChevronDown className="ml-1 h-4 w-4" aria-hidden="true" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="bg-background border-border">
@@ -57,6 +57,7 @@ const DropdownNav = memo(({ title, items, className = "" }: { title: string, ite
             <Link
               href={item.href}
               className={`cursor-pointer ${isActive(item.href) ? 'bg-accent text-accent-foreground' : ''}`}
+              aria-current={isActive(item.href) ? 'page' : undefined}
             >
               {item.name}
             </Link>
@@ -88,11 +89,11 @@ const Navigation = () => {
   }`, [isActive]);
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-primary shadow-soft">
+    <nav aria-label="Primary" className="fixed top-0 left-0 right-0 z-50 bg-primary shadow-soft">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link href="/" className="flex items-center space-x-3">
+          <Link href="/" className="flex items-center space-x-3" aria-label="Biomimetic Dentistry Club home">
             <motion.div whileHover={{ scale: 1.05 }}>
               <Image
                 src="/logo.png"
@@ -109,7 +110,7 @@ const Navigation = () => {
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-4">
               {/* Home link */}
-              <Link href="/" className={linkClass('/')}>
+              <Link href="/" className={linkClass('/')} aria-current={isActive('/') ? 'page' : undefined}>
                 Home
               </Link>
 
@@ -151,10 +152,10 @@ const Navigation = () => {
               {user ? (
                 <DropdownMenu modal={false}>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="text-white/90 hover:text-white hover:bg-white/10">
-                      <User className="mr-2 h-4 w-4" />
+                    <Button variant="ghost" className="text-white/90 hover:text-white hover:bg-white/10" aria-label="Account menu">
+                      <User className="mr-2 h-4 w-4" aria-hidden="true" />
                       {userName}
-                      <ChevronDown className="ml-1 h-4 w-4" />
+                      <ChevronDown className="ml-1 h-4 w-4" aria-hidden="true" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="bg-background border-border" align="end">
@@ -170,7 +171,7 @@ const Navigation = () => {
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link href="/blog/favorites" className="cursor-pointer">
-                        <Heart className="mr-2 h-4 w-4" />
+                        <Heart className="mr-2 h-4 w-4" aria-hidden="true" />
                         My Favorites
                       </Link>
                     </DropdownMenuItem>
@@ -198,7 +199,7 @@ const Navigation = () => {
                     )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={signOut} className="cursor-pointer text-destructive">
-                      <LogOut className="mr-2 h-4 w-4" />
+                      <LogOut className="mr-2 h-4 w-4" aria-hidden="true" />
                       Sign Out
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -207,7 +208,7 @@ const Navigation = () => {
                 <div className="flex gap-2">
                   <Link href="/login">
                     <Button variant="ghost" size="sm" className="text-white/90 hover:text-white hover:bg-white/10">
-                      <User className="mr-2 h-4 w-4" />
+                      <User className="mr-2 h-4 w-4" aria-hidden="true" />
                       Login
                     </Button>
                   </Link>
@@ -224,8 +225,11 @@ const Navigation = () => {
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               className="md:hidden p-2 text-white/90 hover:text-white transition-colors"
+              aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={isMenuOpen}
+              aria-controls="mobile-nav"
             >
-              {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+              {isMenuOpen ? <X size={24} aria-hidden="true" /> : <Menu size={24} aria-hidden="true" />}
             </button>
           </div>
         </div>
@@ -234,6 +238,7 @@ const Navigation = () => {
         <AnimatePresence>
         {isMenuOpen && (
           <motion.div
+            id="mobile-nav"
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
@@ -242,7 +247,7 @@ const Navigation = () => {
             <div className="py-4 space-y-2">
               {/* Mobile Logo */}
               <div className="px-4 pb-2 border-b border-white/20 mb-2">
-                <Link href="/" onClick={() => setIsMenuOpen(false)}>
+                <Link href="/" onClick={() => setIsMenuOpen(false)} aria-label="Home">
                   <Image
                     src="/logo.png"
                     alt="Biomimetic Dentistry Club"
@@ -369,14 +374,14 @@ const Navigation = () => {
                     }}
                     className="text-white/90 hover:text-white hover:bg-white/10"
                   >
-                    <LogOut className="h-4 w-4 mr-2" />
+                    <LogOut className="h-4 w-4 mr-2" aria-hidden="true" />
                     Logout
                   </Button>
                 ) : (
                   <div className="flex gap-2">
                     <Link href="/login" onClick={() => setIsMenuOpen(false)}>
                       <Button variant="ghost" size="sm" className="text-white/90 hover:text-white hover:bg-white/10">
-                        <User className="mr-2 h-4 w-4" />
+                        <User className="mr-2 h-4 w-4" aria-hidden="true" />
                         Login
                       </Button>
                     </Link>

@@ -31,6 +31,7 @@ import subscriptionPlanRoutes from './routes/subscriptionPlan.routes';
 import partnershipRoutes from './routes/partnership.routes';
 import newsletterRoutes from './routes/newsletter.routes';
 import { seedDefaultAdmin } from './utils/seed';
+import { publicCacheHeaders } from './middleware/cache';
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -38,19 +39,41 @@ const port = process.env.PORT || 5000;
 // SV-17: trust the first proxy (Render/ingress) so req.ip is accurate for dedupe/rate-limit.
 app.set('trust proxy', 1);
 
+// P-B8 (Iter 2): minimal request-timing logger. Writes a single line per
+// completed request with method, path, status, and duration in ms.
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const start = process.hrtime.bigint();
+  res.on('finish', () => {
+    const durationMs = Number(process.hrtime.bigint() - start) / 1_000_000;
+    // eslint-disable-next-line no-console
+    console.log(
+      `${req.method} ${req.originalUrl} ${res.statusCode} ${durationMs.toFixed(1)}ms`
+    );
+  });
+  next();
+});
+
 app.use(compression());
 app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:3000',
   credentials: true,
 }));
 app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" }
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));
 // SV-18: explicit body limit. Blog content may be large; pick 1MB.
 app.use(express.json({ limit: '1mb' }));
-app.use('/uploads', express.static(path.join(__dirname, '../public/uploads'), {
-  maxAge: '1d', // Cache static files for 1 day
-}));
+
+// P-B5 (Iter 2): user uploads are content-addressed (multer random names) so
+// they can be cached aggressively and served immutable.
+app.use(
+  '/uploads',
+  express.static(path.join(__dirname, '../public/uploads'), {
+    maxAge: '30d',
+    immutable: true,
+    etag: true,
+  })
+);
 
 // SV-02: Database connection — exit hard on failure so Render/Docker restarts cleanly.
 sequelize.authenticate()
@@ -68,9 +91,15 @@ sequelize.authenticate()
     process.exit(1);
   });
 
+// P-B3 (Iter 2): apply HTTP Cache-Control for public, frequently-read routes.
+// Architect decision (Iter 2 #5): never stack with `cacheMiddleware` on same
+// route. The routes below are the ones that remain Redis-cached and do NOT
+// get this header are explicitly scoped within their own route file.
+const publicCache = publicCacheHeaders();
+
 // Routes
 app.use('/api/auth', authRoutes);
-app.use('/api/courses', courseRoutes);
+app.use('/api/courses', publicCache, courseRoutes);
 app.use('/api/resources', resourceRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/blog', blogRoutes);
@@ -78,14 +107,18 @@ app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/ambassadors', ambassadorRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/partners', trustedPartnerRoutes);
-app.use('/api/leadership', leadershipMemberRoutes);
-app.use('/api/plans', subscriptionPlanRoutes);
+app.use('/api/partners', publicCache, trustedPartnerRoutes);
+app.use('/api/leadership', publicCache, leadershipMemberRoutes);
+app.use('/api/plans', publicCache, subscriptionPlanRoutes);
 app.use('/api/partnership', partnershipRoutes);
 app.use('/api/newsletter', newsletterRoutes);
 
 app.get('/', (req: Request, res: Response) => {
   res.send('Server is running');
+});
+
+app.get('/health', (req: Request, res: Response) => {
+  res.json({ status: 'ok', uptime: process.uptime() });
 });
 
 // SV-04: Global error handler. Contract: { message: string } (frozen by architect).

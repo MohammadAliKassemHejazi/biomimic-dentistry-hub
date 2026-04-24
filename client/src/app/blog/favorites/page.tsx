@@ -12,14 +12,9 @@ import { useFavoritePosts } from '@/hooks/queries/useBlog';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import { resolveUploadUrl } from '@/lib/env';
 
-const SERVER_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api').replace('/api', '');
-
-function resolveImageUrl(path: string | null | undefined): string | null {
-  if (!path) return null;
-  if (path.startsWith('http')) return path;
-  return `${SERVER_URL}${path}`;
-}
+const resolveImageUrl = (path: string | null | undefined): string | null => resolveUploadUrl(path);
 
 const FavoritesPage = () => {
   const { user, isAuthenticated } = useAuth();

@@ -1,7 +1,6 @@
 import Cookies from 'js-cookie';
 import { toast } from '@/hooks/use-toast';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+import { API_URL } from '@/lib/env';
 
 interface FetchOptions extends RequestInit {
   headers?: Record<string, string>;
@@ -42,6 +41,22 @@ export const api = {
   },
 };
 
+/**
+ * Shared error-shape helper for toasts. Falls back through the common error
+ * shapes our backend + fetch layer produce.
+ */
+export const describeError = (err: unknown): string => {
+  if (!err) return 'Unknown error';
+  if (typeof err === 'string') return err;
+  if (err instanceof Error && err.message) return err.message;
+  if (typeof err === 'object' && err !== null) {
+    const anyErr = err as { message?: unknown; statusText?: unknown };
+    if (typeof anyErr.message === 'string') return anyErr.message;
+    if (typeof anyErr.statusText === 'string') return anyErr.statusText;
+  }
+  return 'Unexpected error';
+};
+
 async function fetchWithAuth<T>(endpoint: string, options: FetchOptions): Promise<T> {
   const token = Cookies.get('token');
   const requiresAuth = options.requiresAuth !== false;
@@ -77,7 +92,7 @@ async function fetchWithAuth<T>(endpoint: string, options: FetchOptions): Promis
         try {
             const errorData = await response.json();
             errorMessage = errorData.message || errorData.error || errorMessage;
-        } catch (e) {
+        } catch {
             errorMessage = response.statusText;
         }
 
@@ -100,8 +115,8 @@ async function fetchWithAuth<T>(endpoint: string, options: FetchOptions): Promis
 
     if (!skipErrorHandling && !isAuthError) {
       toast({
-        title: "Failed",
-        description: error.message || undefined,
+        title: "Request failed",
+        description: describeError(error),
         variant: "destructive",
       });
     }

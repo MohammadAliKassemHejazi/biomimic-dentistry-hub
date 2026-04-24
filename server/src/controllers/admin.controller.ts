@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { User, AmbassadorApplication, AmbassadorProfile, BlogPost, Resource, Course, ActivityLog, SiteSetting, PartnershipRequest } from '../models';
 import { UserRole, AmbassadorApplicationStatus, ContentStatus, PartnershipRequestStatus } from '../types/enums';
 import { Sequelize } from 'sequelize-typescript';
+import { clearCache } from '../middleware/cache';
 
 export const getUsers = async (req: Request, res: Response) => {
   try {
@@ -39,6 +40,9 @@ export const uploadPartnershipKit = async (req: Request, res: Response) => {
       key: 'partnership_kit_url',
       value: fileUrl,
     });
+
+    // SV-13: invalidate cached GETs for /api/admin/settings/*.
+    await clearCache('/api/admin/settings/');
 
     res.json({ success: true, url: fileUrl });
   } catch (error) {
@@ -176,6 +180,10 @@ export const uploadPartnerTemplate = async (req: Request, res: Response) => {
     }
     const fileUrl = `/uploads/${req.file.filename}`;
     await SiteSetting.upsert({ key: `partner_template_${tier}_url`, value: fileUrl });
+
+    // SV-13: invalidate cached GETs for /api/admin/settings/*.
+    await clearCache('/api/admin/settings/');
+
     res.json({ success: true, url: fileUrl });
   } catch (error) {
     console.error('Error uploading partner template:', error);

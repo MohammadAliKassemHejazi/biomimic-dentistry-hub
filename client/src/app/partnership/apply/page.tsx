@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api';
+import { SERVER_ORIGIN } from '@/lib/env';
 
 const TIER_CONFIG = {
   silver: {
@@ -54,7 +55,7 @@ export default function PartnerApplyPage() {
   const [applicationFile, setApplicationFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') ?? 'http://localhost:5000';
+  const API_BASE = SERVER_ORIGIN;
 
   useEffect(() => {
     api.get<Templates>('/admin/settings/partner-templates', { requiresAuth: false }).then(setTemplates).catch(() => {});

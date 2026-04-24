@@ -1,33 +1,35 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { Heart, Mail, MapPin, Phone, Instagram, Linkedin, Youtube, Globe } from 'lucide-react';
+import { api } from '@/lib/api';
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
   const [email, setEmail] = useState('');
   const [subscribeStatus, setSubscribeStatus] = useState<'idle' | 'loading' | 'success' | 'error' | 'exists'>('idle');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
     setSubscribeStatus('loading');
+    setErrorMessage(null);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/newsletter`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
-      if (res.ok) {
-        setSubscribeStatus('success');
-        setEmail('');
-      } else if (res.status === 409) {
+      await api.post('/newsletter', { email }, { requiresAuth: false, skipErrorHandling: true });
+      setSubscribeStatus('success');
+      setEmail('');
+    } catch (err: any) {
+      if (err?.status === 409) {
         setSubscribeStatus('exists');
+      } else if (err?.status === 400) {
+        setSubscribeStatus('error');
+        setErrorMessage('Please enter a valid email address.');
       } else {
         setSubscribeStatus('error');
+        setErrorMessage(err?.message || 'Something went wrong. Please try again.');
       }
-    } catch {
-      setSubscribeStatus('error');
     }
   };
 
@@ -35,61 +37,57 @@ const Footer = () => {
     {
       title: 'Education',
       links: [
-        { label: 'Courses', href: '#courses' },
-        { label: 'Workshops', href: '#workshops' },
-        { label: 'Webinars', href: '#webinars' },
-        { label: 'Resources', href: '#resources' }
-      ]
+        { label: 'Courses', href: '/courses' },
+        { label: 'Resources', href: '/resources' },
+        { label: 'Blog', href: '/blog' },
+      ],
     },
     {
       title: 'Community',
       links: [
-        { label: 'Ambassadors', href: '#ambassadors' },
-        { label: 'VIP Program', href: '#vip' },
-        { label: 'Student Network', href: '#network' },
-        { label: 'Mentorship', href: '#mentorship' }
-      ]
+        { label: 'Ambassadors', href: '/ambassador' },
+        { label: 'VIP Program', href: '/subscription' },
+        { label: 'Partnership', href: '/partnership' },
+      ],
     },
     {
       title: 'Organization',
       links: [
-        { label: 'About Us', href: '#about' },
-        { label: 'Mission', href: '#mission' },
-        { label: 'Team', href: '#team' },
-        { label: 'Partners', href: '#partners' }
-      ]
+        { label: 'About Us', href: '/about' },
+        { label: 'Contact', href: '/contact' },
+      ],
     },
     {
-      title: 'Support',
+      title: 'Account',
       links: [
-        { label: 'Contact', href: '#contact' },
-        { label: 'FAQ', href: '#faq' },
-        { label: 'Help Center', href: '#help' },
-        { label: 'Donate', href: '#donate' }
-      ]
-    }
+        { label: 'Sign In', href: '/login' },
+        { label: 'Create Account', href: '/signup' },
+        { label: 'Dashboard', href: '/dashboard' },
+      ],
+    },
   ];
 
   const socialLinks = [
-    { icon: Instagram, href: '#', label: 'Instagram' },
-    { icon: Linkedin, href: '#', label: 'LinkedIn' },
-    { icon: Youtube, href: '#', label: 'YouTube' },
-    { icon: Globe, href: '#', label: 'Website' }
+    { icon: Instagram, href: 'https://www.instagram.com/biomimeticdentistryclub', label: 'Instagram' },
+    { icon: Linkedin, href: 'https://www.linkedin.com/company/biomimetic-dentistry-club', label: 'LinkedIn' },
+    { icon: Youtube, href: 'https://www.youtube.com/@biomimeticdentistryclub', label: 'YouTube' },
+    { icon: Globe, href: '/', label: 'Website' },
   ];
 
   return (
-    <footer className="bg-primary text-primary-foreground">
+    <footer className="bg-primary text-primary-foreground" aria-labelledby="footer-heading">
+      <h2 id="footer-heading" className="sr-only">Site footer</h2>
       {/* Main Footer Content */}
       <div className="section-container section-padding">
         <div className="grid grid-cols-1 lg:grid-cols-6 gap-12">
           {/* Brand Section */}
           <div className="lg:col-span-2">
             <div className="flex items-center space-x-3 mb-6">
-              <div className="w-12 h-12 bg-secondary rounded-lg flex items-center justify-center">
+              <div className="w-12 h-12 bg-secondary rounded-lg flex items-center justify-center" aria-hidden="true">
                 <Heart className="w-6 h-6 text-secondary-foreground" />
               </div>
               <div>
-                <h3 className="text-2xl font-bold">Biomimetic Dentistry</h3>
+                <p className="text-2xl font-bold">Biomimetic Dentistry</p>
                 <p className="text-primary-foreground/80 text-sm">Club</p>
               </div>
             </div>
@@ -100,39 +98,43 @@ const Footer = () => {
             </p>
 
             {/* Contact Info */}
-            <div className="space-y-3">
+            <address className="not-italic space-y-3">
               <div className="flex items-center gap-3">
-                <Mail className="w-5 h-5 text-secondary" />
-                <span className="text-sm">info@biomimeticdentistry.org</span>
+                <Mail className="w-5 h-5 text-secondary" aria-hidden="true" />
+                <a href="mailto:info@biomimeticdentistry.org" className="text-sm hover:text-secondary transition-smooth">
+                  info@biomimeticdentistry.org
+                </a>
               </div>
               <div className="flex items-center gap-3">
-                <Phone className="w-5 h-5 text-secondary" />
-                <span className="text-sm">+1 (555) 123-4567</span>
+                <Phone className="w-5 h-5 text-secondary" aria-hidden="true" />
+                <a href="tel:+15551234567" className="text-sm hover:text-secondary transition-smooth">
+                  +1 (555) 123-4567
+                </a>
               </div>
               <div className="flex items-center gap-3">
-                <MapPin className="w-5 h-5 text-secondary" />
+                <MapPin className="w-5 h-5 text-secondary" aria-hidden="true" />
                 <span className="text-sm">Global Organization</span>
               </div>
-            </div>
+            </address>
           </div>
 
           {/* Links Sections */}
           {footerSections.map((section) => (
-            <div key={section.title}>
-              <h4 className="text-lg font-semibold mb-4 text-secondary">{section.title}</h4>
+            <nav key={section.title} aria-label={section.title}>
+              <h3 className="text-lg font-semibold mb-4 text-secondary">{section.title}</h3>
               <ul className="space-y-3">
                 {section.links.map((link) => (
                   <li key={link.label}>
-                    <a
+                    <Link
                       href={link.href}
                       className="text-primary-foreground/80 hover:text-secondary transition-smooth text-sm"
                     >
                       {link.label}
-                    </a>
+                    </Link>
                   </li>
                 ))}
               </ul>
-            </div>
+            </nav>
           ))}
         </div>
 
@@ -144,32 +146,44 @@ const Footer = () => {
               Get the latest updates on courses, research, and community events delivered to your inbox.
             </p>
             {subscribeStatus === 'success' ? (
-              <p className="text-secondary font-semibold">You&apos;re subscribed! Thank you.</p>
+              <p className="text-secondary font-semibold" role="status">
+                You&apos;re subscribed! Thank you.
+              </p>
             ) : (
               <form onSubmit={handleSubscribe} className="flex flex-col md:flex-row gap-4 max-w-md mx-auto">
+                <label htmlFor="newsletter-email" className="sr-only">Email address</label>
                 <input
+                  id="newsletter-email"
                   type="email"
                   placeholder="Enter your email"
                   value={email}
-                  onChange={(e) => { setEmail(e.target.value); setSubscribeStatus('idle'); }}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setSubscribeStatus('idle');
+                    setErrorMessage(null);
+                  }}
                   required
+                  autoComplete="email"
+                  aria-describedby="newsletter-status"
                   className="flex-1 px-4 py-3 rounded-lg bg-primary-foreground/20 text-primary-foreground placeholder:text-primary-foreground/60 border border-primary-foreground/30 focus:outline-none focus:ring-2 focus:ring-secondary"
                 />
                 <button
                   type="submit"
                   disabled={subscribeStatus === 'loading'}
-                  className="bg-secondary text-secondary-foreground px-6 py-3 rounded-lg font-semibold hover:bg-secondary/90 transition-smooth disabled:opacity-60"
+                  className="bg-secondary text-secondary-foreground px-6 py-3 rounded-lg font-semibold hover:bg-secondary/90 transition-smooth disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {subscribeStatus === 'loading' ? 'Subscribing…' : 'Subscribe'}
                 </button>
               </form>
             )}
-            {subscribeStatus === 'exists' && (
-              <p className="text-yellow-300 text-sm mt-2">This email is already subscribed.</p>
-            )}
-            {subscribeStatus === 'error' && (
-              <p className="text-red-400 text-sm mt-2">Something went wrong. Please try again.</p>
-            )}
+            <div id="newsletter-status" aria-live="polite" className="min-h-5 mt-2">
+              {subscribeStatus === 'exists' && (
+                <p className="text-yellow-300 text-sm">This email is already subscribed.</p>
+              )}
+              {subscribeStatus === 'error' && (
+                <p className="text-red-400 text-sm">{errorMessage || 'Something went wrong. Please try again.'}</p>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -185,16 +199,18 @@ const Footer = () => {
 
             {/* Social Links */}
             <div className="flex items-center gap-4">
-              {socialLinks.map((social, index) => {
+              {socialLinks.map((social) => {
                 const IconComponent = social.icon;
                 return (
                   <a
-                    key={index}
+                    key={social.label}
                     href={social.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     aria-label={social.label}
                     className="w-10 h-10 bg-primary-foreground/10 rounded-full flex items-center justify-center text-primary-foreground/80 hover:text-secondary hover:bg-primary-foreground/20 transition-smooth"
                   >
-                    <IconComponent className="w-5 h-5" />
+                    <IconComponent className="w-5 h-5" aria-hidden="true" />
                   </a>
                 );
               })}
@@ -202,13 +218,13 @@ const Footer = () => {
 
             {/* Legal Links */}
             <div className="flex gap-4 text-sm">
-              <a href="#privacy" className="text-primary-foreground/80 hover:text-secondary transition-smooth">
+              <Link href="/about#privacy" className="text-primary-foreground/80 hover:text-secondary transition-smooth">
                 Privacy Policy
-              </a>
-              <span className="text-primary-foreground/40">•</span>
-              <a href="#terms" className="text-primary-foreground/80 hover:text-secondary transition-smooth">
+              </Link>
+              <span className="text-primary-foreground/40" aria-hidden="true">•</span>
+              <Link href="/about#terms" className="text-primary-foreground/80 hover:text-secondary transition-smooth">
                 Terms of Service
-              </a>
+              </Link>
             </div>
           </div>
         </div>

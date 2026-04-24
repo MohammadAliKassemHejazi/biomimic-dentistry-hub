@@ -1,215 +1,130 @@
-"use client";
+import type { Metadata } from 'next';
+import Script from 'next/script';
+import { API_URL, SITE_URL, resolveUploadUrl } from '@/lib/env';
+import BlogPostClient from './BlogPostClient';
 
-import { useEffect, useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { api } from '@/lib/api';
-import { Button } from '@/components/ui/button';
-import { useParams } from 'next/navigation';
-import { Loader2, Heart, Share2, Eye, Calendar, User, Clock, Copy, MessageCircle, Twitter, Facebook, Mail } from 'lucide-react';
-import Image from 'next/image';
-import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
-import DOMPurify from 'isomorphic-dompurify';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-
-interface BlogPost {
-    id: string;
-    title: string;
-    slug: string;
-    excerpt: string;
-    content: string;
-    featured_image: string;
-    category: string;
-    tags: string[];
-    read_time: number;
-    created_at: string;
-    view_count: number;
-    is_favorited: boolean;
-    profiles: {
-        first_name: string;
-        last_name: string;
-    };
+interface BlogDetail {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string;
+  content: string;
+  featured_image: string | null;
+  category: string;
+  tags: string[];
+  read_time: number;
+  created_at: string;
+  updated_at?: string;
+  view_count: number;
+  is_favorited: boolean;
+  profiles: { first_name: string; last_name: string };
 }
 
-const SERVER_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api').replace('/api', '');
-
-function resolveImageUrl(path: string | null | undefined): string | null {
-    if (!path) return null;
-    if (path.startsWith('http')) return path;
-    return `${SERVER_URL}${path}`;
+// Architect decision (Iter 2 #4): server fetch uses ISR so crawlers don't
+// hammer the DB. 5 min revalidation is a reasonable balance.
+async function fetchPostSsr(slug: string): Promise<BlogDetail | null> {
+  try {
+    const res = await fetch(`${API_URL}/blog/posts/${slug}`, {
+      next: { revalidate: 300 },
+      headers: { Accept: 'application/json' },
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as BlogDetail;
+  } catch {
+    return null;
+  }
 }
 
-export default function BlogPostPage() {
-    const { slug } = useParams();
-    const { user, isAuthenticated } = useAuth();
-    const { toast } = useToast();
-    const [post, setPost] = useState<BlogPost | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [favorited, setFavorited] = useState(false);
-    const [viewRecorded, setViewRecorded] = useState(false);
+export async function generateMetadata(
+  { params }: { params: Promise<{ slug: string }> }
+): Promise<Metadata> {
+  const { slug } = await params;
+  const post = await fetchPostSsr(slug);
 
-    useEffect(() => {
-        if (slug) {
-            fetchPost();
-        }
-    }, [slug, user]); // Refetch if user changes (to update is_favorited)
-
-    useEffect(() => {
-        if (post?.id && !viewRecorded && isAuthenticated) {
-            recordView(post.id);
-        }
-    }, [post, viewRecorded, isAuthenticated]);
-
-    const fetchPost = async () => {
-        try {
-            const data = await api.get<BlogPost>(`/blog/posts/${slug}`, { requiresAuth: false, skipErrorHandling: true });
-            setPost(data);
-            setFavorited(data.is_favorited);
-        } catch (error) {
-            console.error("Failed to fetch post", error);
-        } finally {
-            setLoading(false);
-        }
+  if (!post) {
+    return {
+      title: 'Post not found',
+      description: 'The blog post you are looking for does not exist.',
+      robots: { index: false, follow: false },
     };
+  }
 
-    const recordView = async (id: string) => {
-        try {
-            await api.post(`/blog/posts/${id}/view`, {});
-            setViewRecorded(true);
-        } catch (error) {
-            console.error("Failed to record view", error);
-        }
-    };
+  const ogImage = resolveUploadUrl(post.featured_image) || `${SITE_URL}/logo.png`;
+  const url = `${SITE_URL}/blog/${post.slug}`;
+  const author = `${post.profiles?.first_name ?? ''} ${post.profiles?.last_name ?? ''}`.trim() || 'Biomimetic Dentistry Club';
 
-    const handleFavorite = async () => {
-        if (!user) {
-            toast({ title: "Login Required", description: "Please login to favorite posts." });
-            return;
-        }
-        if (!post) return;
+  return {
+    title: post.title,
+    description: post.excerpt,
+    keywords: Array.isArray(post.tags) ? post.tags : undefined,
+    authors: [{ name: author }],
+    alternates: { canonical: `/blog/${post.slug}` },
+    openGraph: {
+      type: 'article',
+      url,
+      title: post.title,
+      description: post.excerpt,
+      siteName: 'Biomimetic Dentistry Club',
+      publishedTime: post.created_at,
+      modifiedTime: post.updated_at,
+      authors: [author],
+      tags: post.tags,
+      images: [{ url: ogImage, alt: post.title }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: post.title,
+      description: post.excerpt,
+      images: [ogImage],
+    },
+  };
+}
 
-        try {
-            const res = await api.post<{ favorited: boolean }>(`/blog/posts/${post.id}/favorite`, {});
-            setFavorited(res.favorited);
-            toast({ title: res.favorited ? "Added to Favorites" : "Removed from Favorites" });
-        } catch (error) {
-            toast({ title: "Failed", variant: "destructive" });
-        }
-    };
+export default async function BlogPostPage(
+  { params }: { params: Promise<{ slug: string }> }
+) {
+  const { slug } = await params;
+  const post = await fetchPostSsr(slug);
 
-    const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
+  const jsonLd = post
+    ? {
+        '@context': 'https://schema.org',
+        '@type': 'BlogPosting',
+        headline: post.title,
+        description: post.excerpt,
+        image: resolveUploadUrl(post.featured_image) || `${SITE_URL}/logo.png`,
+        datePublished: post.created_at,
+        dateModified: post.updated_at || post.created_at,
+        author: {
+          '@type': 'Person',
+          name:
+            `${post.profiles?.first_name ?? ''} ${post.profiles?.last_name ?? ''}`.trim() ||
+            'Biomimetic Dentistry Club',
+        },
+        publisher: {
+          '@type': 'Organization',
+          name: 'Biomimetic Dentistry Club',
+          logo: { '@type': 'ImageObject', url: `${SITE_URL}/logo.png` },
+        },
+        mainEntityOfPage: {
+          '@type': 'WebPage',
+          '@id': `${SITE_URL}/blog/${post.slug}`,
+        },
+        keywords: Array.isArray(post.tags) ? post.tags.join(', ') : undefined,
+      }
+    : null;
 
-    const handleCopyLink = () => {
-        navigator.clipboard.writeText(currentUrl);
-        toast({ title: "Link Copied", description: "Blog post link copied to clipboard." });
-    };
-
-    const handleShareWhatsApp = () => {
-        window.open(`https://wa.me/?text=${encodeURIComponent((post?.title ?? '') + ' ' + currentUrl)}`, '_blank');
-    };
-
-    const handleShareTwitter = () => {
-        window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(currentUrl)}&text=${encodeURIComponent(post?.title ?? '')}`, '_blank');
-    };
-
-    const handleShareFacebook = () => {
-        window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(currentUrl)}`, '_blank');
-    };
-
-    const handleShareEmail = () => {
-        window.open(`mailto:?subject=${encodeURIComponent(post?.title ?? '')}&body=${encodeURIComponent(currentUrl)}`, '_blank');
-    };
-
-    if (loading) return <div className="flex justify-center p-20"><Loader2 className="animate-spin" /></div>;
-    if (!post) return <div className="text-center p-20">Post not found</div>;
-
-    return (
-        <div className="container mx-auto pt-24 pb-12 px-4 max-w-4xl">
-            <div className="mb-8">
-                <Badge variant="secondary" className="mb-4">{post.category}</Badge>
-                <h1 className="text-4xl font-bold mb-4">{post.title}</h1>
-                <div className="flex flex-wrap items-center gap-6 text-muted-foreground text-sm">
-                    <div className="flex items-center gap-2">
-                        <User className="h-4 w-4" />
-                        {post.profiles.first_name} {post.profiles.last_name}
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4" />
-                        {new Date(post.created_at).toLocaleDateString()}
-                    </div>
-                     <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4" />
-                        {post.read_time} min read
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Eye className="h-4 w-4" />
-                        {post.view_count} views
-                    </div>
-                </div>
-            </div>
-
-            {post.featured_image && resolveImageUrl(post.featured_image) && (
-                <div className="mb-8 rounded-xl overflow-hidden aspect-video relative">
-                    <Image src={resolveImageUrl(post.featured_image)!} alt={post.title} fill sizes="100vw" className="object-cover w-full h-full" />
-                </div>
-            )}
-
-            <div className="prose dark:prose-invert max-w-none mb-12">
-                 <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(post.content ? post.content.replace(/\n/g, '<br/>') : '') }} />
-            </div>
-
-            <div className="flex items-center justify-between border-t pt-8">
-                <div className="flex gap-2">
-                    {post.tags.map(tag => (
-                        <Badge key={tag} variant="outline">#{tag.trim()}</Badge>
-                    ))}
-                </div>
-                <div className="flex gap-4">
-                    <Button variant={favorited ? "default" : "outline"} onClick={handleFavorite}>
-                        <Heart className={`mr-2 h-4 w-4 ${favorited ? "fill-current" : ""}`} />
-                        {favorited ? "Favorited" : "Favorite"}
-                    </Button>
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="outline">
-                                <Share2 className="mr-2 h-4 w-4" />
-                                Share
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48">
-                            <DropdownMenuLabel>Share this post</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={handleCopyLink}>
-                                <Copy className="mr-2 h-4 w-4" />
-                                Copy Link
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={handleShareWhatsApp}>
-                                <MessageCircle className="mr-2 h-4 w-4" />
-                                WhatsApp
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={handleShareTwitter}>
-                                <Twitter className="mr-2 h-4 w-4" />
-                                Twitter / X
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={handleShareFacebook}>
-                                <Facebook className="mr-2 h-4 w-4" />
-                                Facebook
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={handleShareEmail}>
-                                <Mail className="mr-2 h-4 w-4" />
-                                Email
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </div>
-            </div>
-        </div>
-    );
+  return (
+    <>
+      {jsonLd && (
+        <Script
+          id="blog-post-jsonld"
+          type="application/ld+json"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      )}
+      <BlogPostClient slug={slug} initialPost={post} />
+    </>
+  );
 }

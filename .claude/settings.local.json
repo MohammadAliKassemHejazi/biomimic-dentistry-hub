@@ -9,7 +9,19 @@
       "Bash(sed \"s/'$//\")",
       "Bash(sed 's/.*api\\\\.\\\\\\([a-z]*\\\\\\)\\([`'\"'\"']\\\\\\([^'\"'\"'`]*\\\\\\).*/api.\\\\1\\(\\\\x27\\\\2/g')",
       "Bash(git -C /c/Users/USER/Desktop/Projects/biomimic-dentistry-hub/ ls-files --error-unmatch .env)",
-      "Bash(git -C /c/Users/USER/Desktop/Projects/biomimic-dentistry-hub/ log --all --oneline -- .env)"
+      "Bash(git -C /c/Users/USER/Desktop/Projects/biomimic-dentistry-hub/ log --all --oneline -- .env)",
+      "Bash(cat)",
+      "Bash(python3 /tmp/blogpatch.py)",
+      "Bash(python3 /tmp/cssvarpatch.py)",
+      "Bash(python3 /tmp/admincontroller.py)",
+      "Bash(python3 /tmp/blogcontroller.py)",
+      "Bash(python3 /tmp/fixsql.py)",
+      "Bash(python3 /tmp/favpatch.py)",
+      "Bash(npx --no tsc --noEmit -p tsconfig.json)",
+      "Bash(\"./node_modules/.bin/tsc\" --noEmit)",
+      "Bash(python3 /tmp/readme.py)"
     ]
-  }
+  },
+  "model": "claude-sonnet-4-6",
+  "reasoning_effort": "high"
 }

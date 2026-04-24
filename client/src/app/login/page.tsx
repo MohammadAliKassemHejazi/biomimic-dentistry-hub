@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { describeError } from '@/lib/api';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -22,9 +23,10 @@ const Login = () => {
     setLoading(true);
     try {
       await signIn(email, password);
-    } catch (error: any) {
+    } catch (error) {
       toast({
-        title: 'Failed',
+        title: 'Sign-in failed',
+        description: describeError(error) || 'Please check your email and password and try again.',
         variant: 'destructive',
       });
     } finally {
@@ -46,12 +48,13 @@ const Login = () => {
             <CardDescription>Sign in to your account</CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4" noValidate>
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
                   type="email"
+                  autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -62,13 +65,15 @@ const Login = () => {
                 <Input
                   id="password"
                   type="password"
+                  autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
+                  minLength={8}
                 />
               </div>
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? 'Signing In...' : 'Sign In'}
+              <Button type="submit" className="w-full" disabled={loading} aria-busy={loading}>
+                {loading ? 'Signing In…' : 'Sign In'}
               </Button>
             </form>
             <div className="text-center mt-4 space-y-2">

@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { BlogPost, User, Favorite, BlogView } from '../models';
+import { sequelize } from '../config/database';
 import { ContentStatus } from '../types/enums';
 
 // Helper to generate slug
@@ -32,8 +33,7 @@ export const getPosts = async (req: Request, res: Response) => {
     }
 
     const include: any[] = [
-      { model: User, as: 'author', attributes: ['firstName', 'lastName'] },
-      { model: BlogView, as: 'views', attributes: ['id'] }
+      { model: User, as: 'author', attributes: ['firstName', 'lastName'] }
     ];
 
     if (user) {
@@ -46,6 +46,8 @@ export const getPosts = async (req: Request, res: Response) => {
       });
     }
 
+    // P-B1 (Iter 2): scalar subquery count to avoid hydrating every BlogView row
+    // per listed post (could be thousands per popular article).
     const { count, rows: posts } = await BlogPost.findAndCountAll({
       where,
       include,
@@ -53,7 +55,16 @@ export const getPosts = async (req: Request, res: Response) => {
       limit: limitNum,
       offset,
       distinct: true,
-      attributes: ['id', 'title', 'slug', 'excerpt', 'featuredImage', 'category', 'tags', 'readTime', 'createdAt', 'status']
+      attributes: {
+        include: [[
+          sequelize.literal(
+            '(SELECT COUNT(*)::int FROM "blog_views" AS "bv" WHERE "bv"."blog_post_id" = "BlogPost"."id")'
+          ),
+          'viewCount',
+        ]],
+        // keep the existing column projection
+        exclude: [] as string[],
+      },
     });
 
     const formatted = posts.map((p) => ({
@@ -66,8 +77,9 @@ export const getPosts = async (req: Request, res: Response) => {
       tags: p.tags ? p.tags.split(',') : [],
       read_time: p.readTime,
       created_at: p.createdAt,
+      updated_at: (p as any).updatedAt,
       status: p.status,
-      view_count: p.views?.length || 0,
+      view_count: Number((p as any).get?.('viewCount') ?? 0),
       is_favorited: user && p.favorites ? p.favorites.length > 0 : false,
       profiles: {
         first_name: p.author?.firstName,
@@ -313,8 +325,11 @@ export const updatePostStatus = async (req: Request, res: Response) => {
       return res.status(403).json({ message: 'Forbidden' });
     }
 
-    if (typeof status !== 'string') {
-        return res.status(400).json({ message: 'Status must be a string' });
+    // SV-11: validate against ContentStatus enum so DB never sees a bad value.
+    if (typeof status !== 'string' || !Object.values(ContentStatus).includes(status as ContentStatus)) {
+        return res.status(400).json({
+            message: `Invalid status. Allowed values: ${Object.values(ContentStatus).join(', ')}`,
+        });
     }
 
     const [affectedCount, affectedRows] = await BlogPost.update(

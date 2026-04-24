@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { api } from '@/lib/api';
+import { api, describeError } from '@/lib/api';
+import { SERVER_ORIGIN } from '@/lib/env';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,10 +12,11 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Check, X, Shield } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Plus, Trash, Edit, Mail, Handshake, Eye } from 'lucide-react';
 
 // Types
@@ -124,6 +126,20 @@ interface SubscriptionPlan {
     icon?: string;
 }
 
+/** Tiny helper: extract value from allSettled result, fall back to default on rejection and surface a toast. */
+function take<T>(
+    result: PromiseSettledResult<T>,
+    label: string,
+    fallback: T,
+    onError: (label: string, message: string) => void
+): T {
+    if (result.status === 'fulfilled') return result.value;
+    const msg = describeError(result.reason);
+    onError(label, msg);
+    console.error(`[admin] ${label} failed:`, result.reason);
+    return fallback;
+}
+
 export default function AdminDashboard() {
     const { user, loading: authLoading } = useAuth();
     const { toast } = useToast();
@@ -141,7 +157,7 @@ export default function AdminDashboard() {
     const [selectedMessage, setSelectedMessage] = useState<ContactMessage | null>(null);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('applications');
-    const API_BASE = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') ?? 'http://localhost:5000';
+    const API_BASE = SERVER_ORIGIN;
 
     // Dialog States
     const [partnerDialogOpen, setPartnerDialogOpen] = useState(false);
@@ -150,50 +166,63 @@ export default function AdminDashboard() {
     const [resourceDialogOpen, setResourceDialogOpen] = useState(false);
     const [editingItem, setEditingItem] = useState<any>(null); // Generic holder for item being edited
 
+    const fetchData = useCallback(async (silent = false) => {
+        if (!silent) setLoading(true);
+
+        // U-H1 / FE-05: Promise.allSettled so one 5xx panel does not freeze
+        // the whole dashboard. Each failure is reported independently.
+        const failures: string[] = [];
+        const onPanelError = (label: string, _msg: string) => { failures.push(label); };
+
+        const [
+            usersRes, appsRes, contentRes, partnersRes, membersRes, plansRes,
+            kitRes, messagesRes, partnerAppsRes, templatesRes, subscribersRes,
+        ] = await Promise.allSettled([
+            api.get<{ users: User[] }>('/admin/users',                     { skipErrorHandling: true }),
+            api.get<Application[]>('/admin/applications',                  { skipErrorHandling: true }),
+            api.get<{ posts: BlogPost[], resources: Resource[] }>('/admin/content/pending', { skipErrorHandling: true }),
+            api.get<TrustedPartner[]>('/partners',                         { skipErrorHandling: true, requiresAuth: false }),
+            api.get<LeadershipMember[]>('/leadership',                     { skipErrorHandling: true, requiresAuth: false }),
+            api.get<SubscriptionPlan[]>('/plans',                          { skipErrorHandling: true, requiresAuth: false }),
+            api.get<{url: string | null}>('/admin/settings/partnership-kit', { skipErrorHandling: true }),
+            api.get<ContactMessage[]>('/contact',                          { skipErrorHandling: true }),
+            api.get<PartnerApplication[]>('/admin/partner-applications',   { skipErrorHandling: true }),
+            api.get<PartnerTemplates>('/admin/settings/partner-templates', { skipErrorHandling: true }),
+            api.get<NewsletterSubscriber[]>('/newsletter',                 { skipErrorHandling: true }),
+        ]);
+
+        setUsers(take(usersRes, 'Users', { users: [] }, onPanelError).users ?? []);
+        setApplications(take(appsRes, 'Ambassador applications', [], onPanelError));
+        setPendingContent(take(contentRes, 'Pending content', { posts: [], resources: [] }, onPanelError));
+        setPartners(take(partnersRes, 'Partners', [], onPanelError));
+        setMembers(take(membersRes, 'Leadership', [], onPanelError));
+        setPlans(take(plansRes, 'Subscription plans', [], onPanelError));
+        setPartnershipKitUrl(take(kitRes, 'Partnership kit', { url: null }, onPanelError).url);
+        setMessages(take(messagesRes, 'Messages', [], onPanelError));
+        setPartnerApplications(take(partnerAppsRes, 'Partner applications', [], onPanelError));
+        setPartnerTemplates(take(templatesRes, 'Partner templates', { silver: null, gold: null, vip: null }, onPanelError));
+        setNewsletterSubscribers(take(subscribersRes, 'Newsletter subscribers', [], onPanelError));
+
+        if (failures.length > 0) {
+            toast({
+                title: `Some panels failed to load`,
+                description: `${failures.length} of 11 panels could not be loaded: ${failures.slice(0, 3).join(', ')}${failures.length > 3 ? '…' : ''}. Other panels are still available.`,
+                variant: 'destructive',
+            });
+        }
+
+        setLoading(false);
+    }, [toast]);
+
     useEffect(() => {
         if (!authLoading) {
             if (user?.role === 'admin') {
                 fetchData();
             } else {
-                 setLoading(false); // Not admin, stop loading
+                setLoading(false); // Not admin, stop loading
             }
         }
-    }, [user, authLoading]);
-
-    const fetchData = async (silent = false) => {
-        if (!silent) setLoading(true);
-        try {
-            const [usersData, appsData, contentData, partnersData, membersData, plansData, kitData, messagesData, partnerAppsData, templatesData, subscribersData] = await Promise.all([
-                api.get<{ users: User[] }>('/admin/users'),
-                api.get<Application[]>('/admin/applications'),
-                api.get<{ posts: BlogPost[], resources: Resource[] }>('/admin/content/pending'),
-                api.get<TrustedPartner[]>('/partners'),
-                api.get<LeadershipMember[]>('/leadership'),
-                api.get<SubscriptionPlan[]>('/plans'),
-                api.get<{url: string | null}>('/admin/settings/partnership-kit'),
-                api.get<ContactMessage[]>('/contact'),
-                api.get<PartnerApplication[]>('/admin/partner-applications'),
-                api.get<PartnerTemplates>('/admin/settings/partner-templates'),
-                api.get<NewsletterSubscriber[]>('/newsletter'),
-            ]);
-            setUsers(usersData.users);
-            setApplications(appsData);
-            setPendingContent(contentData);
-            setPartners(partnersData);
-            setMembers(membersData);
-            setPlans(plansData);
-            setPartnershipKitUrl(kitData.url);
-            setMessages(messagesData);
-            setPartnerApplications(partnerAppsData);
-            setPartnerTemplates(templatesData);
-            setNewsletterSubscribers(subscribersData);
-        } catch (error) {
-            console.error("Failed to fetch admin data", error);
-            toast({ title: "Failed", variant: "destructive" });
-        } finally {
-            setLoading(false);
-        }
-    };
+    }, [user, authLoading, fetchData]);
 
     const handleApproveApp = async (id: string) => {
         try {
@@ -201,7 +230,7 @@ export default function AdminDashboard() {
             toast({ title: "Approved", description: "Application approved" });
             fetchData(true);
         } catch (error) {
-            toast({ title: "Failed", variant: "destructive" });
+            toast({ title: "Could not approve", description: describeError(error), variant: "destructive" });
         }
     };
 
@@ -211,7 +240,7 @@ export default function AdminDashboard() {
             toast({ title: "Rejected", description: "Application rejected" });
             fetchData(true);
         } catch (error) {
-             toast({ title: "Failed", variant: "destructive" });
+            toast({ title: "Could not reject", description: describeError(error), variant: "destructive" });
         }
     };
 
@@ -229,27 +258,27 @@ export default function AdminDashboard() {
             toast({ title: "Approved", description: "Content approved" });
             fetchData(true);
         } catch (error) {
-             toast({ title: "Failed", variant: "destructive" });
+            toast({ title: "Could not approve", description: describeError(error), variant: "destructive" });
         }
     };
 
     const handleRoleChange = async (userId: string, newRole: string) => {
         try {
             await api.patch(`/admin/users/${userId}/role`, { role: newRole });
-             toast({ title: "Success", description: "User role updated" });
-             fetchData(true);
+            toast({ title: "Role updated", description: `User role changed to ${newRole}` });
+            fetchData(true);
         } catch (error) {
-            toast({ title: "Failed", variant: "destructive" });
+            toast({ title: "Could not update role", description: describeError(error), variant: "destructive" });
         }
     }
 
     const handleDeleteSubscriber = async (id: string) => {
         try {
             await api.delete(`/newsletter/${id}`);
-            toast({ title: 'Removed', description: 'Subscriber removed' });
+            toast({ title: 'Subscriber removed', description: 'Newsletter subscriber deleted' });
             setNewsletterSubscribers(prev => prev.filter(s => s.id !== id));
-        } catch {
-            toast({ title: 'Failed', variant: 'destructive' });
+        } catch (error) {
+            toast({ title: 'Could not remove', description: describeError(error), variant: 'destructive' });
         }
     };
 
@@ -258,11 +287,11 @@ export default function AdminDashboard() {
         const formData = new FormData(e.target as HTMLFormElement);
         try {
             await api.post('/resources', formData);
-            toast({ title: "Success", description: "Resource created" });
+            toast({ title: "Resource created", description: "New resource added" });
             setResourceDialogOpen(false);
             fetchData(true);
         } catch (error) {
-            toast({ title: "Failed", variant: "destructive" });
+            toast({ title: "Could not create resource", description: describeError(error), variant: "destructive" });
         }
     };
 
@@ -273,16 +302,16 @@ export default function AdminDashboard() {
         try {
             if (editingItem) {
                 await api.put(`/partners/${editingItem.id}`, formData);
-                toast({ title: "Success", description: "Partner updated" });
+                toast({ title: "Partner updated", description: `${editingItem.name} saved` });
             } else {
                 await api.post('/partners', formData);
-                toast({ title: "Success", description: "Partner created" });
+                toast({ title: "Partner added", description: "New partner created" });
             }
             setPartnerDialogOpen(false);
             setEditingItem(null);
             fetchData(true);
         } catch (error) {
-            toast({ title: "Failed", variant: "destructive" });
+            toast({ title: "Could not save partner", description: describeError(error), variant: "destructive" });
         }
     };
 
@@ -290,10 +319,10 @@ export default function AdminDashboard() {
         if (!confirm("Are you sure?")) return;
         try {
             await api.delete(`/partners/${id}`);
-            toast({ title: "Success", description: "Partner deleted" });
+            toast({ title: "Partner deleted", description: "Partner removed from the site" });
             fetchData(true);
         } catch (error) {
-            toast({ title: "Failed", variant: "destructive" });
+            toast({ title: "Could not delete partner", description: describeError(error), variant: "destructive" });
         }
     };
 
@@ -304,16 +333,16 @@ export default function AdminDashboard() {
         try {
             if (editingItem) {
                 await api.put(`/leadership/${editingItem.id}`, formData);
-                toast({ title: "Success", description: "Member updated" });
+                toast({ title: "Member updated", description: `${editingItem.name} saved` });
             } else {
                 await api.post('/leadership', formData);
-                toast({ title: "Success", description: "Member created" });
+                toast({ title: "Member added", description: "New leadership profile created" });
             }
             setMemberDialogOpen(false);
             setEditingItem(null);
             fetchData(true);
         } catch (error) {
-            toast({ title: "Failed", variant: "destructive" });
+            toast({ title: "Could not save member", description: describeError(error), variant: "destructive" });
         }
     };
 
@@ -321,10 +350,10 @@ export default function AdminDashboard() {
         if (!confirm("Are you sure?")) return;
         try {
             await api.delete(`/leadership/${id}`);
-            toast({ title: "Success", description: "Member deleted" });
+            toast({ title: "Member deleted", description: "Leadership profile removed" });
             fetchData(true);
         } catch (error) {
-            toast({ title: "Failed", variant: "destructive" });
+            toast({ title: "Could not delete member", description: describeError(error), variant: "destructive" });
         }
     };
 
@@ -332,18 +361,21 @@ export default function AdminDashboard() {
         try {
             await api.patch(`/contact/${id}/status`, { status });
             setMessages(prev => prev.map(m => m.id === id ? { ...m, status: status as ContactMessage['status'] } : m));
-        } catch {
-            toast({ title: 'Failed', variant: 'destructive' });
+        } catch (error) {
+            toast({ title: 'Could not update message', description: describeError(error), variant: 'destructive' });
         }
     };
 
     const handlePartnerAppStatus = async (id: string, status: string) => {
         try {
             await api.patch(`/admin/partner-applications/${id}/status`, { status });
-            toast({ title: status === 'approved' ? 'Approved' : 'Rejected', description: `Application ${status}` });
+            toast({
+                title: status === 'approved' ? 'Approved' : 'Rejected',
+                description: `Application ${status}`,
+            });
             fetchData(true);
-        } catch {
-            toast({ title: 'Failed', variant: 'destructive' });
+        } catch (error) {
+            toast({ title: 'Could not update application', description: describeError(error), variant: 'destructive' });
         }
     };
 
@@ -358,10 +390,10 @@ export default function AdminDashboard() {
                 formData.append('file', file);
                 try {
                     await api.post(`/admin/settings/partner-templates/${tier}`, formData);
-                    toast({ title: 'Success', description: `${tier} template uploaded` });
+                    toast({ title: 'Template uploaded', description: `${tier} template saved` });
                     fetchData(true);
-                } catch {
-                    toast({ title: 'Failed', variant: 'destructive' });
+                } catch (error) {
+                    toast({ title: 'Upload failed', description: describeError(error), variant: 'destructive' });
                 }
             }
         };
@@ -380,16 +412,18 @@ export default function AdminDashboard() {
 
         try {
             await api.put(`/plans/${editingItem.id}`, data);
-            toast({ title: "Success", description: "Plan updated" });
+            toast({ title: "Plan updated", description: `${data.name} saved` });
             setPlanDialogOpen(false);
             setEditingItem(null);
             fetchData(true);
         } catch (error) {
-            toast({ title: "Failed", variant: "destructive" });
+            toast({ title: "Could not save plan", description: describeError(error), variant: "destructive" });
         }
     };
 
-    if (authLoading || loading) return <div className="flex justify-center items-center h-screen"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>;
+    if (authLoading) {
+        return <div className="flex justify-center items-center h-screen"><Loader2 className="animate-spin h-8 w-8 text-primary" aria-label="Loading" /></div>;
+    }
 
     if (!user || user.role !== 'admin') {
         return (
@@ -400,10 +434,27 @@ export default function AdminDashboard() {
         );
     }
 
+    if (loading) {
+        // Skeleton layout that mirrors the final dashboard shell.
+        return (
+            <div className="container mx-auto py-8 px-4 pt-24">
+                <div className="flex items-center gap-2 mb-6">
+                    <Shield className="h-8 w-8 text-primary" aria-hidden="true" />
+                    <Skeleton className="h-9 w-64" />
+                </div>
+                <Skeleton className="h-10 w-full mb-6" />
+                <div className="grid md:grid-cols-2 gap-6">
+                    <Skeleton className="h-64 w-full" />
+                    <Skeleton className="h-64 w-full" />
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="container mx-auto py-8 px-4 pt-24">
             <h1 className="text-3xl font-bold mb-6 flex items-center gap-2">
-                <Shield className="h-8 w-8 text-primary" />
+                <Shield className="h-8 w-8 text-primary" aria-hidden="true" />
                 Admin Dashboard
             </h1>
 
@@ -412,7 +463,7 @@ export default function AdminDashboard() {
                     <TabsTrigger value="applications" className="relative">
                         Ambassador Applications
                         {applications.length > 0 && (
-                            <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] text-white">
+                            <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] text-white" aria-label={`${applications.length} pending`}>
                                 {applications.length}
                             </span>
                         )}
@@ -459,7 +510,7 @@ export default function AdminDashboard() {
                     <div className="grid md:grid-cols-2 gap-6">
                         <Card>
                             <CardHeader>
-                                <CardTitle className="flex items-center gap-2"><Mail className="h-5 w-5" /> Contact Messages</CardTitle>
+                                <CardTitle className="flex items-center gap-2"><Mail className="h-5 w-5" aria-hidden="true" /> Contact Messages</CardTitle>
                                 <CardDescription>Messages submitted via the contact form.</CardDescription>
                             </CardHeader>
                             <CardContent>
@@ -468,13 +519,15 @@ export default function AdminDashboard() {
                                 ) : (
                                     <div className="space-y-2">
                                         {messages.map(msg => (
-                                            <div
+                                            <button
+                                                type="button"
                                                 key={msg.id}
-                                                className={`border rounded-lg p-3 cursor-pointer transition-colors ${selectedMessage?.id === msg.id ? 'border-primary bg-primary/5' : 'hover:bg-muted/50'}`}
+                                                className={`w-full text-left border rounded-lg p-3 cursor-pointer transition-colors ${selectedMessage?.id === msg.id ? 'border-primary bg-primary/5' : 'hover:bg-muted/50'}`}
                                                 onClick={() => {
                                                     setSelectedMessage(msg);
                                                     if (msg.status === 'new') handleMessageStatus(msg.id, 'read');
                                                 }}
+                                                aria-pressed={selectedMessage?.id === msg.id}
                                             >
                                                 <div className="flex justify-between items-start gap-2">
                                                     <div className="min-w-0">
@@ -486,7 +539,7 @@ export default function AdminDashboard() {
                                                     </Badge>
                                                 </div>
                                                 <p className="text-xs text-muted-foreground mt-1">{new Date(msg.createdAt).toLocaleDateString()}</p>
-                                            </div>
+                                            </button>
                                         ))}
                                     </div>
                                 )}
@@ -517,7 +570,7 @@ export default function AdminDashboard() {
                                         </div>
                                         <div className="flex gap-2 flex-wrap">
                                             <Button size="sm" variant="outline" onClick={() => handleMessageStatus(selectedMessage.id, 'read')}>
-                                                <Eye className="mr-1 h-3 w-3" /> Mark Read
+                                                <Eye className="mr-1 h-3 w-3" aria-hidden="true" /> Mark Read
                                             </Button>
                                             <Button size="sm" onClick={() => handleMessageStatus(selectedMessage.id, 'replied')}>
                                                 Mark Replied
@@ -542,7 +595,7 @@ export default function AdminDashboard() {
                         {/* Partner Templates */}
                         <Card>
                             <CardHeader>
-                                <CardTitle className="flex items-center gap-2"><Handshake className="h-5 w-5" /> Partnership Templates</CardTitle>
+                                <CardTitle className="flex items-center gap-2"><Handshake className="h-5 w-5" aria-hidden="true" /> Partnership Templates</CardTitle>
                                 <CardDescription>Upload downloadable application templates for each partnership tier.</CardDescription>
                             </CardHeader>
                             <CardContent>
@@ -606,10 +659,10 @@ export default function AdminDashboard() {
                                                         {app.status === 'pending' && (
                                                             <div className="flex items-start gap-2 shrink-0">
                                                                 <Button onClick={() => handlePartnerAppStatus(app.id, 'approved')} size="sm" className="bg-green-600 hover:bg-green-700">
-                                                                    <Check className="mr-1 h-4 w-4" /> Approve
+                                                                    <Check className="mr-1 h-4 w-4" aria-hidden="true" /> Approve
                                                                 </Button>
                                                                 <Button onClick={() => handlePartnerAppStatus(app.id, 'rejected')} variant="destructive" size="sm">
-                                                                    <X className="mr-1 h-4 w-4" /> Reject
+                                                                    <X className="mr-1 h-4 w-4" aria-hidden="true" /> Reject
                                                                 </Button>
                                                             </div>
                                                         )}
@@ -643,10 +696,10 @@ export default function AdminDashboard() {
                                             formData.append('file', file);
                                             try {
                                                 await api.post('/admin/settings/partnership-kit', formData);
-                                                toast({ title: 'Success', description: 'Partnership kit updated' });
+                                                toast({ title: 'Partnership kit updated', description: 'File saved' });
                                                 fetchData(true);
                                             } catch (error) {
-                                                toast({ title: 'Failed', variant: 'destructive' });
+                                                toast({ title: 'Upload failed', description: describeError(error), variant: 'destructive' });
                                             }
                                         }
                                     };
@@ -664,7 +717,7 @@ export default function AdminDashboard() {
                                     if (!open) setEditingItem(null);
                                 }}>
                                     <DialogTrigger asChild>
-                                        <Button onClick={() => setEditingItem(null)}><Plus className="mr-2 h-4 w-4"/> Add Partner</Button>
+                                        <Button onClick={() => setEditingItem(null)}><Plus className="mr-2 h-4 w-4" aria-hidden="true"/> Add Partner</Button>
                                     </DialogTrigger>
                                 <DialogContent>
                                     <DialogHeader>
@@ -721,8 +774,8 @@ export default function AdminDashboard() {
                                             <TableCell>{p.role}</TableCell>
                                             <TableCell>{p.tier}</TableCell>
                                             <TableCell>
-                                                <Button variant="ghost" size="sm" onClick={() => { setEditingItem(p); setPartnerDialogOpen(true); }}><Edit className="h-4 w-4"/></Button>
-                                                <Button variant="ghost" size="sm" onClick={() => handleDeletePartner(p.id)} className="text-destructive"><Trash className="h-4 w-4"/></Button>
+                                                <Button variant="ghost" size="sm" onClick={() => { setEditingItem(p); setPartnerDialogOpen(true); }} aria-label={`Edit ${p.name}`}><Edit className="h-4 w-4" aria-hidden="true"/></Button>
+                                                <Button variant="ghost" size="sm" onClick={() => handleDeletePartner(p.id)} className="text-destructive" aria-label={`Delete ${p.name}`}><Trash className="h-4 w-4" aria-hidden="true"/></Button>
                                             </TableCell>
                                         </TableRow>
                                     ))}
@@ -744,7 +797,7 @@ export default function AdminDashboard() {
                                 if (!open) setEditingItem(null);
                             }}>
                                 <DialogTrigger asChild>
-                                    <Button onClick={() => setEditingItem(null)}><Plus className="mr-2 h-4 w-4"/> Add Member</Button>
+                                    <Button onClick={() => setEditingItem(null)}><Plus className="mr-2 h-4 w-4" aria-hidden="true"/> Add Member</Button>
                                 </DialogTrigger>
                                 <DialogContent>
                                     <DialogHeader>
@@ -818,8 +871,8 @@ export default function AdminDashboard() {
                                             <TableCell>{m.name}</TableCell>
                                             <TableCell>{m.role}</TableCell>
                                             <TableCell>
-                                                <Button variant="ghost" size="sm" onClick={() => { setEditingItem(m); setMemberDialogOpen(true); }}><Edit className="h-4 w-4"/></Button>
-                                                <Button variant="ghost" size="sm" onClick={() => handleDeleteMember(m.id)} className="text-destructive"><Trash className="h-4 w-4"/></Button>
+                                                <Button variant="ghost" size="sm" onClick={() => { setEditingItem(m); setMemberDialogOpen(true); }} aria-label={`Edit ${m.name}`}><Edit className="h-4 w-4" aria-hidden="true"/></Button>
+                                                <Button variant="ghost" size="sm" onClick={() => handleDeleteMember(m.id)} className="text-destructive" aria-label={`Delete ${m.name}`}><Trash className="h-4 w-4" aria-hidden="true"/></Button>
                                             </TableCell>
                                         </TableRow>
                                     ))}
@@ -838,8 +891,13 @@ export default function AdminDashboard() {
                             </div>
                             {plans.length === 0 && (
                                 <Button onClick={async () => {
-                                    await api.post('/plans/seed', {});
-                                    fetchData(true);
+                                    try {
+                                        await api.post('/plans/seed', {});
+                                        toast({ title: 'Plans seeded', description: 'Default subscription plans created.' });
+                                        fetchData(true);
+                                    } catch (error) {
+                                        toast({ title: 'Could not seed plans', description: describeError(error), variant: 'destructive' });
+                                    }
                                 }} variant="outline" size="sm">
                                     Seed Default Plans
                                 </Button>
@@ -860,7 +918,7 @@ export default function AdminDashboard() {
                                                     if (!open) setEditingItem(null);
                                                 }}>
                                                     <DialogTrigger asChild>
-                                                        <Button variant="ghost" size="sm" onClick={() => { setEditingItem(p); setPlanDialogOpen(true); }}><Edit className="h-4 w-4"/></Button>
+                                                        <Button variant="ghost" size="sm" onClick={() => { setEditingItem(p); setPlanDialogOpen(true); }} aria-label={`Edit ${p.name}`}><Edit className="h-4 w-4" aria-hidden="true"/></Button>
                                                     </DialogTrigger>
                                                     <DialogContent>
                                                         <DialogHeader>
@@ -938,10 +996,10 @@ export default function AdminDashboard() {
                                                     </div>
                                                     <div className="flex items-start gap-2">
                                                         <Button onClick={() => handleApproveApp(app.id)} size="sm" className="bg-green-600 hover:bg-green-700">
-                                                            <Check className="mr-2 h-4 w-4"/> Approve
+                                                            <Check className="mr-2 h-4 w-4" aria-hidden="true"/> Approve
                                                         </Button>
                                                         <Button onClick={() => handleRejectApp(app.id)} variant="destructive" size="sm">
-                                                            <X className="mr-2 h-4 w-4"/> Reject
+                                                            <X className="mr-2 h-4 w-4" aria-hidden="true"/> Reject
                                                         </Button>
                                                     </div>
                                                 </div>
@@ -985,7 +1043,7 @@ export default function AdminDashboard() {
                                 <CardTitle>Pending Resources</CardTitle>
                                 <Dialog open={resourceDialogOpen} onOpenChange={setResourceDialogOpen}>
                                     <DialogTrigger asChild>
-                                        <Button size="sm"><Plus className="mr-2 h-4 w-4"/> Add Resource</Button>
+                                        <Button size="sm"><Plus className="mr-2 h-4 w-4" aria-hidden="true"/> Add Resource</Button>
                                     </DialogTrigger>
                                     <DialogContent className="max-w-2xl h-[80vh] overflow-y-auto">
                                         <DialogHeader>
@@ -1079,7 +1137,7 @@ export default function AdminDashboard() {
                 <TabsContent value="newsletter">
                     <Card>
                         <CardHeader>
-                            <CardTitle className="flex items-center gap-2"><Mail className="h-5 w-5" /> Newsletter Subscribers</CardTitle>
+                            <CardTitle className="flex items-center gap-2"><Mail className="h-5 w-5" aria-hidden="true" /> Newsletter Subscribers</CardTitle>
                             <CardDescription>Emails collected from the footer subscription form.</CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -1101,8 +1159,8 @@ export default function AdminDashboard() {
                                                     <TableCell className="font-medium">{s.email}</TableCell>
                                                     <TableCell>{new Date(s.createdAt).toLocaleDateString()}</TableCell>
                                                     <TableCell>
-                                                        <Button variant="ghost" size="sm" onClick={() => handleDeleteSubscriber(s.id)} className="text-destructive">
-                                                            <Trash className="h-4 w-4" />
+                                                        <Button variant="ghost" size="sm" onClick={() => handleDeleteSubscriber(s.id)} className="text-destructive" aria-label={`Delete ${s.email}`}>
+                                                            <Trash className="h-4 w-4" aria-hidden="true" />
                                                         </Button>
                                                     </TableCell>
                                                 </TableRow>
@@ -1141,7 +1199,7 @@ export default function AdminDashboard() {
                                                         defaultValue={u.role}
                                                         onValueChange={(val) => handleRoleChange(u.id, val)}
                                                     >
-                                                        <SelectTrigger className="w-[130px]">
+                                                        <SelectTrigger className="w-[130px]" aria-label={`Role for ${u.email}`}>
                                                             <SelectValue />
                                                         </SelectTrigger>
                                                         <SelectContent>
