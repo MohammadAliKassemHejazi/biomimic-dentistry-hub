@@ -58,7 +58,11 @@ export default function PartnerApplyPage() {
   const API_BASE = SERVER_ORIGIN;
 
   useEffect(() => {
-    api.get<Templates>('/admin/settings/partner-templates', { requiresAuth: false }).then(setTemplates).catch(() => {});
+    // Public endpoint — no admin credentials needed.
+    // GET /admin/settings/partner-templates was admin-only (SV-01); the public
+    // mirror at /partnership/templates serves the same read-only data so anyone
+    // applying can download the tier template without triggering a 403.
+    api.get<Templates>('/partnership/templates', { requiresAuth: false }).then(setTemplates).catch(() => {});
   }, []);
 
   const tierInfo = TIER_CONFIG[tier];
