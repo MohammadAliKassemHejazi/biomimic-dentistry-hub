@@ -98,8 +98,9 @@ const Navigation = () => {
               <Image
                 src="/logo.png"
                 alt="Biomimetic Dentistry Club"
-                width={120}
-                height={40}
+                width={0}
+                height={0}
+                sizes="120px"
                 className="h-10 w-auto object-contain"
                 priority
               />
@@ -251,8 +252,9 @@ const Navigation = () => {
                   <Image
                     src="/logo.png"
                     alt="Biomimetic Dentistry Club"
-                    width={120}
-                    height={40}
+                    width={0}
+                    height={0}
+                    sizes="100px"
                     className="h-9 w-auto object-contain"
                   />
                 </Link>

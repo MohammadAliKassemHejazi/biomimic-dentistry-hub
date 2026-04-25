@@ -6,7 +6,6 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { resolveUploadUrl } from '@/lib/env';
-import { useAuth } from '@/contexts/AuthContext';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface TrustedPartner {
@@ -19,12 +18,18 @@ interface TrustedPartner {
     website?: string;
 }
 
+/** Returns true only for file extensions that browsers can display as images. */
+const isImageExtension = (url: string): boolean => {
+  const ext = url.split('.').pop()?.toLowerCase() ?? '';
+  return ['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg', 'avif', 'ico'].includes(ext);
+};
+
 const SponsorsSection = () => {
   const [sponsors, setSponsors] = useState<TrustedPartner[]>([]);
   const [loading, setLoading] = useState(true);
   const [partnershipKitUrl, setPartnershipKitUrl] = useState<string | null>(null);
-  const { isAuthenticated } = useAuth();
 
+  // Load partners list (public, no auth needed)
   useEffect(() => {
     api
       .get<TrustedPartner[]>('/partners', { skipErrorHandling: true, requiresAuth: false })
@@ -33,13 +38,18 @@ const SponsorsSection = () => {
       .finally(() => setLoading(false));
   }, []);
 
+  // Load partnership kit URL from the PUBLIC endpoint — no admin auth required.
+  // The admin writes via POST /api/admin/settings/partnership-kit;
+  // anyone can read the URL via GET /api/settings/partnership-kit.
   useEffect(() => {
-    if (!isAuthenticated) return;
     api
-      .get<{ url: string | null }>('/admin/settings/partnership-kit', { skipErrorHandling: true })
+      .get<{ url: string | null }>('/settings/partnership-kit', {
+        skipErrorHandling: true,
+        requiresAuth: false,
+      })
       .then((res) => setPartnershipKitUrl(res?.url ?? null))
-      .catch((err) => console.error('Partnership kit fetch failed', err));
-  }, [isAuthenticated]);
+      .catch(() => {/* silently skip if kit isn't set yet */});
+  }, []);
 
   const getTierColor = (tier: string) => {
     switch (tier) {
@@ -53,9 +63,10 @@ const SponsorsSection = () => {
 
   const getLogoContent = (partner: TrustedPartner) => {
     if (partner.logo) {
+      // Only use <Image> for actual image URLs (not PDFs, docs, etc.)
       if (partner.logo.startsWith('http') || partner.logo.startsWith('/')) {
         const logoUrl = resolveUploadUrl(partner.logo);
-        if (logoUrl) {
+        if (logoUrl && isImageExtension(logoUrl)) {
           return (
             <Image
               src={logoUrl}
@@ -67,13 +78,17 @@ const SponsorsSection = () => {
             />
           );
         }
+        // File exists but isn't an image (e.g. a PDF was mistakenly uploaded) —
+        // fall through to emoji fallback below.
       }
-      return <div className="text-4xl" aria-hidden="true">{partner.logo}</div>;
+      // If logo is an emoji or short text, render it directly
+      if (!partner.logo.startsWith('/') && !partner.logo.startsWith('http')) {
+        return <div className="text-4xl" aria-hidden="true">{partner.logo}</div>;
+      }
     }
 
     // Auto-assign emoji based on role/tier
     const role = (partner.role || '').toLowerCase();
-
     let emoji = '🏢';
     if (role.includes('tech') || role.includes('equipment')) emoji = '⚙️';
     else if (role.includes('research')) emoji = '🔬';

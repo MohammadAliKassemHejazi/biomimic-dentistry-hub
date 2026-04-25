@@ -18,6 +18,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Plus, Trash, Edit, Mail, Handshake, Eye } from 'lucide-react';
+import Link from 'next/link';
 
 // Types
 interface ContactMessage {
@@ -166,6 +167,8 @@ export default function AdminDashboard() {
     const [partnerApplications, setPartnerApplications] = useState<PartnerApplication[]>([]);
     const [partnerTemplates, setPartnerTemplates] = useState<PartnerTemplates>({ silver: null, gold: null, vip: null });
     const [newsletterSubscribers, setNewsletterSubscribers] = useState<NewsletterSubscriber[]>([]);
+    const [courses, setCourses] = useState<Course[]>([]);
+    const [allResources, setAllResources] = useState<Resource[]>([]);
     const [selectedMessage, setSelectedMessage] = useState<ContactMessage | null>(null);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('applications');
@@ -175,8 +178,6 @@ export default function AdminDashboard() {
     const [partnerDialogOpen, setPartnerDialogOpen] = useState(false);
     const [memberDialogOpen, setMemberDialogOpen] = useState(false);
     const [planDialogOpen, setPlanDialogOpen] = useState(false);
-    const [resourceDialogOpen, setResourceDialogOpen] = useState(false);
-    const [courseDialogOpen, setCourseDialogOpen] = useState(false);
     const [editingItem, setEditingItem] = useState<any>(null); // Generic holder for item being edited
 
     // FE-02 (Iter 4): Partnership approval dialog state
@@ -197,6 +198,7 @@ export default function AdminDashboard() {
         const [
             usersRes, appsRes, contentRes, partnersRes, membersRes, plansRes,
             kitRes, messagesRes, partnerAppsRes, templatesRes, subscribersRes,
+            coursesRes, resourcesRes,
         ] = await Promise.allSettled([
             api.get<{ users: User[] }>('/admin/users',                     { skipErrorHandling: true }),
             api.get<Application[]>('/admin/applications',                  { skipErrorHandling: true }),
@@ -209,6 +211,8 @@ export default function AdminDashboard() {
             api.get<PartnerApplication[]>('/admin/partner-applications',   { skipErrorHandling: true }),
             api.get<PartnerTemplates>('/admin/settings/partner-templates', { skipErrorHandling: true }),
             api.get<NewsletterSubscriber[]>('/newsletter',                 { skipErrorHandling: true }),
+            api.get<Course[]>('/courses',                                  { skipErrorHandling: true }),
+            api.get<Resource[]>('/resources',                              { skipErrorHandling: true }),
         ]);
 
         setUsers(take(usersRes, 'Users', { users: [] }, onPanelError).users ?? []);
@@ -222,11 +226,13 @@ export default function AdminDashboard() {
         setPartnerApplications(take(partnerAppsRes, 'Partner applications', [], onPanelError));
         setPartnerTemplates(take(templatesRes, 'Partner templates', { silver: null, gold: null, vip: null }, onPanelError));
         setNewsletterSubscribers(take(subscribersRes, 'Newsletter subscribers', [], onPanelError));
+        setCourses(take(coursesRes, 'Courses', [], onPanelError));
+        setAllResources(take(resourcesRes, 'All resources', [], onPanelError));
 
         if (failures.length > 0) {
             toast({
                 title: `Some panels failed to load`,
-                description: `${failures.length} of 11 panels could not be loaded: ${failures.slice(0, 3).join(', ')}${failures.length > 3 ? '…' : ''}. Other panels are still available.`,
+                description: `${failures.length} of 13 panels could not be loaded: ${failures.slice(0, 3).join(', ')}${failures.length > 3 ? '…' : ''}. Other panels are still available.`,
                 variant: 'destructive',
             });
         }
@@ -302,31 +308,27 @@ export default function AdminDashboard() {
         }
     };
 
-    const handleResourceSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        const formData = new FormData(e.target as HTMLFormElement);
+
+
+    const handleDeleteCourse = async (id: string) => {
+        if (!confirm('Delete this course?')) return;
         try {
-            await api.post('/resources', formData);
-            toast({ title: "Resource created", description: "New resource added" });
-            setResourceDialogOpen(false);
+            await api.delete(`/courses/${id}`);
+            toast({ title: 'Course deleted' });
             fetchData(true);
         } catch (error) {
-            toast({ title: "Could not create resource", description: describeError(error), variant: "destructive" });
+            toast({ title: 'Could not delete course', description: describeError(error), variant: 'destructive' });
         }
     };
 
-    const handleCourseSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        const form = e.target as HTMLFormElement;
-        const formData = new FormData(form);
+    const handleDeleteResource = async (id: string) => {
+        if (!confirm('Delete this resource?')) return;
         try {
-            await api.post('/courses', formData);
-            toast({ title: "Course created", description: "New course added" });
-            setCourseDialogOpen(false);
-            form.reset();
+            await api.delete(`/resources/${id}`);
+            toast({ title: 'Resource deleted' });
             fetchData(true);
         } catch (error) {
-            toast({ title: "Could not create course", description: describeError(error), variant: "destructive" });
+            toast({ title: 'Could not delete resource', description: describeError(error), variant: 'destructive' });
         }
     };
 
@@ -525,7 +527,7 @@ export default function AdminDashboard() {
                         )}
                     </TabsTrigger>
                     <TabsTrigger value="content" className="relative">
-                        Pending Content
+                        Content
                         {(pendingContent.posts.length + pendingContent.resources.length) > 0 && (
                              <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] text-white">
                                 {pendingContent.posts.length + pendingContent.resources.length}
@@ -1132,195 +1134,133 @@ export default function AdminDashboard() {
 
                 <TabsContent value="content">
                     {activeTab === 'content' && (
-                    <div className="grid md:grid-cols-2 gap-6">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Pending Blog Posts</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                {pendingContent.posts.length === 0 ? (
-                                    <p className="text-muted-foreground text-center py-4">No pending posts.</p>
-                                ) : (
-                                    <div className="space-y-4">
-                                        {pendingContent.posts.map(post => (
-                                            <div key={post.id} className="border rounded-lg p-4 flex justify-between items-center bg-card">
-                                                <div>
-                                                    <h4 className="font-medium">{post.title}</h4>
-                                                    <p className="text-sm text-muted-foreground">By {post.author.firstName} {post.author.lastName}</p>
-                                                    <p className="text-xs text-muted-foreground">{new Date(post.createdAt).toLocaleDateString()}</p>
-                                                </div>
-                                                <Button onClick={() => handleApproveContent('post', post.id)} size="sm">Approve</Button>
-                                            </div>
-                                        ))}
+                    <div className="space-y-6">
+
+                        {/* Section 1: Course and Resource Management */}
+                        <div className="grid md:grid-cols-2 gap-6">
+
+                            {/* Courses management */}
+                            <Card>
+                                <CardHeader className="flex flex-row items-center justify-between">
+                                    <div>
+                                        <CardTitle>Courses</CardTitle>
+                                        <CardDescription>All published courses.</CardDescription>
                                     </div>
-                                )}
-                            </CardContent>
-                        </Card>
+                                    <Button size="sm" asChild>
+                                        <Link href="/admin/courses/new">
+                                            <Plus className="mr-2 h-4 w-4" aria-hidden="true"/> Add Course
+                                        </Link>
+                                    </Button>
+                                </CardHeader>
+                                <CardContent>
+                                    {courses.length === 0 ? (
+                                        <p className="text-muted-foreground text-center py-6">No courses yet. Click <strong>Add Course</strong> above to create your first one.</p>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            {courses.map(course => (
+                                                <div key={course.id} className="flex items-center justify-between border rounded-lg px-4 py-3 bg-card">
+                                                    <div>
+                                                        <p className="font-medium text-sm">{course.title}</p>
+                                                        <p className="text-xs text-muted-foreground">
+                                                            {course.coming_soon ? 'Coming Soon' : 'Available'} &middot; ${Number(course.price).toFixed(2)} &middot; {course.access_level}
+                                                        </p>
+                                                    </div>
+                                                    <Button size="sm" variant="destructive" onClick={() => handleDeleteCourse(course.id)}>
+                                                        <Trash className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
 
-                        <Card>
-                            <CardHeader className="flex flex-row items-center justify-between">
-                                <div>
-                                    <CardTitle>Pending Resources</CardTitle>
-                                </div>
-                                <div className="flex gap-2">
-                                {/* FE-09 (Iter 4): Course creation dialog */}
-                                <Dialog open={courseDialogOpen} onOpenChange={setCourseDialogOpen}>
-                                    <DialogTrigger asChild>
-                                        <Button size="sm" variant="outline"><Plus className="mr-2 h-4 w-4" aria-hidden="true"/> Add Course</Button>
-                                    </DialogTrigger>
-                                    <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-                                        <DialogHeader>
-                                            <DialogTitle>Create New Course</DialogTitle>
-                                        </DialogHeader>
-                                        <form onSubmit={handleCourseSubmit} className="space-y-4">
-                                            <div className="space-y-2">
-                                                <Label>Title</Label>
-                                                <input name="title" className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm" placeholder="e.g. Biomimetic Adhesive Techniques" required />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label>Slug (URL-friendly)</Label>
-                                                <input name="slug" className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm" placeholder="e.g. biomimetic-adhesive-techniques" required />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label>Description</Label>
-                                                <Textarea name="description" rows={3} placeholder="What students will learn..." />
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div className="space-y-2">
-                                                    <Label>Price (USD)</Label>
-                                                    <input name="price" type="number" step="0.01" min="0" defaultValue="0" className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm" required />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label>Access Level</Label>
-                                                    <Select name="access_level" defaultValue="public">
-                                                        <SelectTrigger><SelectValue /></SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="public">Public</SelectItem>
-                                                            <SelectItem value="vip">VIP Only</SelectItem>
-                                                            <SelectItem value="ambassador">Ambassador Only</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div className="space-y-2">
-                                                    <Label>Coming Soon?</Label>
-                                                    <Select name="coming_soon" defaultValue="false">
-                                                        <SelectTrigger><SelectValue /></SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="false">Available Now</SelectItem>
-                                                            <SelectItem value="true">Coming Soon</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label>Launch Date (optional)</Label>
-                                                    <input name="launch_date" type="date" className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm" />
-                                                </div>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label>Featured Image</Label>
-                                                <input name="featured_image" type="file" accept="image/*" className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm" />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label>Stripe Price ID (optional)</Label>
-                                                <input name="stripe_price_id" className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm" placeholder="price_xxx" />
-                                            </div>
-                                            <Button type="submit" className="w-full">Create Course</Button>
-                                        </form>
-                                    </DialogContent>
-                                </Dialog>
-                                <Dialog open={resourceDialogOpen} onOpenChange={setResourceDialogOpen}>
-                                    <DialogTrigger asChild>
-                                        <Button size="sm"><Plus className="mr-2 h-4 w-4" aria-hidden="true"/> Add Resource</Button>
-                                    </DialogTrigger>
-                                    <DialogContent className="max-w-2xl h-[80vh] overflow-y-auto">
-                                        <DialogHeader>
-                                            <DialogTitle>Add New Resource</DialogTitle>
-                                        </DialogHeader>
-                                        <form onSubmit={handleResourceSubmit} className="space-y-4">
-                                            <div className="space-y-2">
-                                                <Label>Title</Label>
-                                                <Input name="title" placeholder="e.g. Clinical Protocol 2024" required />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label>Description</Label>
-                                                <Textarea name="description" rows={3} placeholder="Brief description..." />
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div className="space-y-2">
-                                                    <Label>Category</Label>
-                                                    <Input name="category" placeholder="e.g. Protocols" />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label>File Type</Label>
-                                                    <Select name="file_type" defaultValue="PDF">
-                                                        <SelectTrigger><SelectValue /></SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="PDF">PDF</SelectItem>
-                                                            <SelectItem value="Image">Image</SelectItem>
-                                                            <SelectItem value="Video">Video</SelectItem>
-                                                            <SelectItem value="Other">Other</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label>Tags</Label>
-                                                <Input name="tags" placeholder="guide, protocol, adhesive" />
-                                                <p className="text-[0.8rem] text-muted-foreground">Comma separated.</p>
-                                            </div>
-
-                                            <div className="space-y-2">
-                                                <Label>Upload File</Label>
-                                                <Input name="file" type="file" />
-                                                <p className="text-[0.8rem] text-muted-foreground">Uploading a file will override the URL below.</p>
-                                            </div>
-
-                                            <div className="space-y-2">
-                                                <Label>File URL (if not uploading)</Label>
-                                                <Input name="file_url" placeholder="https://..." />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label>File Name (display)</Label>
-                                                <Input name="file_name" placeholder="MyResource.pdf" />
-                                            </div>
-
-                                            <div className="space-y-2">
-                                                <Label>Access Level</Label>
-                                                <Select name="access_level" defaultValue="public">
-                                                    <SelectTrigger><SelectValue /></SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="public">Public</SelectItem>
-                                                        <SelectItem value="vip">VIP Only</SelectItem>
-                                                        <SelectItem value="ambassador">Ambassador Only</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                            <Button type="submit" className="w-full">Create Resource</Button>
-                                        </form>
-                                    </DialogContent>
-                                </Dialog>
-                                </div>
-                            </CardHeader>
-                            <CardContent>
-                                {pendingContent.resources.length === 0 ? (
-                                    <p className="text-muted-foreground text-center py-4">No pending resources.</p>
-                                ) : (
-                                    <div className="space-y-4">
-                                        {pendingContent.resources.map(res => (
-                                            <div key={res.id} className="border rounded-lg p-4 flex justify-between items-center bg-card">
-                                                <div>
-                                                    <h4 className="font-medium">{res.title}</h4>
-                                                    <p className="text-xs text-muted-foreground">{new Date(res.createdAt).toLocaleDateString()}</p>
-                                                </div>
-                                                <Button onClick={() => handleApproveContent('resource', res.id)} size="sm">Approve</Button>
-                                            </div>
-                                        ))}
+                            {/* Resources management */}
+                            <Card>
+                                <CardHeader className="flex flex-row items-center justify-between">
+                                    <div>
+                                        <CardTitle>Resources</CardTitle>
+                                        <CardDescription>Downloadable files and materials.</CardDescription>
                                     </div>
-                                )}
-                            </CardContent>
-                        </Card>
+                                    <Button size="sm" asChild>
+                                        <Link href="/admin/resources/new">
+                                            <Plus className="mr-2 h-4 w-4" aria-hidden="true"/> Add Resource
+                                        </Link>
+                                    </Button>
+                                </CardHeader>
+                                <CardContent>
+                                    {allResources.length === 0 ? (
+                                        <p className="text-muted-foreground text-center py-6">No resources yet. Click <strong>Add Resource</strong> above to upload your first one.</p>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            {allResources.map(res => (
+                                                <div key={res.id} className="flex items-center justify-between border rounded-lg px-4 py-3 bg-card">
+                                                    <div>
+                                                        <p className="font-medium text-sm">{res.title}</p>
+                                                        <p className="text-xs text-muted-foreground">{new Date(res.createdAt).toLocaleDateString()}</p>
+                                                    </div>
+                                                    <Button size="sm" variant="destructive" onClick={() => handleDeleteResource(res.id)}>
+                                                        <Trash className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        </div>
+
+                        {/* Section 2: Pending Review Queue */}
+                        <div className="grid md:grid-cols-2 gap-6">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Pending Blog Posts</CardTitle>
+                                    <CardDescription>Blog posts awaiting your approval.</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    {pendingContent.posts.length === 0 ? (
+                                        <p className="text-muted-foreground text-center py-4">No pending posts.</p>
+                                    ) : (
+                                        <div className="space-y-4">
+                                            {pendingContent.posts.map(post => (
+                                                <div key={post.id} className="border rounded-lg p-4 flex justify-between items-center bg-card">
+                                                    <div>
+                                                        <h4 className="font-medium">{post.title}</h4>
+                                                        <p className="text-sm text-muted-foreground">By {post.author.firstName} {post.author.lastName}</p>
+                                                        <p className="text-xs text-muted-foreground">{new Date(post.createdAt).toLocaleDateString()}</p>
+                                                    </div>
+                                                    <Button onClick={() => handleApproveContent('post', post.id)} size="sm">Approve</Button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Pending Resource Approvals</CardTitle>
+                                    <CardDescription>User-submitted resources awaiting review.</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    {pendingContent.resources.length === 0 ? (
+                                        <p className="text-muted-foreground text-center py-4">No pending resources.</p>
+                                    ) : (
+                                        <div className="space-y-4">
+                                            {pendingContent.resources.map(res => (
+                                                <div key={res.id} className="border rounded-lg p-4 flex justify-between items-center bg-card">
+                                                    <div>
+                                                        <h4 className="font-medium">{res.title}</h4>
+                                                        <p className="text-xs text-muted-foreground">{new Date(res.createdAt).toLocaleDateString()}</p>
+                                                    </div>
+                                                    <Button onClick={() => handleApproveContent('resource', res.id)} size="sm">Approve</Button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        </div>
                     </div>
                     )}
                 </TabsContent>

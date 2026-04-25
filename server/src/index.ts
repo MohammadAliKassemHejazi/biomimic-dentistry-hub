@@ -30,6 +30,7 @@ import leadershipMemberRoutes from './routes/leadershipMember.routes';
 import subscriptionPlanRoutes from './routes/subscriptionPlan.routes';
 import partnershipRoutes from './routes/partnership.routes';
 import newsletterRoutes from './routes/newsletter.routes';
+import settingsRoutes from './routes/settings.routes';
 // SV-16 (Iter 3): webhook routes (Stripe + PayPal)
 import webhookRoutes from './routes/webhook.routes';
 import { seedDefaultAdmin } from './utils/seed';
@@ -119,6 +120,8 @@ app.use('/api/leadership', publicCache, leadershipMemberRoutes);
 app.use('/api/plans', publicCache, subscriptionPlanRoutes);
 app.use('/api/partnership', partnershipRoutes);
 app.use('/api/newsletter', newsletterRoutes);
+// Public read-only settings (partnership kit URL, etc.) — no auth required
+app.use('/api/settings', settingsRoutes);
 
 app.get('/', (req: Request, res: Response) => {
   res.send('Server is running');

@@ -7,7 +7,9 @@ import Link from 'next/link';
 import heroBg from '../assets/hero-bg.jpg';
 import dynamic from 'next/dynamic';
 
-const BiomimeticTooth3D = dynamic(() => import('./BiomimeticTooth3D'), {
+// Use ToothAnimation (new filename) so Turbopack generates a fresh chunk URL,
+// bypassing any browser-cached old BiomimeticTooth3D chunk that had Three.js imports.
+const ToothAnimation = dynamic(() => import('./ToothAnimation'), {
   ssr: false,
 });
 
@@ -28,8 +30,8 @@ const HeroSection = () => {
         }}
       />
 
-      {/* 3D Tooth Animation */}
-      <BiomimeticTooth3D />
+      {/* CSS + Framer Motion Tooth Animation (zero WebGL) */}
+      <ToothAnimation />
 
       {/* Organic Floating Elements */}
       <div className="absolute inset-0 pointer-events-none">

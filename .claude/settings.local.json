@@ -42,7 +42,15 @@
       "Bash(/courses/\\\\${course.slug})",
       "Bash(node patch-courses-link.js)",
       "Bash(node -e \"const fs=require\\('fs'\\);const c=fs.readFileSync\\('client/src/app/courses/page.tsx','utf8'\\);const idx=c.indexOf\\('Enroll Now'\\);console.log\\(JSON.stringify\\(c.slice\\(Math.max\\(0,idx-100\\),idx+200\\)\\)\\);\")",
-      "Bash(node patch-fix-fragment.js)"
+      "Bash(node patch-fix-fragment.js)",
+      "Bash(node *)",
+      "Bash(sed -i '/const \\\\[resourceDialogOpen, setResourceDialogOpen\\\\] = useState\\(false\\);/d' page.tsx)",
+      "Bash(sed -i '/const \\\\[courseDialogOpen, setCourseDialogOpen\\\\] = useState\\(false\\);/d' page.tsx)",
+      "Bash(python3 -)",
+      "Bash(python3 /tmp/fix_admin.py)",
+      "Bash(python3 *)",
+      "Bash(mkdir -p .claude/reports/archive/iter-7)",
+      "Bash(zip -j .claude/reports/archive/iter-7/reports-iter-7.zip .claude/reports/frontend-report.md .claude/reports/backend-report.md .claude/reports/architect-report.md .claude/reports/qa-report.md FINAL-REPORT.md)"
     ]
   },
   "model": "claude-sonnet-4-6",

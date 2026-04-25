@@ -12,10 +12,31 @@ if (!fs.existsSync(uploadDir)) {
 
 const storage = multer.memoryStorage(); // Store in memory first for sharp to process
 
+// Generic upload (images + documents — used for blog, resources, partnership kit)
 export const upload = multer({
   storage: storage,
   limits: {
     fileSize: 50 * 1024 * 1024, // 50 MB limit
+  },
+});
+
+// Image-only upload — rejects non-image MIME types at the multer level.
+// Use for fields that must contain a displayable image (partner logo, course
+// featured image, leadership member photo, etc.) so the frontend can safely
+// use <Image> / <img> without a MIME-type guard.
+export const uploadImageOnly = multer({
+  storage: storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10 MB for images
+  },
+  fileFilter: (_req, file, cb) => {
+    if (!file.mimetype.startsWith('image/')) {
+      cb(new Error(
+        'Only image files are allowed here. Please upload a JPG, PNG, WebP, GIF, or SVG file.'
+      ));
+      return;
+    }
+    cb(null, true);
   },
 });
 

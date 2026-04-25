@@ -24,6 +24,13 @@ const apiHost = (() => {
   }
 })();
 
+// In development, Turbopack uses path-based (non-content-hashed) chunk names.
+// Marking those chunks as immutable causes the browser to serve a stale chunk
+// after any hot-replacement, which produces "module factory not available"
+// errors. In production, Next.js always produces content-hashed chunk filenames
+// so `immutable` is correct and safe there.
+const isDev = process.env.NODE_ENV === "development";
+
 const nextConfig: NextConfig = {
   compress: true,
   poweredByHeader: false,
@@ -52,12 +59,19 @@ const nextConfig: NextConfig = {
     ];
   },
   async headers() {
-    // Long-cache immutable static assets served by Next.js itself.
     return [
       {
+        // In dev: force revalidation so Turbopack chunk replacements are always
+        // picked up by the browser immediately (no stale-module errors).
+        // In prod: chunks are content-hashed — safe to cache immutably for 1 year.
         source: '/_next/static/:path*',
         headers: [
-          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
+          {
+            key: 'Cache-Control',
+            value: isDev
+              ? 'no-cache, must-revalidate'
+              : 'public, max-age=31536000, immutable',
+          },
         ],
       },
       {

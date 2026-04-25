@@ -2,10 +2,60 @@ import Cookies from 'js-cookie';
 import { toast } from '@/hooks/use-toast';
 import { API_URL } from '@/lib/env';
 
+// ─── Role hierarchy ────────────────────────────────────────────────────────────
+// Higher rank = more privileged. Admin (4) satisfies any required role.
+const ROLE_RANK: Record<string, number> = {
+  user:       1,
+  bronze:     1, // same tier as plain user
+  silver:     2,
+  vip:        2, // vip ≡ silver for access purposes
+  gold:       2,
+  ambassador: 3,
+  admin:      4,
+};
+
+/**
+ * Decode the `role` claim from a JWT without verifying the signature.
+ * Client-side only — we trust the server to have issued a valid token.
+ * Never use this for authorization on the server side.
+ */
+function getRoleFromToken(token: string): string | null {
+  try {
+    const payload = token.split('.')[1];
+    if (!payload) return null;
+    // Base64url → base64 standard, then decode
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const json = atob(base64);
+    const parsed: unknown = JSON.parse(json);
+    if (
+      parsed !== null &&
+      typeof parsed === 'object' &&
+      'role' in parsed &&
+      typeof (parsed as Record<string, unknown>).role === 'string'
+    ) {
+      return (parsed as Record<string, string>).role;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+/**
+ * `requiredRole` — if set, the API call is blocked client-side before any
+ * network request is made when the current user's role does not meet the
+ * minimum privilege level.  This prevents unnecessary 403 round-trips and
+ * exposes clear "Access Denied" feedback immediately.
+ *
+ * Role hierarchy (lowest → highest):  user = bronze < silver = vip = gold < ambassador < admin
+ */
 interface FetchOptions extends RequestInit {
   headers?: Record<string, string>;
   skipErrorHandling?: boolean;
   requiresAuth?: boolean;
+  requiredRole?: 'user' | 'vip' | 'ambassador' | 'admin';
 }
 
 export const api = {
@@ -67,6 +117,37 @@ async function fetchWithAuth<T>(endpoint: string, options: FetchOptions): Promis
     throw error;
   }
 
+  // ── Client-side role guard ──────────────────────────────────────────────────
+  // If the caller declared a requiredRole, decode the JWT role and compare
+  // against the hierarchy.  Block the request before it hits the wire so the
+  // user sees instant feedback instead of a 403 round-trip.
+  if (options.requiredRole) {
+    const tokenRole = token ? getRoleFromToken(token) : null;
+    const userRank = tokenRole !== null ? (ROLE_RANK[tokenRole] ?? 0) : 0;
+    const requiredRank = ROLE_RANK[options.requiredRole] ?? 0;
+
+    if (userRank < requiredRank) {
+      const err = new Error(
+        `Insufficient permissions — ${options.requiredRole} role required`
+      ) as any;
+      err.status = 403;
+
+      if (!options.skipErrorHandling) {
+        toast({
+          title: 'Access Denied',
+          description: `You need ${options.requiredRole} privileges to perform this action.`,
+          variant: 'destructive',
+        });
+      }
+
+      console.warn(
+        `[api] Blocked ${options.method} ${endpoint}: ` +
+        `user rank ${userRank} (${tokenRole ?? 'unauthenticated'}) < required rank ${requiredRank} (${options.requiredRole})`
+      );
+      throw err;
+    }
+  }
+
   const headers: Record<string, string> = {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...options.headers,
@@ -76,7 +157,8 @@ async function fetchWithAuth<T>(endpoint: string, options: FetchOptions): Promis
     headers['Content-Type'] = 'application/json';
   }
 
-  const { skipErrorHandling, ...fetchOptions } = options;
+  // Strip non-fetch keys before passing to fetch()
+  const { skipErrorHandling, requiredRole, requiresAuth: _ra, ...fetchOptions } = options;
 
   const config = {
     ...fetchOptions,
