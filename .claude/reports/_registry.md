@@ -1,54 +1,61 @@
 # Agent Reports Registry
-Last updated: 2026-04-25 — Iteration 2 / Phase 5: MERGED ✅
+Last updated: 2026-04-25 — Iteration 3 / Phase 5: MERGED ✅
 
 | Agent | Status | Report | Last Updated |
 |-------|--------|--------|--------------|
-| team-lead | Iter 2 MERGED — docker-compose verified healthy | team-lead-report.md | 2026-04-25 |
-| frontend-expert | Iter 2 applied (Batches P/S/U) | frontend-report.md | 2026-04-24 |
-| backend-expert | Iter 2 applied (Batches P/K) | backend-report.md | 2026-04-24 |
-| architect | APPROVED Iter 2 plan, no deviations | architect-report.md | 2026-04-24 |
-| qa-tester | Docker-compose QA PASSED 2026-04-25 | - | 2026-04-25 |
+| team-lead | Iter 3 MERGED — TypeScript clean, all 9 items DONE | team-lead-report.md | 2026-04-25 |
+| frontend-expert | Iter 3 applied (F-W1, U-M2, pre-existing fixes) | frontend-report.md | 2026-04-25 |
+| backend-expert | Iter 3 applied (SV-16a, SV-16b, SV-20, SV-14) | backend-report.md | 2026-04-25 |
+| architect | APPROVED Iter 3 plan, no deviations | architect-report.md | 2026-04-25 |
+| qa-tester | Static QA PASSED — TS clean, spot-checks verified | - | 2026-04-25 |
 
-## Current Iteration: 2
+## Current Iteration: 3
 ## Phase: COMPLETE ✅
-## User approval: ALL (Batches P + S + U + K) — carried out under "optimize performance + SEO + UX/UI for user and admin"
+## User approval: ALL (SV-16, SV-20, SV-14, U-M2, F-W1 + pre-existing fixes)
 
-## Iteration 2 completion status
-- Batch P (Performance): 11/11 DONE
-- Batch S (SEO):          7/7 DONE
-- Batch U (UX/UI):        9/9 DONE
-- Batch K (Iter-1 carryover): 11/11 DONE
-- House-keeping (dead files): 5/5 DONE
-- Docker-compose fixes: 3/3 DONE
-- **Total: 46/46 items applied.**
+## Iteration 3 completion status
+- SV-16a (Stripe webhooks):         DONE
+- SV-16b (PayPal confirm + webhook): DONE
+- SV-20 (blog detail scalar subquery): DONE
+- SV-14 (auth user cache 30s TTL):  DONE
+- U-M2 (admin tab conditional render): DONE
+- F-W1 (subscription success handlers): DONE
+- Pre-existing fixes (3 files):     DONE
+- **Total: 9/9 items applied.**
 
-## Docker-compose fixes applied (2026-04-25)
-| Fix | Description |
-|-----|-------------|
-| `docker-compose.yml` | Removed obsolete `version: '3.8'` attribute |
-| `docker-compose.yml` | Added explicit `SYNC_DB` env passthrough to server container |
-| `server/nodemon.json` | Created with `exec: "ts-node"` to prevent ts-file duplication bug |
-| `.env` (root) | Fixed `SEED_ADMIN_EMAIL` typo (`admin@admin.comn` → `admin@admin.com`), fixed `SEED_ADMIN_PASSWORD` too short (10→20 chars), removed duplicate `NEXT_PUBLIC_API_URL` |
+## New files created (Iteration 3)
+| File | Purpose |
+|------|---------|
+| `server/src/controllers/webhook.controller.ts` | Stripe + PayPal webhook handlers |
+| `server/src/routes/webhook.routes.ts` | Routes with express.raw() body parser |
 
-## Verified healthy (2026-04-25 docker compose up)
-- `db` (postgres:15) — UP, port 5432
-- `redis` (redis:7-alpine) — UP, port 6379
-- `server` (Node/Express) — UP, port 5000; `GET /health` → `{"status":"ok"}`
-- `client` (Next.js 16) — UP, port 3000; `GET /` → HTTP 200
-- Admin seed → `admin@admin.com` created on first boot
-- `ts-node src/index.ts` single invocation confirmed (no file duplication)
+## Key mutations (Iteration 3)
+| File | Change |
+|------|--------|
+| `server/src/index.ts` | Webhook router mounted BEFORE express.json() |
+| `server/src/middleware/auth.middleware.ts` | 30s in-process user cache + clearUserCache export |
+| `server/src/controllers/blog.controller.ts` | getPostBySlug uses scalar subquery for view_count |
+| `server/src/controllers/subscription.controller.ts` | confirmPayPalSubscription + CLIENT_URL fix |
+| `server/src/routes/subscription.routes.ts` | POST /paypal/confirm added |
+| `client/src/app/admin/page.tsx` | 9 TabsContent bodies conditionally rendered |
+| `client/src/app/subscription/page.tsx` | ?success, ?paypal_success, ?canceled handlers |
+| `client/src/app/ambassador/apply/page.tsx` | router.push moved to useEffect |
+| `client/src/app/blog/[slug]/page.tsx` | OG/JSON-LD images use absoluteUrl() |
+| `client/src/lib/env.ts` | absoluteUrl export + improved resolveUploadUrl JSDoc |
 
-## Iteration 1 — final state (after Iter-2 carryover)
-All items now resolved through Iter 2's Batch K.
+## TypeScript compile status (Iteration 3)
+- server: `npx tsc --noEmit` → 0 errors ✅
+- client: `npx tsc --noEmit` → 0 errors ✅
 
-## Next iteration candidates (deferred)
-- **SV-06** sequelize-cli / umzug migrations (architectural)
-- **SV-16** Stripe/PayPal webhooks (subscription status never flips true without this)
-- **SV-14** per-request user cache (reduce DB round-trip on auth)
-- **SV-19 / P-B4** composite index on Favorite(userId, blogPostId)
-- **SV-20** blog view COUNT via aggregation on detail page
+## Iteration 2 — final state (carried forward)
+All 46 items from Iter 2 (Batches P/S/U/K + house-keeping + docker-compose fixes) remain applied.
+
+## Next iteration candidates (Iteration 4)
+- **SV-06** sequelize-cli / umzug migrations (enables P-B4 composite index + paypalSubscriptionId column)
 - **FE-03-full** HttpOnly cookie + CSRF coordinated migration
 - **U-M1** HeroSection static-first refactor (LCP optimization, needs product sign-off)
-- **U-M2** Admin tab mount-on-enter
+- **Cleanup** Remove `@types/stripe` devDependency (conflicts with Stripe SDK v20 built-in types)
+- **getFavorites** view_count — apply same scalar subquery as SV-20
+- **SV-14 scope** — also clear user cache in admin role-change endpoint
 
 See `FINAL-REPORT.md` (repo root) for the user-facing summary.

@@ -52,9 +52,24 @@ export const absoluteUrl = (path: string): string => {
   return `${SITE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
 };
 
-/** Resolve an upload path served by the Express backend. */
+/**
+ * Resolve an upload path to a **root-relative** URL (`/uploads/filename.jpg`).
+ *
+ * Why relative, not absolute?
+ *   Inside Docker the Next.js container cannot reach `localhost:5000` — that
+ *   resolves to itself, not the Express container. Returning a root-relative
+ *   path lets Next.js rewrites (`/uploads/:path* → server:5000/uploads/:path*`)
+ *   handle the proxy both for browser fetches and for the server-side image
+ *   optimisation service.
+ *
+ * For OG metadata / JSON-LD where an absolute URL is required, wrap the result
+ * with `absoluteUrl()`:
+ *   absoluteUrl(resolveUploadUrl(path) ?? '/logo.png')
+ */
 export const resolveUploadUrl = (path: string | null | undefined): string | null => {
   if (!path) return null;
+  // Already an absolute external URL — pass through unchanged.
   if (/^https?:\/\//i.test(path)) return path;
-  return `${SERVER_ORIGIN}${path.startsWith('/') ? '' : '/'}${path}`;
+  // Return root-relative so Next.js rewrites can proxy to the Express server.
+  return path.startsWith('/') ? path : `/${path}`;
 };

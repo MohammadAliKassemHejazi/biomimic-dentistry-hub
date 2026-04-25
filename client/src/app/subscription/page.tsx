@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import Footer from '@/components/Footer';
@@ -127,9 +128,63 @@ const Subscription = () => {
   const [selectedTier, setSelectedTier] = useState<SubscriptionTier | null>(null);
   const [paymentLoadingMethod, setPaymentLoadingMethod] = useState<'stripe' | 'paypal' | null>(null);
   const { user, isAuthenticated } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
 
-  const { data: currentSubscription } = useSubscription(isAuthenticated);
+  const { data: currentSubscription, refetch: refetchSubscription } = useSubscription(isAuthenticated);
+
+  // F-W1 (Iter 3): Handle redirect params after payment.
+  // Stripe redirects to ?success=true, PayPal to ?paypal_success=true&subscription_id=I-xxx,
+  // and both redirect to ?canceled=true on cancel.
+  useEffect(() => {
+    const success = searchParams.get('success');
+    const paypalSuccess = searchParams.get('paypal_success');
+    const subscriptionId = searchParams.get('subscription_id');
+    const canceled = searchParams.get('canceled');
+
+    if (canceled === 'true') {
+      toast({
+        title: 'Payment cancelled',
+        description: 'No changes were made to your plan.',
+      });
+      router.replace('/subscription');
+      return;
+    }
+
+    if (success === 'true') {
+      toast({
+        title: 'Payment successful!',
+        description: 'Your subscription is being activated — this may take a few seconds.',
+      });
+      // Refetch subscription status after a short delay to allow the webhook to process
+      setTimeout(() => refetchSubscription(), 3000);
+      router.replace('/subscription');
+      return;
+    }
+
+    if (paypalSuccess === 'true' && subscriptionId) {
+      // Confirm the PayPal subscription on the server side
+      api
+        .post('/subscriptions/paypal/confirm', { subscription_id: subscriptionId })
+        .then(() => {
+          toast({
+            title: 'PayPal subscription activated!',
+            description: 'Your subscription is now active.',
+          });
+          refetchSubscription();
+        })
+        .catch((err) => {
+          toast({
+            title: 'PayPal activation failed',
+            description: describeError(err) || 'Please contact support if your subscription is not activated.',
+            variant: 'destructive',
+          });
+        });
+      router.replace('/subscription');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const getIconForKey = (key: string) => {
     switch (key) {

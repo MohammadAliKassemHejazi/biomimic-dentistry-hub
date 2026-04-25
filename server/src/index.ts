@@ -30,6 +30,8 @@ import leadershipMemberRoutes from './routes/leadershipMember.routes';
 import subscriptionPlanRoutes from './routes/subscriptionPlan.routes';
 import partnershipRoutes from './routes/partnership.routes';
 import newsletterRoutes from './routes/newsletter.routes';
+// SV-16 (Iter 3): webhook routes (Stripe + PayPal)
+import webhookRoutes from './routes/webhook.routes';
 import { seedDefaultAdmin } from './utils/seed';
 import { publicCacheHeaders } from './middleware/cache';
 
@@ -61,6 +63,14 @@ app.use(cors({
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));
+
+// SV-16 (Iter 3): CRITICAL — register webhook routes BEFORE express.json().
+// Stripe and PayPal require the raw request body for signature verification.
+// The global json middleware would consume and parse the body before our
+// route-level express.raw() handlers get a chance to see it, causing
+// stripe.webhooks.constructEvent() to throw a 400 signature error.
+app.use('/api/webhooks', webhookRoutes);
+
 // SV-18: explicit body limit. Blog content may be large; pick 1MB.
 app.use(express.json({ limit: '1mb' }));
 
@@ -92,9 +102,6 @@ sequelize.authenticate()
   });
 
 // P-B3 (Iter 2): apply HTTP Cache-Control for public, frequently-read routes.
-// Architect decision (Iter 2 #5): never stack with `cacheMiddleware` on same
-// route. The routes below are the ones that remain Redis-cached and do NOT
-// get this header are explicitly scoped within their own route file.
 const publicCache = publicCacheHeaders();
 
 // Routes

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -26,7 +26,17 @@ export default function AmbassadorApplyPage() {
   const [cvFile, setCvFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  if (authLoading) {
+  // Fix: never call router.push() during render — use useEffect for side-effect navigation
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+      router.push('/login');
+    } else if (user.is_ambassador || user.role === 'admin') {
+      router.push('/dashboard');
+    }
+  }, [user, authLoading, router]);
+
+  if (authLoading || !user) {
     return (
       <div className="flex justify-center items-center min-h-screen">
         <Loader2 className="animate-spin h-10 w-10" />
@@ -34,14 +44,13 @@ export default function AmbassadorApplyPage() {
     );
   }
 
-  if (!user) {
-    router.push('/login');
-    return null;
-  }
-
+  // Already an ambassador/admin — show spinner while redirect is in flight
   if (user.is_ambassador || user.role === 'admin') {
-    router.push('/dashboard');
-    return null;
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <Loader2 className="animate-spin h-10 w-10" />
+      </div>
+    );
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -61,7 +70,7 @@ export default function AmbassadorApplyPage() {
       toast({ title: 'Application Submitted', description: 'We will review your application shortly.' });
       router.push('/dashboard');
     } catch (error: any) {
-      toast({ title: 'Failed', variant: 'destructive' });
+      toast({ title: 'Submission failed', description: error?.message || 'Please try again.', variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }

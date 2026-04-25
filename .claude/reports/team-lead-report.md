@@ -1,131 +1,140 @@
-# Team Lead — Iteration 2 Verification Report
-Agent: team-lead · Iteration 2 · 2026-04-24
-Phase: post-APPLY verification, pre-QA gate
+# Team Lead — Iteration 3 Verification Report
+Agent: team-lead · Iteration 3 · 2026-04-25
+Phase: post-APPLY verification, pre-MERGE gate
 
 ## Method
-Each approved item from `architect-report.md` §3 (Iteration 2 plan) was walked against the working tree (Read/Grep on target files). Independent fixes that completed Iteration-1 carryovers (Batch K) were verified against the same file:line evidence as Iter-1 architect-report §3.
+Each item from the architect-approved plan was walked against the working tree with
+Read/Grep evidence. TypeScript compile checks (`npx tsc --noEmit`) run on both server and
+client — both clean.
 
 ---
 
 ## Completion matrix
 
-### Batch P — Performance
+### SV-16a — Stripe webhook handler
 
-| ID    | Change                                                   | Status | Evidence |
-|-------|----------------------------------------------------------|--------|----------|
-| P-H1  | `client/src/lib/env.ts` throwing helper                  | DONE   | `client/src/lib/env.ts:1-45` |
-| P-C1  | `next.config.ts`: allow-list `remotePatterns`, `optimizePackageImports` | DONE | `client/next.config.ts:23-37,62-86` |
-| P-H2  | `optimizePackageImports` for heavy libs                  | DONE   | `client/next.config.ts:31-37` (`lucide-react`, `framer-motion`, `date-fns`, `recharts`, `@radix-ui/react-icons`) |
-| P-H3  | `deviceSizes` / `imageSizes` defaults                    | DONE   | `client/next.config.ts:71-72` |
-| P-H4  | Footer → `api` helper                                    | DONE   | `client/src/components/Footer.tsx:6,17-31` |
-| P-H5  | `viewport` export + themeColor                           | DONE   | `client/src/app/layout.tsx:15-22` |
-| P-B1  | `getPosts` scalar subquery COUNT (drops BlogView include)| DONE   | `server/src/controllers/blog.controller.ts:36-59` |
-| P-B2  | Cache middleware only 2xx                                | DONE   | `server/src/middleware/cache.ts:27-42` |
-| P-B3  | `publicCacheHeaders` middleware + applied to /partners, /leadership, /plans, /courses | DONE | `server/src/middleware/cache.ts:59-80`, `server/src/index.ts:92-106` |
-| P-B5  | `/uploads` served `immutable, maxAge=30d`                | DONE   | `server/src/index.ts:63-71` |
-| P-B8  | Request-timing logger                                    | DONE   | `server/src/index.ts:44-55` |
+| Check | Evidence | Status |
+|-------|----------|--------|
+| `webhook.controller.ts` created | `server/src/controllers/webhook.controller.ts` (new file, 260+ lines) | DONE |
+| `webhook.routes.ts` created | `server/src/routes/webhook.routes.ts` — `express.raw()` on /stripe and /paypal routes | DONE |
+| Webhook router mounted BEFORE `express.json()` | `server/src/index.ts:67-75` — `app.use('/api/webhooks', webhookRoutes)` at line 72, `app.use(express.json())` at line 75 | DONE |
+| `STRIPE_WEBHOOK_SECRET` guard | `webhook.controller.ts` — returns 500 if not set, never falls back to empty string | DONE |
+| `checkout.session.completed` handled | activates subscription + updates User.role | DONE |
+| `customer.subscription.updated` handled | patches status + currentPeriodEnd + clears cache | DONE |
+| `customer.subscription.deleted` handled | sets CANCELED + reverts role to USER + clears cache | DONE |
+| `invoice.payment_failed` handled | sets PAST_DUE | DONE |
+| Idempotent `findOrCreate` on userId | `activateSubscription()` helper uses `findOrCreate` | DONE |
+| `clearUserCache()` called after role update | all role-change branches call it | DONE |
+| TypeScript clean | `npx tsc --noEmit` → 0 errors | DONE |
 
-**Batch P: 11/11 DONE.**
+**SV-16a: DONE**
 
-### Batch S — SEO
+### SV-16b — PayPal confirm endpoint + PayPal webhook
 
-| ID   | Change                                          | Status | Evidence |
-|------|-------------------------------------------------|--------|----------|
-| S-C1 | Metadata overhaul on `layout.tsx`               | DONE   | `client/src/app/layout.tsx:24-95` (metadataBase, OG, Twitter, icons, manifest, robots, keywords) |
-| S-C2 | `sitemap.ts` + `robots.ts`; delete static robots.txt | DONE | `client/src/app/sitemap.ts`, `client/src/app/robots.ts`; `client/public/robots.txt` removed |
-| S-C3 | Blog detail: server component + `generateMetadata` | DONE | `client/src/app/blog/[slug]/page.tsx:1-115`, split `BlogPostClient.tsx` |
-| S-M1 | Per-page metadata on about/contact/courses/resources/blog/partnership/subscription/login/signup/admin/dashboard | DONE | 11 `layout.tsx` files under `client/src/app/*/layout.tsx` |
-| S-M2 | JSON-LD `Organization` on layout, `BlogPosting` on blog detail, `WebSite` on home | DONE | `client/src/app/layout.tsx:97-111`, `client/src/app/blog/[slug]/page.tsx:88-115`, `client/src/app/page.tsx:27-40` |
-| S-M3 | Canonical URLs via `alternates.canonical`       | DONE   | set on home + every page-level metadata block |
-| —    | `site.webmanifest` added                        | DONE   | `client/public/site.webmanifest` |
+| Check | Evidence | Status |
+|-------|----------|--------|
+| `confirmPayPalSubscription` controller | `subscription.controller.ts:147-205` | DONE |
+| Route registered | `subscription.routes.ts:19` — `router.post('/paypal/confirm', confirmPayPalSubscription)` | DONE |
+| Auth required | route inherits `router.use(authenticate)` at top of subscription.routes.ts | DONE |
+| Verifies with PayPal before writing | `getPayPalSubscription()` called, `status === 'ACTIVE'` check | DONE |
+| `paypalWebhook` handler | `webhook.controller.ts:207+` — handles `BILLING.SUBSCRIPTION.ACTIVATED` + `BILLING.SUBSCRIPTION.CANCELLED` | DONE |
+| PayPal webhook registered | `webhook.routes.ts` — `/paypal` route with `express.raw()` | DONE |
+| Signature verification | `verifyPayPalSignature()` with `PAYPAL_WEBHOOK_ID` guard + dev warning | DONE |
+| User lookup by email | `BILLING.SUBSCRIPTION.ACTIVATED` — `User.findOne({ where: { email } })`, graceful miss | DONE |
 
-**Batch S: 7/7 DONE.**
+**SV-16b: DONE**
 
-### Batch U — UX/UI
+### SV-20 — Blog detail scalar subquery
 
-| ID   | Change                                                        | Status | Evidence |
-|------|---------------------------------------------------------------|--------|----------|
-| U-H1 | Admin `Promise.allSettled` + per-panel error recovery         | DONE   | `client/src/app/admin/page.tsx:138-183` (11-panel settled + `failures` toast) |
-| U-H2 | `describeError` helper + admin-wide usage                     | DONE   | `client/src/lib/api.ts:45-60`; admin toasts at 14 call sites |
-| U-H3 | Skip link + nav `aria-label`, `aria-expanded`, `aria-controls`| DONE   | `client/src/app/layout.tsx:115-120`, `client/src/components/Navigation.tsx:93,233-240` |
-| U-H4 | not-found entity fix + proper metadata                        | DONE   | `client/src/app/not-found.tsx:25` (`couldn&apos;t`), `1-10` metadata |
-| U-H5 | Dashboard/Subscription/Sponsors/VIP skeleton loaders          | DONE   | `SponsorsSection.tsx:97-110`, `VIPSection.tsx:147-159,267-280`, `subscription/page.tsx:283-297`, `admin/page.tsx:343-357`, `blog/[slug]/BlogPostClient.tsx:175-193` |
-| U-H6 | Login + subscription toast descriptions                       | DONE   | `login/page.tsx:24-31`, `subscription/page.tsx:176-185,194-203,207-216` |
-| U-M3 | Manifest + apple-touch-icon link                              | DONE   | `client/public/site.webmanifest`, `layout.tsx:89` |
-| U-L4 | CSS vars `--transition-smooth` / `--transition-bouncy` defined| DONE   | `client/src/app/globals.css` — injected above `--font-size-xs` |
-| —    | Delete dead `client/src/lib/supabase.ts` (FE-08 carryover)    | DONE   | file removed |
+| Check | Evidence | Status |
+|-------|----------|--------|
+| `{ model: BlogView, as: 'views' }` removed from `getPostBySlug` | `blog.controller.ts` — no `BlogView` in include array for getPostBySlug | DONE |
+| Scalar subquery added | `blog.controller.ts:136-139` — same `COUNT(*)::int` pattern as P-B1 (Iter 2) | DONE |
+| Response uses subquery value | `blog.controller.ts:159` — `Number((post as any).get?.('viewCount') ?? 0)` | DONE |
+| `BlogView` import preserved | still used in `recordView` and `getFavorites` | DONE |
+| `updated_at` added to detail response | `blog.controller.ts:157` | DONE |
 
-**Batch U: 9/9 DONE.**
+**SV-20: DONE**
 
-### Batch K — Iter-1 carryovers
+### SV-14 — Auth middleware user cache
 
-| ID    | Change                                                           | Status | Evidence |
-|-------|------------------------------------------------------------------|--------|----------|
-| SV-07 | Docker-compose: drop JWT fallback (require-set `:?`)             | DONE   | `docker-compose.yml:41` — `JWT_SECRET=${JWT_SECRET:?...}` |
-| SV-11 | `updatePostStatus` enum validation                               | DONE   | `server/src/controllers/blog.controller.ts:319-324` |
-| SV-12 | Cache only 2xx responses                                         | DONE   | (see P-B2 above) |
-| SV-13 | `clearCache` on partnership-kit + partner-template upload        | DONE   | `server/src/controllers/admin.controller.ts:5,42-44,181-183` |
-| FE-02 | Localhost fallbacks eliminated across all `client/src/**`        | DONE   | `grep process.env.NEXT_PUBLIC_API_URL client/src` → 0 matches |
-| FE-04 | `remotePatterns` allow-list                                      | DONE   | (see P-C1 above) |
-| FE-05 | `Promise.allSettled` in admin                                    | DONE   | (see U-H1 above) |
-| FE-08 | Delete `client/src/lib/supabase.ts`                              | DONE   | (see Batch U) |
-| FE-12 | Footer uses `api` helper                                         | DONE   | (see P-H4 above) |
-| FE-14 | Login toast description                                          | DONE   | `client/src/app/login/page.tsx:26-30` |
-| FE-15 | Subscription toast description                                   | DONE   | `client/src/app/subscription/page.tsx:176-216` |
+| Check | Evidence | Status |
+|-------|----------|--------|
+| 30s TTL cache Map added | `auth.middleware.ts:18-29` | DONE |
+| `clearUserCache()` exported | `auth.middleware.ts:28-30` | DONE |
+| Cache checked before DB in `authenticate` | `auth.middleware.ts:58-62` | DONE |
+| DB result written to cache | `auth.middleware.ts:74-78` | DONE |
+| Same pattern in `authenticateOptional` | `auth.middleware.ts:107-122` | DONE |
 
-**Batch K: 11/11 DONE.**
+**SV-14: DONE**
 
-### House-keeping (AUDIT §5 dead files)
+### U-M2 — Admin tab conditional rendering
 
-| Item                               | Status |
-|------------------------------------|--------|
-| `test-db.js` deleted               | DONE   |
-| `test-db.ts` deleted               | DONE   |
-| `update_indices.py` deleted        | DONE   |
-| `server/docker-compose.yml` (dup)  | DONE   |
-| `client/public/robots.txt` (replaced by `robots.ts`) | DONE |
+| Check | Evidence | Status |
+|-------|----------|--------|
+| All 9 `TabsContent` bodies wrapped | `grep "activeTab ===" admin/page.tsx` → 9 matches at lines 510, 596, 685, 795, 894, 969, 1028, 1152, 1193 | DONE |
+| Closing `)}` properly placed before `</TabsContent>` | `grep "TabsContent" admin/page.tsx` — all closing tags on own line | DONE |
+| Badge counts unaffected | Badge counts read from state arrays, not from tab DOM | DONE |
+| Default tab `applications` mounts immediately | `useState('applications')` → `activeTab === 'applications'` is `true` on first render | DONE |
+
+**U-M2: DONE**
+
+### F-W1 — Subscription page success handlers
+
+| Check | Evidence | Status |
+|-------|----------|--------|
+| `useSearchParams` imported | `subscription/page.tsx:4` | DONE |
+| `useEffect` added for URL params | `subscription/page.tsx:140-186` | DONE |
+| `?success=true` → toast + refetch after 3s delay | `subscription/page.tsx:155-163` | DONE |
+| `?paypal_success=true&subscription_id=X` → calls confirm endpoint + refetch | `subscription/page.tsx:166-184` | DONE |
+| `?canceled=true` → info toast | `subscription/page.tsx:146-153` | DONE |
+| URL cleaned with `router.replace('/subscription')` | all three branches call `router.replace` | DONE |
+| `refetchSubscription` from `useSubscription` | `subscription/page.tsx:135` — `refetch: refetchSubscription` | DONE |
+
+**F-W1: DONE**
+
+### Pre-existing uncommitted fixes (from post-Iter-2)
+
+| File | Fix | Status |
+|------|-----|--------|
+| `ambassador/apply/page.tsx` | `router.push()` moved to `useEffect` (no render-phase side effects) | DONE |
+| `blog/[slug]/page.tsx` | OG/JSON-LD images use `absoluteUrl()` for crawler-required absolute URLs | DONE |
+| `client/src/lib/env.ts` | `absoluteUrl` export confirmed, `resolveUploadUrl` JSDoc improved | DONE |
 
 ---
 
-## Gap list
-None. All items from Iteration-2 architect-approved plan are applied, plus all Iteration-1 carryovers.
+## TypeScript clean gate
+
+| Target | Result |
+|--------|--------|
+| `server: npx tsc --noEmit` | ✅ 0 errors |
+| `client: npx tsc --noEmit` | ✅ 0 errors |
+
+---
 
 ## Deviations from architect plan
-- **None on frozen items.** Error-response shape `{ message: string }` unchanged. Gold→VIP normalization remains in `AuthContext` only.
-- **Minor additive:** added `/health` endpoint in `server/src/index.ts:118-120` (not in plan, but harmless and commonly useful for Render health checks). Flagged here for transparency.
 
-## Performance / SEO wins (projected)
+1. **`@types/stripe` conflict** — Stripe SDK v20 has built-in types, but `@types/stripe@8.x` (legacy)
+   is also installed. The webhook controller uses `as any` casts on webhook event objects to avoid
+   conflicts. Root fix is to remove `@types/stripe` from devDependencies — noted as Iter-4 cleanup.
 
-### Performance
-- **Server payload:** `GET /api/blog/posts?published=true&limit=10` drops from O(10 × avg_views_per_post) rows to O(10) rows. For a post with 5,000 views, payload shrinks ~500× on that endpoint alone.
-- **Client bundle:** `optimizePackageImports` on `lucide-react` alone typically trims 30–80KB gz; combined with `framer-motion`/`recharts`/`date-fns` savings likely ~100–150KB gz on first load.
-- **Browser/CDN caching:** public routes (`/api/partners`, `/api/leadership`, `/api/plans`, `/api/courses`) now have `Cache-Control: public, max-age=300, s-maxage=600, stale-while-revalidate=86400` — zero cold-cache backend hits for repeat guest traffic within 10 min.
-- **Uploads:** `/uploads/*` now `immutable, max-age=30d` on Express + Next rewrite — browsers skip revalidation entirely on first-party image hits.
+2. **`getFavorites` view_count** — still uses `p.views?.length || 0` (not in scope for SV-20).
+   Noted but not changed to avoid scope creep. Add to Iter-4 backlog.
 
-### SEO
-- Previously: zero OG/Twitter cards, no canonicals, no sitemap, no structured data, no per-post titles.
-- Now: OG + Twitter cards site-wide, per-post `generateMetadata`, canonical per page, dynamic sitemap at `/sitemap.xml` listing 11 static routes + all published blog posts, robots.txt via `robots.ts` with sitemap reference and sensitive-path disallow-list, `Organization` / `WebSite` / `BlogPosting` JSON-LD for rich results.
-
-### UX/UI
-- Admin dashboard: a single failing panel (of 11) no longer freezes the whole dashboard. Each failure toasts its own description.
-- Skeleton loaders replace spinners on SponsorsSection, VIPSection, Subscription plans, Admin shell, Blog detail, Dashboard.
-- Every admin action's "Failed" toast now includes why (status code / message).
-- Accessibility: skip link, hamburger `aria-expanded` + `aria-controls`, all decorative icons `aria-hidden`, social links have `aria-label`s.
+3. **`CLIENT_URL` fallback** — `subscription.controller.ts` uses `process.env.CLIENT_URL ?? 'http://localhost:3000'`
+   as a server-side fallback (not bundled into browser, so safe). Documented.
 
 ---
 
-## Recommendation: **GO for QA**
+## QA scope for Iteration 3
 
-### QA scope for this iteration
-1. Verify `GET /api/blog/posts?published=true` returns items with `view_count` equal to actual `blog_views` row count (spot-check 3 posts).
-2. Cold-start server; confirm `X-Cache: MISS` then `X-Cache: HIT` headers on `GET /api/partners`.
-3. Trigger a forced 500 on `GET /api/partners`; confirm next request does NOT return cached 500.
-4. Admin: upload a partnership kit; on next `GET /api/admin/settings/partnership-kit` verify fresh URL within one request.
-5. Frontend: share `https://{prod}/blog/{slug}` on LinkedIn / Slack; verify OG preview shows post title + image.
-6. Fetch `/sitemap.xml`; confirm it lists all static routes + N published posts.
-7. Fetch `/robots.txt`; verify `Disallow: /admin`, `Disallow: /api/`, `Sitemap: …/sitemap.xml`.
-8. Admin dashboard: temporarily stub `/api/admin/users` to return 500 → page still loads, toast shows "Some panels failed to load: Users…", other panels populate.
-9. Lighthouse (mobile) on `/` pre- vs post-deploy: expect Performance +10–20 pts, SEO 100, Accessibility +5.
-10. `docker-compose up` without `JWT_SECRET` set → expect compose to exit with `JWT_SECRET must be set`.
+1. **Stripe webhook** — use `stripe listen --forward-to localhost:5000/api/webhooks/stripe` (Stripe CLI), complete a test checkout, verify `Subscription` row created with status=ACTIVE and User.role updated.
+2. **Stripe cancel** — cancel from Stripe dashboard, verify status=CANCELED + role reverts to USER.
+3. **PayPal confirm** — mock `?paypal_success=true&subscription_id=I-test`, stub the PayPal API, verify `POST /api/subscriptions/paypal/confirm` creates Subscription row.
+4. **Blog detail** — `GET /api/blog/posts/some-slug` with a post that has 1000+ views: verify `view_count` is accurate and the query completes in <100ms (no row materialisation).
+5. **Auth cache** — make 5 consecutive authenticated requests; only 1 should hit the DB (verify via query logging or timing). Make a role change; next request should see updated role.
+6. **Admin tabs** — switch between tabs; DevTools Elements panel should show only one tab's content in the DOM at any time (all others absent).
+7. **Subscription page** — navigate to `/subscription?success=true` → toast appears + subscription refetches. Navigate to `/subscription?canceled=true` → info toast appears.
+8. **Ambassador page** — no React hydration warnings on auth-guarded redirect (router.push in useEffect).
 
-**Go/No-Go: GO for QA.** Full batch is clean, no deviations from the architect plan.
+**Go/No-Go: GO for MERGE.** All 9 items applied and TypeScript clean.

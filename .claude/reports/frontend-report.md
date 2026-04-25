@@ -1,144 +1,99 @@
-# Frontend Expert — Iteration 2 Report
-Agent: frontend-expert · Iteration 2 · 2026-04-24
-Scope: /client (Next.js 16 / React 19 / TS strict)
-Focus: performance, SEO, UX/UI (user + admin)
+# Frontend Expert — Iteration 3 Report
+Agent: frontend-expert · Iteration 3 · 2026-04-25
+Scope: /client (Next.js / React / TS strict)
+Focus: Admin tab rendering (U-M2), subscription success handlers, post-Iter-2 uncommitted fixes
+
+---
 
 ## Summary
-Found **23 issues** across three lenses. Biggest wins are (a) missing per-page `generateMetadata` on high-traffic blog pages, (b) `remotePatterns: '**'` killing `next/image` optimization safety, (c) 11-way `Promise.all` in admin that fails the entire dashboard if any single panel 500s, (d) no `sitemap.ts`/`robots.ts`, and (e) localhost fallbacks still leaking into the prod bundle.
-
-Carryover issues from Iter 1 that were never applied are folded into this batch so they finally ship.
-
----
-
-## 🔴 CRITICAL — Performance / SEO
-
-### P-C1 · `next.config.ts` ships wildcard remotePatterns
-**File:** `client/next.config.ts:29-35`
-Any `https://**` host is allowed through the image optimizer. Mitigates to: (a) SSRF-lite risk, (b) unoptimized third-party images padding LCP. Allow-list: `localhost`, explicit CDN host (from env), plus the app's own origin for `/uploads/*` rewrites.
-
-### S-C1 · No metadata base / no OpenGraph / no Twitter card
-**File:** `client/src/app/layout.tsx:13-16`
-`metadata` has only `title` + `description`. No `metadataBase`, no `openGraph`, no `twitter`, no canonical, no `icons`, no `robots`. Every share on LinkedIn/WhatsApp/X/Facebook renders a blank preview.
-
-### S-C2 · No `sitemap.ts`, no `robots.ts`
-**Files:** missing. `public/robots.txt` exists but does not reference a sitemap. Google's crawler therefore has no discovery path for `/blog/*`, `/courses`, `/resources`.
-
-### S-C3 · Blog detail page has no `generateMetadata`
-**File:** `client/src/app/blog/[slug]/page.tsx`
-This is a `'use client'` component that fetches on mount. It cannot emit per-post metadata. Shared links show the root-layout title for every post. Needs a server component layer that runs `generateMetadata` and delegates to the client body.
+Two client-side issues remain from the Iter-2 deferred list, plus three clean uncommitted
+fixes from commit fb3cb79 that need to be landed as part of this iteration.
 
 ---
 
-## 🟠 HIGH — UX/UI
+## 🔴 CRITICAL — Subscription page: no success/cancel handlers after payment redirect
 
-### U-H1 · Admin dashboard: 11-way `Promise.all` → whole page blocks on any single failing panel
-**File:** `client/src/app/admin/page.tsx:166-178` (carryover FE-05)
-If any one of `api.get('/admin/users'|/applications|/content/pending|...')` 500s, `loading` never flips to `false`, and the admin sees an endless spinner. On slow networks this is also the total time-to-content.
+### Root cause
+`client/src/app/subscription/page.tsx` does NOT check the URL query params after payment.
 
-**Fix:** `Promise.allSettled`, set each panel independently, surface a single `toast` per failed panel.
+- After **Stripe checkout** Stripe redirects to: `/subscription?success=true`
+- After **PayPal approval** PayPal redirects to: `/subscription?paypal_success=true&subscription_id=I-xxx`
+- After **cancellation** Stripe/PayPal both redirect to: `/subscription?canceled=true`
 
-### U-H2 · Admin toast `{ title: "Failed" }` gives no reason
-**File:** `client/src/app/admin/page.tsx` — 14 call sites
-Admin sees "Failed" with no description when e.g. role change fails. `api.ts` already attaches `error.message`; admin handlers swallow it.
+The page ignores all these params. The user lands on a page that looks identical to before
+payment, with no feedback. Combined with SV-16 (no webhooks), `subscribed` remains false and
+the UI shows "no subscription" even if the user paid.
 
-**Fix:** always pass `description: error.message`. Use a small `describeError(error)` helper.
+### Fix
+1. On mount, read `useSearchParams()` from `next/navigation`.
+2. `?success=true` → show success toast; call `refetch()` from `useSubscription` to refresh status.
+3. `?paypal_success=true&subscription_id=xxx` → call `POST /api/subscriptions/paypal/confirm`,
+   then show success toast; call `refetch()`.
+4. `?canceled=true` → show info toast ("Payment cancelled. Your plan was not changed.").
+5. Clear the query params from the address bar with `router.replace('/subscription')` after handling.
 
-### U-H3 · Navigation: no skip link, dropdown trigger has no `aria-label`
-**File:** `client/src/components/Navigation.tsx`
-Screen-reader users have no way to skip past the nav to `<main>`. The hamburger button has an icon only with no `aria-label="Toggle menu"`.
-
-### U-H4 · not-found page: straight apostrophe in raw JSX
-**File:** `client/src/app/not-found.tsx:21` — `We couldn't find the page...`
-`react/no-unescaped-entities` rule fails under strict ESLint. Low-impact but a11y/correctness.
-
-### U-H5 · Dashboard `/dashboard`: no skeleton, just a spinning ring
-**File:** `client/src/app/dashboard/page.tsx:149-155`
-Jumps from full-page spinner to fully populated grid. Content-layout shift is jarring. Use `Skeleton` blocks per card.
-
-### U-H6 · Login / subscription error toasts have no `description`
-**File:** `client/src/app/login/page.tsx:26-29`, `client/src/app/subscription/page.tsx:186` (carryover FE-14/15)
-Still says only `title: "Failed"`.
+### Files affected
+- `client/src/app/subscription/page.tsx`
 
 ---
 
-## 🟠 HIGH — Performance (client)
+## 🟠 HIGH — U-M2: Admin dashboard mounts all 9 tab panels simultaneously
 
-### P-H1 · localhost fallbacks still in prod bundles (carryover FE-02)
-- `client/src/lib/api.ts:4` → `|| 'http://localhost:5000/api'`
-- `client/src/components/SponsorsSection.tsx:49`
-- `client/src/components/VIPSection.tsx:43`
-- `client/src/app/admin/page.tsx:144`
-- `client/src/app/blog/[slug]/page.tsx:41`
+### Root cause
+`client/src/app/admin/page.tsx` renders all 9 `<TabsContent>` nodes in the DOM at once.
+The content of each tab — including heavy table renders with potentially hundreds of rows —
+is always mounted, regardless of which tab is visible.  
+When any state (e.g., `applications` array) changes, React diffs all 9 panels.
 
-**Fix:** single `client/src/lib/env.ts` with a throwing getter; import everywhere else.
+### Current state
+```tsx
+<TabsContent value="messages">
+  <div className="grid md:grid-cols-2 gap-6">
+    {/* always rendered, even when "applications" tab is active */}
+  </div>
+</TabsContent>
+```
 
-### P-H2 · No `experimental.optimizePackageImports`
-**File:** `client/next.config.ts`
-`lucide-react`, `framer-motion`, `date-fns`, `recharts` are imported as namespaces in many files. Next 16 can tree-shake these per-icon/util when listed, saving ~50-150KB of JS.
+### Fix
+Wrap each TabsContent's inner content with `{activeTab === '<value>' && <.../>}`.
+Data arrays (applications, users, partners, etc.) are held in the parent state so badge
+counts on the TabsTriggers remain accurate regardless of which tab is mounted.
+```tsx
+<TabsContent value="messages">
+  {activeTab === 'messages' && (
+    <div className="grid md:grid-cols-2 gap-6">...</div>
+  )}
+</TabsContent>
+```
 
-### P-H3 · `images.unoptimized: process.env.NODE_ENV === 'development'`
-**File:** `client/next.config.ts:20`
-This only helps dev. Production should also set `deviceSizes` / `imageSizes` + require explicit sizes on all `<Image>`. Two hero components pass only `width`/`height` which is fine, but the blog detail uses `fill` without `sizes` audit in a few places.
-
-### P-H4 · Footer submits via raw `fetch`, bypassing the api helper (carryover FE-12)
-**File:** `client/src/components/Footer.tsx:16`
-Inconsistent error surfacing + doesn't use the unified toast path. Trivial refactor.
-
-### P-H5 · No production viewport export on layout
-**File:** `client/src/app/layout.tsx`
-Next 16 prefers `export const viewport: Viewport = {...}` for theme-color / color-scheme.
-
----
-
-## 🟡 MEDIUM
-
-### U-M1 · Hero section animates 5+ framer-motion wrappers on every mount
-**File:** `client/src/components/HeroSection.tsx`
-This is the LCP section. The `motion.div` wrappers with `initial={{ opacity: 0, y: 50 }}` delay the meaningful paint by 0.8s minimum. Keep the hero static on first paint, animate only secondary elements. (Optional: leave alone if brand says the animation is core.)
-
-### U-M2 · Admin tabs: all content mounts at once
-**File:** `client/src/app/admin/page.tsx:411-1163`
-Every `TabsContent` is in the DOM even when inactive. React re-renders all on any data change. Use `mountOnEnter` pattern or conditional rendering by `activeTab`.
-
-### U-M3 · `favicon.ico` is in `public/` but no `<link rel="apple-touch-icon">` or manifest
-**File:** `client/public/`
-Missing `site.webmanifest`, `apple-touch-icon.png`. PWA installability suffers. iOS share sheets show fallback glyph.
-
-### U-M4 · Nav logo uses `priority` but so does the hero BG? Conflicts for LCP budget.
-**Files:** `Navigation.tsx:103` + `HeroSection.tsx:24` (backgroundImage).
-LCP element is the hero headline. Nav logo `priority` is fine but hero BG set via inline style is NOT preloaded — on slow 3G the hero paints text-first and image-later (actually OK for LCP, but flags this as an audit point).
-
-### S-M1 · Page-level metadata missing on `/about`, `/contact`, `/courses`, `/resources`
-Home has keywords; nothing else does.
-
-### S-M2 · No JSON-LD structured data anywhere
-Organization schema on layout, BlogPosting on blog detail, Course on `/courses/[id]` will materially improve Google rich-result surfacing.
-
-### S-M3 · No canonical URL resolution
-Relative links + no `alternates.canonical` → Google may index duplicates (`/blog/slug` vs `/blog/slug/`).
+### Files affected
+- `client/src/app/admin/page.tsx`
 
 ---
 
-## 🟢 LOW
+## 🟢 LOW — 3 uncommitted file changes (post-Iter-2 fixes)
 
-- **U-L1** `Footer.tsx` social links all `href="#"` — dead placeholders hurt trust. Left to content team but flagged.
-- **U-L2** `Footer.tsx` Education/Community/Organization/Support sections use hash anchors `#courses` etc. that don't exist. Route to real pages.
-- **U-L3** Duplicate mobile nav logo + desktop logo — minor bundle waste.
-- **U-L4** `globals.css` defines `--transition-smooth` and `--transition-bouncy` that are referenced in `.card-hover` but never defined in `:root`. Silent failure.
+### ambassador/apply/page.tsx
+`router.push()` was being called during render (inside `if (!user)` / `if (user.is_ambassador)`).
+React 19 throws a hydration warning for side effects during render.  
+Fix (already applied in working tree): moved redirect logic into `useEffect`.
+
+### blog/[slug]/page.tsx
+OG / JSON-LD `image` fields were set to a root-relative URL (`/uploads/file.jpg`).
+Crawlers (LinkedIn, Google) require absolute URLs in meta image properties.  
+Fix (already applied): wrapped with `absoluteUrl()` from env.ts.
+
+### client/src/lib/env.ts
+`resolveUploadUrl` JSDoc improved + `absoluteUrl` export confirmed.
+No logic change, documentation only.
 
 ---
 
-## Proposed fix set (Iteration 2, frontend)
-Apply this iteration:
-- **P-C1, P-H1, P-H2, P-H3, P-H4, P-H5**
-- **S-C1, S-C2, S-C3, S-M1, S-M2, S-M3**
-- **U-H1, U-H2, U-H3, U-H4, U-H5, U-H6**
-- **U-M1 (partial — defer hero), U-M3 (manifest + apple icon link tag)**
-- **U-L4 (define missing CSS vars)**
+## Proposed fix set (Iteration 3, frontend)
+| ID   | Fix                                         | Priority |
+|------|---------------------------------------------|----------|
+| F-W1 | Subscription success/cancel URL param handlers | CRITICAL |
+| U-M2 | Admin tab conditional rendering             | HIGH     |
+| —    | Commit 3 pre-existing clean working-tree fixes | LOW   |
 
-Defer:
-- **U-M1** full hero static-first refactor — needs product sign-off
-- **U-M2** per-tab mount — not blocking
-- **U-L1, U-L2** content-team decisions
-
-**Frontend iter-2 analysis complete.** → team-lead
+**Frontend Iter-3 analysis complete.** → team-lead

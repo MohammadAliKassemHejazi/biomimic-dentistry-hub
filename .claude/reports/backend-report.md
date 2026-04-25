@@ -1,107 +1,127 @@
-# Backend Expert — Iteration 2 Report
-Agent: backend-expert · Iteration 2 · 2026-04-24
-Scope: /server (Express 5 / Sequelize-TS / PG / Redis / Stripe)
-Focus: performance + HTTP hygiene (supports SEO + admin UX stability)
+# Backend Expert — Iteration 3 Report
+Agent: backend-expert · Iteration 3 · 2026-04-25
+Scope: /server (Express / Sequelize-TS / Stripe / PayPal)
+Focus: Webhooks (SV-16), view-count aggregation (SV-20), per-request cache (SV-14)
 
 ## Summary
-Found **11 server-side issues** impacting either (a) time-to-content for the public pages Google crawls, or (b) admin panel responsiveness. Three are Iter-1 carryovers that were never merged (SV-07, SV-11, SV-12, SV-13). The rest are new for Iter 2.
+Three issues remain from the Iter-2 deferred list. SV-16 is the single biggest **functional** gap
+in the application: users can pay via Stripe/PayPal but the `Subscription` record in Postgres is
+never set to ACTIVE, so `GET /api/subscriptions/status` always returns `{ subscribed: false }` and
+User.role never gets promoted. The subscription UI shows the plans but completing checkout is
+effectively a no-op until webhooks are handled.
 
 ---
 
-## 🔴 CRITICAL — Performance
+## 🔴 CRITICAL — SV-16: No Stripe / PayPal webhook handlers
 
-### P-B1 · `getPosts` loads every `BlogView` row per post just to `.length` it
-**File:** `server/src/controllers/blog.controller.ts:36-57`
-`include: [{ model: BlogView, as: 'views', attributes: ['id'] }]` — for a popular post with 50k views, this materializes 50k rows per post per list request. On a 10-post page that's 500k rows moved over the wire for a render that only needs `count`.
+### Root cause
+`POST /api/webhooks/stripe` and `POST /api/webhooks/paypal` do not exist.  
+`subscription.routes.ts` only has: `GET /status`, `POST /checkout`, `POST /paypal/checkout`,  
+`POST /portal`.
 
-**Fix:** use a scalar subquery via `sequelize.literal`:
+After Stripe checkout the subscription is created in Stripe's system, but our DB's `Subscription`
+table is never updated. `getStatus` therefore always returns `subscribed: false`.
+
+### What needs to be built (Stripe)
+1. Webhook route `POST /api/webhooks/stripe` with `express.raw()` body parser (Stripe requires
+   the raw body for `stripe.webhooks.constructEvent()`).
+2. Handler processes:
+   - `checkout.session.completed` → upsert Subscription, set status=ACTIVE, update User.role
+   - `customer.subscription.updated` → patch status + currentPeriodEnd
+   - `customer.subscription.deleted` → set status=CANCELED, revert User.role → USER
+   - `invoice.payment_failed` → set status=PAST_DUE
+3. Webhook routes must be registered in `index.ts` **before** `app.use(express.json())` so that the
+   raw body parser on those specific routes takes precedence over the global json parser.
+
+### What needs to be built (PayPal)
+PayPal doesn't embed the userId in webhook events, so we need two things:
+1. `POST /api/subscriptions/paypal/confirm` (authenticated) — called by the client after PayPal
+   redirects back with `?subscription_id=I-xxx`. Backend fetches the PayPal sub, verifies ACTIVE,
+   upserts Subscription, updates User.role.
+2. `POST /api/webhooks/paypal` — handles `BILLING.SUBSCRIPTION.ACTIVATED` (looks up user by
+   subscriber email) and `BILLING.SUBSCRIPTION.CANCELLED`.  
+   Signature verification uses `POST /v1/notifications/verify-webhook-signature` (PayPal API).
+   Requires new env var `PAYPAL_WEBHOOK_ID`.
+
+### Plan-key → User-role mapping
+Plan keys in `subscription_plans.key`: 'bronze', 'silver', 'gold'.  
+UserRole enum: BRONZE, SILVER, VIP ('vip').  
+Mapping: `{ bronze: BRONZE, silver: SILVER, gold: VIP, vip: VIP }`.
+
+### Files affected
+- `server/src/controllers/webhook.controller.ts` (NEW)
+- `server/src/routes/webhook.routes.ts` (NEW)
+- `server/src/controllers/subscription.controller.ts` (add `confirmPayPalSubscription`)
+- `server/src/routes/subscription.routes.ts` (add `/paypal/confirm`)
+- `server/src/index.ts` (register webhook routes before express.json)
+
+---
+
+## 🟠 HIGH — SV-20: `getPostBySlug` still materialises all BlogView rows
+
+### Root cause
+`blog.controller.ts` lines 110-113:
 ```ts
-attributes: {
-  include: [[
-    sequelize.literal(`(SELECT COUNT(*) FROM "blog_views" AS "v" WHERE "v"."blogPostId" = "BlogPost"."id")`),
-    'viewCount'
-  ]]
-}
+const include: any[] = [
+  { model: User, as: 'author' },
+  { model: BlogView, as: 'views' }   // ← loads ALL view rows per post
+];
 ```
-and drop the `BlogView` include from the list query. (Keep the include on the detail query if you render a view chart; otherwise swap there too.)
+Response line 143:
+```ts
+view_count: post.views?.length || 0,
+```
+P-B1 (Iter 2) fixed this on the **list** endpoint but not on the **detail** endpoint.  
+For a post with 50k views, `GET /api/blog/posts/:slug` pulls 50k rows every call.
 
-### P-B2 · Cache middleware stores 5xx responses as if they were valid (SV-12 carryover)
-**File:** `server/src/middleware/cache.ts:24-29`
-Every `res.json(body)` is unconditionally written to Redis with TTL. A cold Redis + flaky upstream → a 500 cached for 1h returned to every crawler & user.
+### Fix
+Replace the `BlogView` include with the same scalar subquery used in `getPosts`:
+```ts
+sequelize.literal(
+  '(SELECT COUNT(*)::int FROM "blog_views" AS "bv" WHERE "bv"."blog_post_id" = "BlogPost"."id")'
+)
+```
+Drop `{ model: BlogView, as: 'views' }` from the include array.
+Response: `view_count: Number((post as any).get?.('viewCount') ?? 0)`.
 
-**Fix:** only persist when `res.statusCode < 400`. Skip persist (and optionally `redis.del(key)`) on error paths.
-
-### P-B3 · No `Cache-Control` headers on public GETs
-**File:** `server/src/index.ts` + `server/src/routes/*.routes.ts`
-Public list endpoints (`/api/partners`, `/api/leadership`, `/api/plans`, `/api/blog/posts?published=true`) return without `Cache-Control`. Browsers + CDN will not cache. Adding `public, max-age=300, s-maxage=600, stale-while-revalidate=86400` dramatically lowers server load and speeds up repeat navigations.
-
-**Fix:** thin middleware `publicCacheHeaders(maxAge, sMaxAge, swr)` applied to public routes that already use `cacheMiddleware`. Don't double up with Redis on authenticated GETs.
-
----
-
-## 🟠 HIGH — Correctness (Iter 1 carryovers)
-
-### SV-07 · Weak JWT fallback in docker-compose (carryover)
-**File:** `docker-compose.yml:39`
-Still reads `JWT_SECRET=${JWT_SECRET:-dev_secret_key_123}`. Remove the `:-...` default.
-
-### SV-11 · `updatePostStatus` accepts any string (carryover)
-**File:** `server/src/controllers/blog.controller.ts:316-322`
-Still only checks `typeof status === 'string'`. Must validate against `Object.values(ContentStatus)`.
-
-### SV-13 · Partnership-kit / partner-template cache never invalidated (carryover)
-**File:** `server/src/controllers/admin.controller.ts`
-`uploadPartnershipKit` and `uploadPartnerTemplate` must call `clearCache('/api/admin/settings/')` after upsert.
-
-### P-B4 · N+1 on `getPosts` favorite include
-**File:** `server/src/controllers/blog.controller.ts:39-47`
-`include` of `Favorite` with per-user `where` triggers a scan per row. Keep the include (needed for `is_favorited`) but add a composite index on `Favorite(userId, blogPostId)` — already recommended in Iter 1 SV-19. Defer migration, but flag here because of UX impact on logged-in users browsing blog list.
+### Files affected
+- `server/src/controllers/blog.controller.ts` (getPostBySlug)
 
 ---
 
-## 🟠 HIGH — Performance (new)
+## 🟡 MEDIUM — SV-14: Auth middleware hits DB on every authenticated request
 
-### P-B5 · `/uploads` static served from Express with no `immutable`
-**File:** `server/src/index.ts:51-53`
-`maxAge: '1d'` is fine, but uploads are content-addressed (random filenames from multer). Use `immutable` so browsers skip revalidation for the cache lifetime.
+### Root cause
+`auth.middleware.ts:36` — `User.findByPk(decoded.userId)` runs synchronously on every request.  
+With 10 concurrent users each firing 3 requests per page load, that's 30 DB round-trips of pure
+overhead, because the user record almost never changes between requests.
+
+### Fix
+Add a lightweight in-process TTL cache (30s) keyed by userId.  
+- Cache miss → DB lookup → store in Map → `next()`
+- Cache hit → serve from Map → `next()` (0 DB I/O)
+- Export `clearUserCache(userId)` — called by the webhook controller immediately after any
+  role update so the 30s window doesn't expose stale role data.
 
 ```ts
-app.use('/uploads', express.static(path.join(__dirname, '../public/uploads'), {
-  maxAge: '30d',
-  immutable: true,
-  etag: true,
-}));
+const USER_CACHE_TTL_MS = 30_000;
+const userCache = new Map<string, { user: User; expires: number }>();
+export function clearUserCache(userId: string): void { userCache.delete(userId); }
 ```
 
-### P-B6 · `compression()` uses defaults; brotli skipped
-Not actually a fix needed — Node `compression` package doesn't support brotli (that requires a reverse proxy). Document that Render/Nginx should terminate brotli.
+Apply the same cache to `authenticateOptional`.
 
-### P-B7 · Sequelize pool `max: 5` in production is tight
-**File:** `server/src/config/database.ts:52-58`
-Neon free-tier limit is 10 connections shared. `max:5` per instance is safe, but if you scale to 2 instances you hit the limit. Document; don't change yet.
+### Files affected
+- `server/src/middleware/auth.middleware.ts`
 
 ---
 
-## 🟡 MEDIUM — Observability
+## Proposed fix set (Iteration 3, backend)
+| ID     | Fix                                             | Priority |
+|--------|-------------------------------------------------|----------|
+| SV-16a | Stripe webhook handler                          | CRITICAL |
+| SV-16b | PayPal confirm endpoint + PayPal webhook        | CRITICAL |
+| SV-20  | getPostBySlug scalar subquery                   | HIGH     |
+| SV-14  | Auth user cache (30s TTL)                       | MEDIUM   |
 
-### P-B8 · No request timing logged
-No `morgan` or equivalent. Without p95 latency per route, you can't prove perf wins post-deploy. Add minimal `morgan('tiny')` or a 1-line custom middleware.
-
----
-
-## Proposed fix set (Iteration 2, backend)
-Apply this iteration:
-- **P-B1** (getPosts subquery COUNT)
-- **P-B2** (cache only 2xx) — also satisfies SV-12
-- **P-B3** (public Cache-Control middleware)
-- **P-B5** (immutable uploads)
-- **P-B8** (request timing middleware)
-- **SV-07** (docker-compose JWT fallback — carryover)
-- **SV-11** (status enum validation — carryover)
-- **SV-13** (clearCache on partner settings upload — carryover)
-
-Defer:
-- **P-B4** composite index (needs migration library)
-- **P-B7** pool tuning (observe first)
-
-**Backend iter-2 analysis complete.** → team-lead
+**Backend Iter-3 analysis complete.** → team-lead

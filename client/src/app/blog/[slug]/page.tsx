@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Script from 'next/script';
-import { API_URL, SITE_URL, resolveUploadUrl } from '@/lib/env';
+import { API_URL, SITE_URL, resolveUploadUrl, absoluteUrl } from '@/lib/env';
 import BlogPostClient from './BlogPostClient';
 
 interface BlogDetail {
@@ -49,7 +49,11 @@ export async function generateMetadata(
     };
   }
 
-  const ogImage = resolveUploadUrl(post.featured_image) || `${SITE_URL}/logo.png`;
+  // OG / JSON-LD images must be absolute URLs. resolveUploadUrl returns a
+  // root-relative path (/uploads/...) so wrap it with absoluteUrl to get
+  // https://site.com/uploads/... for crawlers.
+  const uploadPath = resolveUploadUrl(post.featured_image);
+  const ogImage = uploadPath ? absoluteUrl(uploadPath) : `${SITE_URL}/logo.png`;
   const url = `${SITE_URL}/blog/${post.slug}`;
   const author = `${post.profiles?.first_name ?? ''} ${post.profiles?.last_name ?? ''}`.trim() || 'Biomimetic Dentistry Club';
 
@@ -86,13 +90,14 @@ export default async function BlogPostPage(
   const { slug } = await params;
   const post = await fetchPostSsr(slug);
 
+  const uploadPath = resolveUploadUrl(post?.featured_image ?? null);
   const jsonLd = post
     ? {
         '@context': 'https://schema.org',
         '@type': 'BlogPosting',
         headline: post.title,
         description: post.excerpt,
-        image: resolveUploadUrl(post.featured_image) || `${SITE_URL}/logo.png`,
+        image: uploadPath ? absoluteUrl(uploadPath) : `${SITE_URL}/logo.png`,
         datePublished: post.created_at,
         dateModified: post.updated_at || post.created_at,
         author: {

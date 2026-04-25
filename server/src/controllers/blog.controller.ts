@@ -107,9 +107,15 @@ export const getPostBySlug = async (req: Request, res: Response) => {
     const { slug } = req.params as { slug: string };
     const user = req.user;
 
+    // SV-20 (Iter 3): scalar subquery for view_count — same pattern as P-B1 (Iter 2).
+    // Previously loaded all BlogView rows (post.views?.length) which for a popular post
+    // with 50k views materialised 50k rows per detail request. Now O(1).
     const include: any[] = [
-      { model: User, as: 'author' },
-      { model: BlogView, as: 'views' }
+      {
+        model: User,
+        as: 'author',
+        attributes: ['firstName', 'lastName'],
+      },
     ];
 
     if (user) {
@@ -117,13 +123,22 @@ export const getPostBySlug = async (req: Request, res: Response) => {
         model: Favorite,
         as: 'favorites',
         where: { userId: user.id },
-        required: false
+        required: false,
       });
     }
 
     const post = await BlogPost.findOne({
       where: { slug },
       include,
+      attributes: {
+        include: [[
+          sequelize.literal(
+            '(SELECT COUNT(*)::int FROM "blog_views" AS "bv" WHERE "bv"."blog_post_id" = "BlogPost"."id")'
+          ),
+          'viewCount',
+        ]],
+        exclude: [] as string[],
+      },
     });
 
     if (!post) return res.status(404).json({ message: 'Post not found' });
@@ -139,8 +154,9 @@ export const getPostBySlug = async (req: Request, res: Response) => {
       tags: post.tags ? post.tags.split(',') : [],
       read_time: post.readTime,
       created_at: post.createdAt,
+      updated_at: (post as any).updatedAt,
       status: post.status,
-      view_count: post.views?.length || 0,
+      view_count: Number((post as any).get?.('viewCount') ?? 0),
       is_favorited: user && post.favorites ? post.favorites.length > 0 : false,
       profiles: {
         first_name: post.author?.firstName,

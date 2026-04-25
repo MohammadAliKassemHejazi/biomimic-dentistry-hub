@@ -507,6 +507,7 @@ export default function AdminDashboard() {
                 </TabsList>
 
                 <TabsContent value="messages">
+                    {activeTab === 'messages' && (
                     <div className="grid md:grid-cols-2 gap-6">
                         <Card>
                             <CardHeader>
@@ -588,9 +589,11 @@ export default function AdminDashboard() {
                             </CardContent>
                         </Card>
                     </div>
+                    )}
                 </TabsContent>
 
                 <TabsContent value="partner-applications">
+                    {activeTab === 'partner-applications' && (
                     <div className="space-y-6">
                         {/* Partner Templates */}
                         <Card>
@@ -675,9 +678,11 @@ export default function AdminDashboard() {
                             </CardContent>
                         </Card>
                     </div>
+                    )}
                 </TabsContent>
 
                 <TabsContent value="partners">
+                    {activeTab === 'partners' && (
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between">
                             <div>
@@ -783,9 +788,11 @@ export default function AdminDashboard() {
                             </Table>
                         </CardContent>
                     </Card>
+                    )}
                 </TabsContent>
 
                 <TabsContent value="leadership">
+                    {activeTab === 'leadership' && (
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between">
                             <div>
@@ -880,9 +887,11 @@ export default function AdminDashboard() {
                             </Table>
                         </CardContent>
                     </Card>
+                    )}
                 </TabsContent>
 
                 <TabsContent value="subscriptions">
+                    {activeTab === 'subscriptions' && (
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between">
                             <div>
@@ -953,9 +962,11 @@ export default function AdminDashboard() {
                             </Table>
                         </CardContent>
                     </Card>
+                    )}
                 </TabsContent>
 
                 <TabsContent value="applications">
+                    {activeTab === 'applications' && (
                     <Card>
                         <CardHeader>
                             <CardTitle>Ambassador Applications</CardTitle>
@@ -1010,9 +1021,11 @@ export default function AdminDashboard() {
                             )}
                         </CardContent>
                     </Card>
+                    )}
                 </TabsContent>
 
                 <TabsContent value="content">
+                    {activeTab === 'content' && (
                     <div className="grid md:grid-cols-2 gap-6">
                         <Card>
                             <CardHeader>
@@ -1132,9 +1145,11 @@ export default function AdminDashboard() {
                             </CardContent>
                         </Card>
                     </div>
+                    )}
                 </TabsContent>
 
                 <TabsContent value="newsletter">
+                    {activeTab === 'newsletter' && (
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2"><Mail className="h-5 w-5" aria-hidden="true" /> Newsletter Subscribers</CardTitle>
@@ -1171,9 +1186,11 @@ export default function AdminDashboard() {
                             )}
                         </CardContent>
                     </Card>
+                    )}
                 </TabsContent>
 
                  <TabsContent value="users">
+                    {activeTab === 'users' && (
                     <Card>
                         <CardHeader>
                             <CardTitle>Users</CardTitle>
@@ -1217,6 +1234,7 @@ export default function AdminDashboard() {
                             </div>
                         </CardContent>
                     </Card>
+                    )}
                 </TabsContent>
             </Tabs>
         </div>
