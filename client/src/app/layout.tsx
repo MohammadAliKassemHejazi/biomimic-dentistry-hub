@@ -4,6 +4,7 @@ import Script from "next/script";
 import "./globals.css";
 import Providers from "@/components/Providers";
 import Navigation from "@/components/Navigation";
+import PWAInstallBanner from "@/components/PWAInstallBanner";
 import { SITE_URL } from "@/lib/env";
 
 const geistSans = Geist({
@@ -126,6 +127,8 @@ export default function RootLayout({
         <Providers>
           <Navigation />
           <main id="main-content">{children}</main>
+          {/* FE-08 (Iter 4): PWA install prompt — must be inside Providers for toast context */}
+          <PWAInstallBanner />
         </Providers>
         <Script
           id="org-jsonld"

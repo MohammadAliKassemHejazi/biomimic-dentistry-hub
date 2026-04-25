@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { LeadershipMember } from '../models';
+import { clearCache } from '../middleware/cache';
 
 export const getMembers = async (req: Request, res: Response) => {
   try {
@@ -18,6 +19,10 @@ export const createMember = async (req: Request, res: Response) => {
       data.image = `/uploads/${req.file.filename}`;
     }
     const member = await LeadershipMember.create(data);
+
+    // PA-02 (Iter 4): invalidate Redis cache so GET /api/leadership returns fresh data
+    await clearCache('/api/leadership/');
+
     res.status(201).json(member);
   } catch (error) {
     console.error('Error creating member:', error);
@@ -35,6 +40,10 @@ export const updateMember = async (req: Request, res: Response) => {
     const [updated] = await LeadershipMember.update(data, { where: { id } });
     if (updated) {
       const updatedMember = await LeadershipMember.findByPk(id as string);
+
+      // PA-02 (Iter 4): invalidate Redis cache
+      await clearCache('/api/leadership/');
+
       res.json(updatedMember);
     } else {
       res.status(404).json({ message: 'Member not found' });
@@ -50,6 +59,9 @@ export const deleteMember = async (req: Request, res: Response) => {
     const { id } = req.params;
     const deleted = await LeadershipMember.destroy({ where: { id } });
     if (deleted) {
+      // PA-02 (Iter 4): invalidate Redis cache
+      await clearCache('/api/leadership/');
+
       res.status(204).send();
     } else {
       res.status(404).json({ message: 'Member not found' });

@@ -3,10 +3,14 @@
   "short_name": "Biomimetic",
   "description": "Making Dentistry More Human and Accessible",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#F7F9F8",
   "theme_color": "#88C9A1",
   "orientation": "portrait-primary",
+  "lang": "en",
+  "dir": "ltr",
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/logo.png",
@@ -19,6 +23,18 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Blog",
+      "url": "/blog",
+      "description": "Read the latest articles"
+    },
+    {
+      "name": "Courses",
+      "url": "/courses",
+      "description": "Browse our courses"
     }
   ],
   "categories": ["education", "health", "medical"]

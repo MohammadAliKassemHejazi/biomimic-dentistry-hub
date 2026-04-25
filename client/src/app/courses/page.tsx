@@ -236,8 +236,10 @@ const Courses = () => {
                               4.9
                             </div>
                           </div>
-                          <Button className="w-full">
-                            Enroll Now - {formatPrice(course.price)}
+                          <Button className="w-full" asChild>
+                            <a href={`/courses/${course.slug}`}>
+                              View Course — {formatPrice(course.price)}
+                            </a>
                           </Button>
                         </div>
                       )}

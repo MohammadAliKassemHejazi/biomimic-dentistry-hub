@@ -158,6 +158,7 @@ export const getPostBySlug = async (req: Request, res: Response) => {
       status: post.status,
       view_count: Number((post as any).get?.('viewCount') ?? 0),
       is_favorited: user && post.favorites ? post.favorites.length > 0 : false,
+      images: post.images || [],
       profiles: {
         first_name: post.author?.firstName,
         last_name: post.author?.lastName,

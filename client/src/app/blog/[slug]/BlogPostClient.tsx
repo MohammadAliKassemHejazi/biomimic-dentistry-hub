@@ -45,6 +45,7 @@ interface BlogPost {
   created_at: string;
   view_count: number;
   is_favorited: boolean;
+  images?: string[];
   profiles: { first_name: string; last_name: string };
 }
 
@@ -238,13 +239,37 @@ export default function BlogPostClient({ slug, initialPost }: Props) {
         </div>
       )}
 
-      <div className="prose dark:prose-invert max-w-none mb-12">
+      <div className="prose dark:prose-invert max-w-none mb-8">
         <div
           dangerouslySetInnerHTML={{
             __html: DOMPurify.sanitize(post.content ? post.content.replace(/\n/g, '<br/>') : ''),
           }}
         />
       </div>
+
+      {/* FE-03 (Iter 4): Render content images uploaded alongside the post */}
+      {post.images && post.images.length > 0 && (
+        <div className="mb-12">
+          <h3 className="text-lg font-semibold mb-4 text-muted-foreground">Post Images</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {post.images.map((imgPath, idx) => {
+              const src = resolveUploadUrl(imgPath);
+              if (!src) return null;
+              return (
+                <div key={idx} className="relative aspect-video rounded-xl overflow-hidden border">
+                  <Image
+                    src={src}
+                    alt={post.title + ' image ' + (idx + 1)}
+                    fill
+                    sizes="(max-width: 768px) 100vw, 448px"
+                    className="object-cover"
+                  />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <footer className="flex items-center justify-between border-t pt-8 flex-wrap gap-4">
         <div className="flex gap-2 flex-wrap">

@@ -83,6 +83,18 @@ interface Resource {
     createdAt: string;
 }
 
+interface Course {
+    id: string;
+    title: string;
+    slug: string;
+    description?: string;
+    price: number;
+    featured_image?: string;
+    coming_soon: boolean;
+    access_level: string;
+    createdAt: string;
+}
+
 interface TrustedPartner {
     id: string;
     name: string;
@@ -164,7 +176,15 @@ export default function AdminDashboard() {
     const [memberDialogOpen, setMemberDialogOpen] = useState(false);
     const [planDialogOpen, setPlanDialogOpen] = useState(false);
     const [resourceDialogOpen, setResourceDialogOpen] = useState(false);
+    const [courseDialogOpen, setCourseDialogOpen] = useState(false);
     const [editingItem, setEditingItem] = useState<any>(null); // Generic holder for item being edited
+
+    // FE-02 (Iter 4): Partnership approval dialog state
+    const [approvalDialog, setApprovalDialog] = useState<{
+        open: boolean;
+        app: PartnerApplication | null;
+        tier: string;
+    }>({ open: false, app: null, tier: 'Bronze' });
 
     const fetchData = useCallback(async (silent = false) => {
         if (!silent) setLoading(true);
@@ -181,9 +201,9 @@ export default function AdminDashboard() {
             api.get<{ users: User[] }>('/admin/users',                     { skipErrorHandling: true }),
             api.get<Application[]>('/admin/applications',                  { skipErrorHandling: true }),
             api.get<{ posts: BlogPost[], resources: Resource[] }>('/admin/content/pending', { skipErrorHandling: true }),
-            api.get<TrustedPartner[]>('/partners',                         { skipErrorHandling: true, requiresAuth: false }),
-            api.get<LeadershipMember[]>('/leadership',                     { skipErrorHandling: true, requiresAuth: false }),
-            api.get<SubscriptionPlan[]>('/plans',                          { skipErrorHandling: true, requiresAuth: false }),
+            api.get<TrustedPartner[]>('/partners',                         { skipErrorHandling: true, requiresAuth: false, cache: 'no-store' as RequestCache }),
+            api.get<LeadershipMember[]>('/leadership',                     { skipErrorHandling: true, requiresAuth: false, cache: 'no-store' as RequestCache }),
+            api.get<SubscriptionPlan[]>('/plans',                          { skipErrorHandling: true, requiresAuth: false, cache: 'no-store' as RequestCache }),
             api.get<{url: string | null}>('/admin/settings/partnership-kit', { skipErrorHandling: true }),
             api.get<ContactMessage[]>('/contact',                          { skipErrorHandling: true }),
             api.get<PartnerApplication[]>('/admin/partner-applications',   { skipErrorHandling: true }),
@@ -295,6 +315,21 @@ export default function AdminDashboard() {
         }
     };
 
+    const handleCourseSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const form = e.target as HTMLFormElement;
+        const formData = new FormData(form);
+        try {
+            await api.post('/courses', formData);
+            toast({ title: "Course created", description: "New course added" });
+            setCourseDialogOpen(false);
+            form.reset();
+            fetchData(true);
+        } catch (error) {
+            toast({ title: "Could not create course", description: describeError(error), variant: "destructive" });
+        }
+    };
+
     const handlePartnerSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         const formData = new FormData(e.target as HTMLFormElement);
@@ -366,13 +401,18 @@ export default function AdminDashboard() {
         }
     };
 
-    const handlePartnerAppStatus = async (id: string, status: string) => {
+    const handlePartnerAppStatus = async (id: string, status: string, tier?: string) => {
         try {
-            await api.patch(`/admin/partner-applications/${id}/status`, { status });
+            const body: Record<string, string> = { status };
+            if (tier) body.tier = tier;
+            await api.patch(`/admin/partner-applications/${id}/status`, body);
             toast({
                 title: status === 'approved' ? 'Approved' : 'Rejected',
-                description: `Application ${status}`,
+                description: status === 'approved'
+                    ? `Application approved${tier ? ` — ${tier} tier partner created` : ''}`
+                    : 'Application rejected',
             });
+            setApprovalDialog({ open: false, app: null, tier: 'Bronze' });
             fetchData(true);
         } catch (error) {
             toast({ title: 'Could not update application', description: describeError(error), variant: 'destructive' });
@@ -594,6 +634,7 @@ export default function AdminDashboard() {
 
                 <TabsContent value="partner-applications">
                     {activeTab === 'partner-applications' && (
+                    <>
                     <div className="space-y-6">
                         {/* Partner Templates */}
                         <Card>
@@ -661,8 +702,12 @@ export default function AdminDashboard() {
                                                         </div>
                                                         {app.status === 'pending' && (
                                                             <div className="flex items-start gap-2 shrink-0">
-                                                                <Button onClick={() => handlePartnerAppStatus(app.id, 'approved')} size="sm" className="bg-green-600 hover:bg-green-700">
-                                                                    <Check className="mr-1 h-4 w-4" aria-hidden="true" /> Approve
+                                                                <Button
+                                                                    onClick={() => setApprovalDialog({ open: true, app, tier: app.tier || 'Bronze' })}
+                                                                    size="sm"
+                                                                    className="bg-green-600 hover:bg-green-700"
+                                                                >
+                                                                    <Check className="mr-1 h-4 w-4" aria-hidden="true" /> Review & Approve
                                                                 </Button>
                                                                 <Button onClick={() => handlePartnerAppStatus(app.id, 'rejected')} variant="destructive" size="sm">
                                                                     <X className="mr-1 h-4 w-4" aria-hidden="true" /> Reject
@@ -678,6 +723,67 @@ export default function AdminDashboard() {
                             </CardContent>
                         </Card>
                     </div>
+
+                    {/* FE-02 (Iter 4): Partner approval dialog with tier selection */}
+                    <Dialog open={approvalDialog.open} onOpenChange={(open) => {
+                        if (!open) setApprovalDialog({ open: false, app: null, tier: 'Bronze' });
+                    }}>
+                        <DialogContent className="max-w-lg">
+                            <DialogHeader>
+                                <DialogTitle>Approve Partnership Application</DialogTitle>
+                            </DialogHeader>
+                            {approvalDialog.app && (
+                                <div className="space-y-4">
+                                    <div className="bg-muted/40 rounded-lg p-4 space-y-2 text-sm border">
+                                        <p><span className="font-medium">Name:</span> {approvalDialog.app.name}</p>
+                                        {approvalDialog.app.companyName && (
+                                            <p><span className="font-medium">Company:</span> {approvalDialog.app.companyName}</p>
+                                        )}
+                                        <p><span className="font-medium">Email:</span> {approvalDialog.app.email}</p>
+                                        <p className="whitespace-pre-wrap"><span className="font-medium">Message:</span> {approvalDialog.app.message}</p>
+                                        {approvalDialog.app.tier && (
+                                            <p><span className="font-medium">Requested tier:</span> <span className="capitalize">{approvalDialog.app.tier}</span></p>
+                                        )}
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Assign Partner Tier</Label>
+                                        <Select
+                                            value={approvalDialog.tier}
+                                            onValueChange={(t) => setApprovalDialog(prev => ({ ...prev, tier: t }))}
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select tier" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="Platinum">Platinum</SelectItem>
+                                                <SelectItem value="Gold">Gold</SelectItem>
+                                                <SelectItem value="Silver">Silver</SelectItem>
+                                                <SelectItem value="Bronze">Bronze</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <p className="text-xs text-muted-foreground">
+                                            A TrustedPartner record will be created automatically. Update logo/description in the Partners tab afterwards.
+                                        </p>
+                                    </div>
+                                    <div className="flex gap-3 pt-2">
+                                        <Button
+                                            className="flex-1 bg-green-600 hover:bg-green-700"
+                                            onClick={() => handlePartnerAppStatus(approvalDialog.app!.id, 'approved', approvalDialog.tier)}
+                                        >
+                                            <Check className="mr-2 h-4 w-4" /> Approve as {approvalDialog.tier}
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            onClick={() => setApprovalDialog({ open: false, app: null, tier: 'Bronze' })}
+                                        >
+                                            Cancel
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
+                        </DialogContent>
+                    </Dialog>
+                    </>
                     )}
                 </TabsContent>
 
@@ -1053,7 +1159,77 @@ export default function AdminDashboard() {
 
                         <Card>
                             <CardHeader className="flex flex-row items-center justify-between">
-                                <CardTitle>Pending Resources</CardTitle>
+                                <div>
+                                    <CardTitle>Pending Resources</CardTitle>
+                                </div>
+                                <div className="flex gap-2">
+                                {/* FE-09 (Iter 4): Course creation dialog */}
+                                <Dialog open={courseDialogOpen} onOpenChange={setCourseDialogOpen}>
+                                    <DialogTrigger asChild>
+                                        <Button size="sm" variant="outline"><Plus className="mr-2 h-4 w-4" aria-hidden="true"/> Add Course</Button>
+                                    </DialogTrigger>
+                                    <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+                                        <DialogHeader>
+                                            <DialogTitle>Create New Course</DialogTitle>
+                                        </DialogHeader>
+                                        <form onSubmit={handleCourseSubmit} className="space-y-4">
+                                            <div className="space-y-2">
+                                                <Label>Title</Label>
+                                                <input name="title" className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm" placeholder="e.g. Biomimetic Adhesive Techniques" required />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label>Slug (URL-friendly)</Label>
+                                                <input name="slug" className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm" placeholder="e.g. biomimetic-adhesive-techniques" required />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label>Description</Label>
+                                                <Textarea name="description" rows={3} placeholder="What students will learn..." />
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="space-y-2">
+                                                    <Label>Price (USD)</Label>
+                                                    <input name="price" type="number" step="0.01" min="0" defaultValue="0" className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm" required />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label>Access Level</Label>
+                                                    <Select name="access_level" defaultValue="public">
+                                                        <SelectTrigger><SelectValue /></SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="public">Public</SelectItem>
+                                                            <SelectItem value="vip">VIP Only</SelectItem>
+                                                            <SelectItem value="ambassador">Ambassador Only</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="space-y-2">
+                                                    <Label>Coming Soon?</Label>
+                                                    <Select name="coming_soon" defaultValue="false">
+                                                        <SelectTrigger><SelectValue /></SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="false">Available Now</SelectItem>
+                                                            <SelectItem value="true">Coming Soon</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label>Launch Date (optional)</Label>
+                                                    <input name="launch_date" type="date" className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm" />
+                                                </div>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label>Featured Image</Label>
+                                                <input name="featured_image" type="file" accept="image/*" className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm" />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label>Stripe Price ID (optional)</Label>
+                                                <input name="stripe_price_id" className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm" placeholder="price_xxx" />
+                                            </div>
+                                            <Button type="submit" className="w-full">Create Course</Button>
+                                        </form>
+                                    </DialogContent>
+                                </Dialog>
                                 <Dialog open={resourceDialogOpen} onOpenChange={setResourceDialogOpen}>
                                     <DialogTrigger asChild>
                                         <Button size="sm"><Plus className="mr-2 h-4 w-4" aria-hidden="true"/> Add Resource</Button>
@@ -1125,6 +1301,7 @@ export default function AdminDashboard() {
                                         </form>
                                     </DialogContent>
                                 </Dialog>
+                                </div>
                             </CardHeader>
                             <CardContent>
                                 {pendingContent.resources.length === 0 ? (

@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { TrustedPartner } from '../models';
+import { clearCache } from '../middleware/cache';
 
 export const getPartners = async (req: Request, res: Response) => {
   try {
@@ -18,6 +19,10 @@ export const createPartner = async (req: Request, res: Response) => {
       data.logo = `/uploads/${req.file.filename}`;
     }
     const partner = await TrustedPartner.create(data);
+
+    // PA-02 (Iter 4): invalidate Redis cache so GET /api/partners returns fresh list
+    await clearCache('/api/partners/');
+
     res.status(201).json(partner);
   } catch (error) {
     console.error('Error creating partner:', error);
@@ -35,6 +40,10 @@ export const updatePartner = async (req: Request, res: Response) => {
     const [updated] = await TrustedPartner.update(data, { where: { id } });
     if (updated) {
       const updatedPartner = await TrustedPartner.findByPk(id as string);
+
+      // PA-02 (Iter 4): invalidate Redis cache
+      await clearCache('/api/partners/');
+
       res.json(updatedPartner);
     } else {
       res.status(404).json({ message: 'Partner not found' });
@@ -50,6 +59,9 @@ export const deletePartner = async (req: Request, res: Response) => {
     const { id } = req.params;
     const deleted = await TrustedPartner.destroy({ where: { id } });
     if (deleted) {
+      // PA-02 (Iter 4): invalidate Redis cache
+      await clearCache('/api/partners/');
+
       res.status(204).send();
     } else {
       res.status(404).json({ message: 'Partner not found' });

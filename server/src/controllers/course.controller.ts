@@ -28,6 +28,31 @@ export const getCourses = async (req: Request, res: Response) => {
   }
 };
 
+export const getCourseBySlug = async (req: Request, res: Response) => {
+  try {
+    const { slug } = req.params as { slug: string };
+    const course = await Course.findOne({ where: { slug } });
+    if (!course) return res.status(404).json({ message: 'Course not found' });
+
+    res.json({
+      id: course.id,
+      title: course.title,
+      slug: course.slug,
+      description: course.description,
+      price: course.price,
+      featured_image: course.featuredImage,
+      coming_soon: course.comingSoon,
+      launch_date: course.launchDate,
+      access_level: course.accessLevel,
+      stripe_price_id: course.stripePriceId,
+      created_at: course.createdAt,
+    });
+  } catch (error) {
+    console.error('Error fetching course by slug:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
 export const createCourse = async (req: Request, res: Response) => {
   try {
     const { title, slug, description, price, featured_image, coming_soon, launch_date, access_level, stripe_price_id } = req.body;
@@ -35,13 +60,19 @@ export const createCourse = async (req: Request, res: Response) => {
     const existing = await Course.findOne({ where: { slug } });
     if (existing) return res.status(400).json({ message: 'Slug already exists' });
 
+    // BE-05 (Iter 4): support file upload for featured image
+    let finalFeaturedImage = featured_image;
+    if (req.file) {
+      finalFeaturedImage = `/uploads/${req.file.filename}`;
+    }
+
     const course = await Course.create({
       title,
       slug,
       description,
       price,
-      featuredImage: featured_image,
-      comingSoon: coming_soon,
+      featuredImage: finalFeaturedImage,
+      comingSoon: coming_soon === 'true' || coming_soon === true,
       launchDate: launch_date ? new Date(launch_date) : null,
       accessLevel: access_level || 'public',
       stripePriceId: stripe_price_id,
@@ -71,13 +102,19 @@ export const updateCourse = async (req: Request, res: Response) => {
     const { id } = req.params as { id: string };
     const { title, slug, description, price, featured_image, coming_soon, launch_date, access_level, stripe_price_id } = req.body;
 
+    // BE-05 (Iter 4): support file upload for featured image on update
+    let finalFeaturedImage = featured_image;
+    if (req.file) {
+      finalFeaturedImage = `/uploads/${req.file.filename}`;
+    }
+
     const [affectedCount, affectedRows] = await Course.update({
       title,
       slug,
       description,
       price,
-      featuredImage: featured_image,
-      comingSoon: coming_soon,
+      featuredImage: finalFeaturedImage,
+      comingSoon: coming_soon === 'true' || coming_soon === true,
       launchDate: launch_date ? new Date(launch_date) : null,
       accessLevel: access_level,
       stripePriceId: stripe_price_id,

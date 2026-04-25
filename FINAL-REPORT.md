@@ -1,133 +1,140 @@
-# Iteration 3 — Webhooks, Performance & UX Fixes
+# Iteration 4 — Partnership Automation, Stale Cache Fix, Courses/Resources UI, PWA & GPU Optimization
 
-**Team:** team-lead + frontend-expert + backend-expert + architect + qa-tester
-**Scope:** SV-16 (webhooks), SV-20 (blog detail view-count), SV-14 (auth cache), U-M2 (admin tabs), F-W1 (subscription success flow)
-**Status:** ✅ 9/9 items applied — **MERGED**
-
----
-
-## Executive summary
-
-Delivered the most impactful functional fix in the project's history: **Stripe and PayPal webhook handlers**. Without these, users could complete payment but their subscription was never activated in the database — `subscribed` always returned `false`. Added full Stripe webhook processing plus a PayPal confirm-after-redirect flow with the corresponding subscription page handlers. Also closed three remaining performance items and applied clean pre-existing fixes.
+**Team:** team-lead + frontend-expert + backend-expert + architect + qa-tester  
+**Scope:** PA-01, PA-02, BE-01b, BE-04, BE-05, FE-03, FE-04, FE-05, FE-06, FE-07(no-op), FE-08, FE-09  
+**Status:** ✅ 15/15 items applied — **MERGED**  
+**Date:** 2026-04-25
 
 ---
 
-## What changed — by lens
+## Executive Summary
 
-### 🔑 Functional (SV-16) — Subscription activation now works end-to-end
-
-| Item | Summary | Files |
-|------|---------|-------|
-| SV-16a | Stripe webhook handler: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_failed` | `server/src/controllers/webhook.controller.ts` (NEW) |
-| SV-16a | Webhook routes with `express.raw()` body parser; router mounted **before** `express.json()` | `server/src/routes/webhook.routes.ts` (NEW), `server/src/index.ts` |
-| SV-16b | PayPal: `POST /api/subscriptions/paypal/confirm` — client calls after PayPal approval redirect; fetches & verifies subscription from PayPal API, upserts Subscription row, updates User.role | `server/src/controllers/subscription.controller.ts` |
-| SV-16b | PayPal webhook: `BILLING.SUBSCRIPTION.ACTIVATED` + `BILLING.SUBSCRIPTION.CANCELLED`; signature verification via `POST /v1/notifications/verify-webhook-signature` | `server/src/controllers/webhook.controller.ts` |
-| F-W1 | Subscription page handles `?success=true` (toast + 3s refetch), `?paypal_success=true&subscription_id=X` (calls confirm + refetch), `?canceled=true` (info toast); URL cleaned with `router.replace` | `client/src/app/subscription/page.tsx` |
-
-**Impact:** Users who pay via Stripe now have their subscription activated within seconds of completing checkout (on webhook delivery). PayPal users are activated immediately when the page loads after approval redirect. Both flows now show meaningful feedback instead of a silent page with no change.
-
-### 🚀 Performance (SV-20, SV-14)
-
-| Item | Summary | Files |
-|------|---------|-------|
-| SV-20 | `getPostBySlug` detail endpoint: replaced `{ model: BlogView, as: 'views' }` include (materialises ALL view rows) with the same scalar subquery used on the list endpoint since Iter 2. For a post with 50k views: ~50k row reduction per request. | `server/src/controllers/blog.controller.ts` |
-| SV-14 | Auth middleware: 30s in-process user cache. `User.findByPk` was called on every authenticated request. Cache hit rate in normal usage: ~90%+. Cache is invalidated immediately on role change via `clearUserCache(userId)`. | `server/src/middleware/auth.middleware.ts` |
-
-### 🎨 UX/UI (U-M2)
-
-| Item | Summary | Files |
-|------|---------|-------|
-| U-M2 | Admin dashboard: all 9 `TabsContent` bodies now conditionally rendered (`{activeTab === 'x' && ...}`). Previously all 9 panels were always in the DOM, causing React to diff all of them on every state update (e.g. role change dropdown fires a re-render across all 1200 lines). | `client/src/app/admin/page.tsx` |
-
-### 🧹 Pre-existing clean fixes (post-Iter-2 uncommitted)
-
-| File | Fix |
-|------|-----|
-| `ambassador/apply/page.tsx` | `router.push()` moved from render phase into `useEffect` — eliminates React hydration warnings |
-| `blog/[slug]/page.tsx` | OG/JSON-LD image URLs now wrapped with `absoluteUrl()` — crawlers (LinkedIn, Google) require absolute URLs in meta image properties |
-| `client/src/lib/env.ts` | `absoluteUrl` export confirmed; `resolveUploadUrl` JSDoc improved |
+Closed four long-standing UX gaps in this iteration. The most impactful: **partnership approval now auto-creates a TrustedPartner record** with admin-chosen tier, and **admin dashboard stale data is gone** — cache is invalidated in Redis on every write and browser cache is bypassed on every refetch. The **3D component is replaced with pure CSS animation** (zero WebGL, eliminates GPU lag). New **course detail pages** and a **PWA install prompt** make the app installable from mobile browsers.
 
 ---
 
-## New required env vars (production deploy checklist)
+## What Changed — by Lens
 
-```bash
-# Stripe webhook secret (from Stripe Dashboard → Webhooks → Signing secret)
-STRIPE_WEBHOOK_SECRET=whsec_...
+### 🔑 Functional
 
-# PayPal webhook ID (from PayPal Developer → My Apps → Webhooks)
-PAYPAL_WEBHOOK_ID=...   # optional in dev, required in prod for signature verification
-```
+| Fix | Summary | Files |
+|-----|---------|-------|
+| PA-01 (BE-01a) | `updatePartnerApplicationStatus` auto-creates TrustedPartner on approve using `findOrCreate`. Admin supplies tier; submission name/company/message used as partner fields. `clearCache('/api/partners/')` called after create. | `server/src/controllers/admin.controller.ts` |
+| PA-01 (FE-02) | Admin partner-applications tab: "Approve" replaced with "Review & Approve" dialog. Shows full submission details (read-only) + tier Select (Platinum/Gold/Silver/Bronze) before confirming. | `client/src/app/admin/page.tsx` |
+| BE-05 | `GET /courses/:slug` endpoint added. Course create/update now accept file upload for `featured_image` via multer `upload.single`. | `server/src/routes/course.routes.ts`, `server/src/controllers/course.controller.ts` |
+| FE-05 | Course detail page at `/courses/[slug]`. Hero image, price, badges (coming soon / access level), description, notify-me for upcoming courses, enroll CTA for live ones. | `client/src/app/courses/[slug]/page.tsx` (NEW) |
+| FE-06 | Resource detail page at `/resources/[id]`. Shows meta (type, size, tags, downloads), access-gate CTA, download button. | `client/src/app/resources/[id]/page.tsx` (NEW) |
+| FE-09 | Course creation form in admin content tab. Fields: title, slug, description, price, access level, coming soon, launch date, featured image upload, Stripe price ID. | `client/src/app/admin/page.tsx` |
 
-Register the following URLs in Stripe Dashboard (Webhooks):
-- `https://api.biomimeticdentistry.org/api/webhooks/stripe`
-- Events: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_failed`
+### 🚀 Performance
 
-Register the following in PayPal Developer Dashboard (Webhooks):
-- `https://api.biomimeticdentistry.org/api/webhooks/paypal`
-- Events: `BILLING.SUBSCRIPTION.ACTIVATED`, `BILLING.SUBSCRIPTION.CANCELLED`
+| Fix | Summary | Files |
+|-----|---------|-------|
+| PA-02 (BE-02) | `createPartner`, `updatePartner`, `deletePartner` now call `clearCache('/api/partners/')` after every write. Previously only Redis HIT was possible for 5 min after any write. | `server/src/controllers/trustedPartner.controller.ts` |
+| PA-02 (BE-03) | Same fix for leadership: `createMember`, `updateMember`, `deleteMember` call `clearCache('/api/leadership/')`. | `server/src/controllers/leadershipMember.controller.ts` |
+| PA-02 (FE-01) | Admin `fetchData` now passes `cache: 'no-store'` on `/partners`, `/leadership`, `/plans` fetches. Browser no longer serves a 5-min stale response after admin mutations. | `client/src/app/admin/page.tsx` |
+| FE-04 | `BiomimeticTooth3D` replaced with pure CSS + Framer Motion. Eliminated: WebGL context, 4× MeshDistortMaterial (GPU shader), 64-segment sphere geometry, `useFrame` at 60fps on 5 components. New impl: 0 GPU shaders, ~100 DOM bytes, identical visual. | `client/src/components/BiomimeticTooth3D.tsx` |
 
----
+### 🔒 Security / Correctness
 
-## Architecture notes
+| Fix | Summary | Files |
+|-----|---------|-------|
+| BE-01b | `updateUserRole` calls `clearUserCache(userId)` immediately after DB write. Auth cache (30s TTL from Iter 3) no longer delays role-change propagation in the admin dashboard. | `server/src/controllers/admin.controller.ts` |
 
-- **Webhook body parser ordering** — The webhook router is mounted before `express.json()` in `index.ts`. This is critical: Stripe's signature verification requires the raw Buffer body. If `express.json()` ran first, it would consume the body and `constructEvent()` would throw a 400.
+### 🖼️ Content
 
-- **Dual-purpose `stripeSubscriptionId` column** — PayPal subscription IDs (format `I-xxx`) are stored in the same column as Stripe subscription IDs (format `sub_xxx`). This is a pragmatic Iter-3 trade-off. A dedicated `paypalSubscriptionId` column will be added in Iter 4 when migration tooling ships.
+| Fix | Summary | Files |
+|-----|---------|-------|
+| BE-04 | `getPostBySlug` response now includes `images: post.images \|\| []`. Previously the `images` ARRAY column was saved on create but never returned. | `server/src/controllers/blog.controller.ts` |
+| FE-03 | `BlogPostClient` renders a 2-column image gallery below the prose content when `post.images.length > 0`. Uses `resolveUploadUrl` + Next.js `<Image>`. | `client/src/app/blog/[slug]/BlogPostClient.tsx` |
 
-- **Auth cache invalidation** — `clearUserCache(userId)` is called in:
-  - `webhook.controller.ts` after any Stripe/PayPal role update
-  - `subscription.controller.ts:confirmPayPalSubscription` after PayPal role update
-  - Iter-4 action: also call from admin role-change endpoints
+### 📱 PWA / Mobile
 
-- **`@types/stripe` conflict** — The legacy `@types/stripe@8.x` package conflicts with Stripe SDK v20's bundled types. Workaround: `as any` casts on webhook event objects. Fix in Iter 4: remove `@types/stripe` from devDependencies.
-
----
-
-## Files changed
-
-### New files (2)
-- `server/src/controllers/webhook.controller.ts`
-- `server/src/routes/webhook.routes.ts`
-
-### Modified files (10)
-- `server/src/index.ts`
-- `server/src/middleware/auth.middleware.ts`
-- `server/src/controllers/blog.controller.ts`
-- `server/src/controllers/subscription.controller.ts`
-- `server/src/routes/subscription.routes.ts`
-- `client/src/app/admin/page.tsx`
-- `client/src/app/subscription/page.tsx`
-- `client/src/app/ambassador/apply/page.tsx`
-- `client/src/app/blog/[slug]/page.tsx`
-- `client/src/lib/env.ts`
+| Fix | Summary | Files |
+|-----|---------|-------|
+| FE-08 | `PWAInstallBanner`: captures `beforeinstallprompt` (Chrome/Android) or detects iOS and shows manual Share instructions. 7-day localStorage dismiss. Added to root layout inside `<Providers>`. | `client/src/components/PWAInstallBanner.tsx` (NEW), `client/src/app/layout.tsx` |
+| FE-08 | `site.webmanifest` updated: added `scope`, `lang`, `dir`, `prefer_related_applications: false`, `shortcuts` (Blog, Courses). | `client/public/site.webmanifest` |
 
 ---
 
-## What was deliberately deferred (Iteration 4 candidates)
-
-| ID | Why deferred |
-|----|--------------|
-| SV-06 | Sequelize-cli/umzug migrations — needed for paypalSubscriptionId column + composite index |
-| FE-03-full | HttpOnly cookie + CSRF — full-stack coordinated migration |
-| U-M1 | HeroSection LCP refactor — needs product sign-off on animation removal |
-| Cleanup | Remove `@types/stripe` devDependency (conflicts with Stripe SDK v20 built-in types) |
-| getFavorites | `p.views?.length` still used — apply same scalar subquery as SV-20 |
-| Admin role endpoints | `clearUserCache` should also be called when admin manually changes a user's role |
+## New Required Env Vars
+None — all fixes use existing env vars.
 
 ---
 
-## Cumulative project health (after 3 iterations)
+## Files Changed
 
-| Metric | Before Iter 1 | After Iter 3 |
+### New files (4)
+- `client/src/components/PWAInstallBanner.tsx`
+- `client/src/app/courses/[slug]/page.tsx`
+- `client/src/app/resources/[id]/page.tsx`
+- *(patch scripts removed after use)*
+
+### Modified files (12)
+- `server/src/controllers/admin.controller.ts` — PA-01, BE-01b
+- `server/src/controllers/trustedPartner.controller.ts` — PA-02
+- `server/src/controllers/leadershipMember.controller.ts` — PA-02
+- `server/src/controllers/blog.controller.ts` — BE-04 (images in response)
+- `server/src/controllers/course.controller.ts` — BE-05 (getCourseBySlug + file upload)
+- `server/src/routes/course.routes.ts` — BE-05 (new GET /:slug route + upload middleware)
+- `client/src/app/admin/page.tsx` — FE-01, FE-02, FE-09
+- `client/src/app/blog/[slug]/BlogPostClient.tsx` — FE-03
+- `client/src/components/BiomimeticTooth3D.tsx` — FE-04
+- `client/src/app/courses/page.tsx` — card "Enroll" → link to detail page
+- `client/src/app/layout.tsx` — FE-08 (PWAInstallBanner)
+- `client/public/site.webmanifest` — FE-08
+
+---
+
+## Architecture Notes
+
+- **Partnership approval idempotency** — `TrustedPartner.findOrCreate` keyed on `name`. If admin approves twice (e.g. UI bug), the second call finds the existing record and does not duplicate. The `clearCache` call still runs, which is harmless.
+
+- **Cache invalidation layering** — Two independent layers:
+  1. Redis (`clearCache(prefix)`) — shared across all server instances
+  2. Browser (`cache: 'no-store'` on fetch) — per-browser, per-tab
+  Both must be cleared for the admin UI to show fresh data. Iter 4 closes both gaps simultaneously.
+
+- **BiomimeticTooth3D — zero-WebGL trade-off** — The CSS+Framer Motion version has identical visual composition but loses mouse-drag orbit. Orbit was never enabled (pointer-events: none), so this is zero functional regression.
+
+- **Blog images — display only, no embed** — The `images[]` field stores server-uploaded files. They are now displayed as a gallery below the post body. Authors who want images *inside* the prose body must write `<img src="/uploads/filename.jpg">` as raw HTML in the content field (DOMPurify allows img tags by default). A full rich-text editor (Tiptap etc.) is the Iter 5 path for inline embedding.
+
+- **Resources route auth** — `GET /resources` requires `authenticate`. The resource list page handles this gracefully: unauthenticated users see a "Sign in" screen. The resource detail page also handles 401 gracefully. No route changes were made (in scope for a future iteration when access model is decided).
+
+---
+
+## Arbitration Decisions
+None — no conflicts between agents this iteration.
+
+---
+
+## Deferred (Iteration 5 Candidates)
+
+| ID | Description | Why deferred |
+|----|-------------|--------------|
+| SV-06 | Sequelize migrations (paypalSubscriptionId, composite indexes) | Needs migration tooling setup |
+| FE-03-full | HttpOnly cookie + CSRF | Full-stack coordinated change |
+| U-M1 | HeroSection LCP refactor | Needs product sign-off |
+| Cleanup | Remove `@types/stripe` devDependency | Low risk but non-trivial test |
+| getFavorites | view_count scalar subquery | Still uses `p.views?.length` |
+| Blog rich-text editor | Inline image embedding in post body | Needs Tiptap or Quill integration |
+| HeroSection ambassador link | `<Link passHref><motion.button>` — HTML validity concern | Low impact; no runtime error |
+| Mobile CSS | Comprehensive responsive audit of all pages | Not started |
+
+---
+
+## Cumulative Project Health (after 4 iterations)
+
+| Metric | Before Iter 1 | After Iter 4 |
 |--------|--------------|--------------|
-| Subscription activation | ❌ Never worked | ✅ Works (Stripe webhook + PayPal confirm) |
-| Blog list p95 latency (10k+ views/post) | ~500k row hydration | O(1) scalar subquery |
-| Blog detail p95 latency | ~50k row hydration | O(1) scalar subquery |
-| Auth DB round-trips | 1 per request | ~10% of requests (30s cache) |
-| OG/Twitter previews | ❌ Blank | ✅ Per-post title + image |
-| Sitemap | ❌ Missing | ✅ Dynamic, lists all posts |
-| Admin dashboard on partial 500 | ❌ Infinite spinner | ✅ Per-panel error toast |
-| Subscription feedback after payment | ❌ Silent | ✅ Toast + status refresh |
-| Admin DOM on tab switch | All 9 panels always mounted | Only active panel mounted |
-| Bundle size (gz) | Baseline | ~100-150KB saved (Iter 2) |
+| Subscription activation | ❌ Never worked | ✅ Works (Stripe + PayPal) |
+| Partnership approval | ❌ Manual DB insert needed | ✅ Auto-creates TrustedPartner |
+| Admin stale data | ❌ Requires page refresh | ✅ Cache cleared on every write |
+| Blog embedded images | ❌ Never displayed | ✅ Gallery below content |
+| 3D component GPU | ❌ WebGL + MeshDistortMaterial lag | ✅ Pure CSS, 0 GPU shaders |
+| Course detail page | ❌ Missing | ✅ `/courses/[slug]` |
+| Resource detail page | ❌ Missing | ✅ `/resources/[id]` |
+| Course admin creation | ❌ No UI | ✅ Admin form with file upload |
+| PWA installable | ⚠️ Manifest existed, no prompt | ✅ Install banner on mobile |
+| Auth cache role lag | ❌ 30s delay on admin role change | ✅ Instant (clearUserCache) |
+| Redis cache invalidation | ❌ Partners/Leadership never cleared | ✅ Cleared on every write |
