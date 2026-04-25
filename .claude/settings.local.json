@@ -32,7 +32,11 @@
       "Bash(curl *)",
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "Bash(docker exec biomimic-dentistry-hub-client-1 *)"
+      "Bash(docker exec biomimic-dentistry-hub-client-1 *)",
+      "Bash(git diff *)",
+      "Bash(node -e ' *)",
+      "Bash(npx tsc *)",
+      "Bash(node -e \"const s = require\\('stripe'\\); console.log\\(s.version || 'no version'\\)\")"
     ]
   },
   "model": "claude-sonnet-4-6",
