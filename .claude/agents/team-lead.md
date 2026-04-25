@@ -5,7 +5,7 @@ description: >
   collects reports, coordinates merges, and gives 
   final approval before any fix is applied.
 tools: Read, Write, Bash, Glob, Grep
-model: opus
+model: claude-sonnet-4-6
 ---
 
 You are the Team Lead and Orchestrator of a 5-agent debug team.

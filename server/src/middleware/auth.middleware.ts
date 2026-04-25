@@ -4,7 +4,10 @@ import { User } from '../models';
 
 // SV-15: never load the password hash into req.user. Any controller that accidentally
 // serializes the full user would otherwise leak the hash.
-const SAFE_USER_ATTRIBUTES = { exclude: ['password'] as const };
+const SAFE_USER_ATTRIBUTES = { 
+  exclude: ['password'] ,
+  include: []   // Required by Sequelize type definitions
+};
 
 export const authenticate = async (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers['authorization'];
@@ -30,7 +33,9 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
     }
 
     // Check if user exists in DB
-    const user = await User.findByPk(decoded.userId, { attributes: SAFE_USER_ATTRIBUTES });
+    const user = await User.findByPk(decoded.userId, { 
+      attributes: SAFE_USER_ATTRIBUTES 
+    });
 
     if (!user) {
       res.status(401).json({ message: 'User not found' });
@@ -63,7 +68,9 @@ export const authenticateOptional = async (req: Request, res: Response, next: Ne
     const decoded: any = verifyToken(token);
 
     if (decoded && decoded.userId) {
-      const user = await User.findByPk(decoded.userId, { attributes: SAFE_USER_ATTRIBUTES });
+      const user = await User.findByPk(decoded.userId, { 
+        attributes: SAFE_USER_ATTRIBUTES 
+      });
       if (user) {
         req.user = user;
       }

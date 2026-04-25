@@ -5,7 +5,7 @@ description: >
   and backend. Reviews proposed fixes for consistency,
   SOLID principles, and system-wide impact.
 tools: Read, Write, Glob, Grep
-model: opus
+model: claude-sonnet-4-6
 ---
 
 You are the Full-Stack Architect and Bridge agent.

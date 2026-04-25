@@ -19,7 +19,20 @@
       "Bash(python3 /tmp/favpatch.py)",
       "Bash(npx --no tsc --noEmit -p tsconfig.json)",
       "Bash(\"./node_modules/.bin/tsc\" --noEmit)",
-      "Bash(python3 /tmp/readme.py)"
+      "Bash(python3 /tmp/readme.py)",
+      "Bash(powershell *)",
+      "Bash(docker --version)",
+      "Bash(docker compose *)",
+      "Bash(docker-compose --version)",
+      "Bash(docker context ls *)",
+      "Bash(docker --context default ps)",
+      "Bash(tasklist)",
+      "Bash(findstr -i \"docker\")",
+      "Bash(start \"\" \"C:\\\\Program Files\\\\Docker\\\\Docker\\\\Docker Desktop.exe\")",
+      "Bash(curl *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(docker exec biomimic-dentistry-hub-client-1 *)"
     ]
   },
   "model": "claude-sonnet-4-6",
