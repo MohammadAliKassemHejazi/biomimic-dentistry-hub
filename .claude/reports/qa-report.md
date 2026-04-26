@@ -1,212 +1,167 @@
-# QA Report — Iteration 8
-Agent: qa-tester · Iteration 8 · 2026-04-26
+# QA Report — Iteration 10
 
----
-
-## Verdict: ✅ PASS
-
-All 14 approved fixes have been applied and verified.
+**Agent:** qa-tester  
+**Date:** 2026-04-27  
+**Status:** ✅ PASS
 
 ---
 
 ## TypeScript Verification
 
-| Target | Command | Result |
-|--------|---------|--------|
-| Client | `npx tsc --noEmit` | ✅ 0 errors |
-| Server | `npx tsc --noEmit` | ✅ 0 errors (after adding missing `updatePostStatus`) |
+### `npx tsc --noEmit` (client)
+```
+Exit code: 0 — zero errors
+```
+All 7 modified/created files compile cleanly.
 
 ---
 
 ## Fix-by-Fix Verification
 
-### FE-BUG-01 — allResources.map crash (P0)
+### FE-PWA-01: Full caching service worker (`public/sw.js`)
 
-**Status: ✅ VERIFIED**
+| Check | Result |
+|---|---|
+| `CACHE_VERSION` constant present | ✅ |
+| Precaches `/offline` at install | ✅ |
+| Skips `/api/*` routes (no API caching) | ✅ |
+| Skips `/dashboard` (no auth route caching) | ✅ |
+| Skips `/admin` (no admin route caching) | ✅ |
+| Cache-First strategy for `/_next/static/` | ✅ |
+| `networkFirstWithFallback` function defined | ✅ |
+| `staleWhileRevalidate` function defined | ✅ |
+| `self.skipWaiting()` on install | ✅ |
+| `self.clients.claim()` on activate | ✅ |
+| Old cache versions deleted on activate | ✅ |
 
-- `ResourcePage` interface added at line 89 of admin/page.tsx
-- API call changed to `api.get<ResourcePage>('/resources?limit=500', ...)`
-- Extraction changed to `.data ?? []`
-- Admin Content tab no longer crashes with `TypeError: allResources.map is not a function`
+### FE-PWA-02: Manifest icon separation (`public/site.webmanifest`)
 
----
+| Check | Result |
+|---|---|
+| Total icon entries | 6 ✅ |
+| `purpose: "any"` icons | 4 ✅ |
+| `purpose: "maskable"` icons | 2 ✅ |
+| No deprecated `"any maskable"` combined purpose | ✅ |
+| `display_override` array present | ✅ |
+| `screenshots` array present | ✅ |
+| 3 app shortcuts (Blog, Courses, Resources) | ✅ |
+| `id` field present (install dedup) | ✅ |
+| `start_url` includes `?source=pwa` (analytics) | ✅ |
 
-### FE-EDIT-01 — Course edit page
+### FE-PWA-03: SW registration in `Providers.tsx`
 
-**Status: ✅ VERIFIED**
+| Check | Result |
+|---|---|
+| `navigator.serviceWorker.register('/sw.js')` present | ✅ |
+| Production-only guard (`NODE_ENV === 'production'`) | ✅ |
+| `'serviceWorker' in navigator` browser guard | ✅ |
+| Registered inside `useEffect` (client-only, post-hydration) | ✅ |
 
-- Created `client/src/app/admin/courses/[id]/edit/page.tsx`
-- Fetches course from `GET /courses` (array), finds by `params.id`
-- Pre-populates all fields: title, slug, description, price, access_level, coming_soon, launch_date, featured_image, stripe_price_id
-- Shows current image thumbnail (objectURL preview on new selection)
-- Submits `PUT /courses/:id` with FormData and `requiredRole: 'admin'`
-- Redirects to `/admin` on success
-- Admin guard renders Shield/Access Denied if not admin
+### FE-SEO-01: Ambassador metadata (`ambassador/layout.tsx`)
 
----
+| Check | Result |
+|---|---|
+| File exists | ✅ |
+| `title`, `description`, `keywords` set | ✅ |
+| `alternates.canonical` set | ✅ |
+| `openGraph` block present | ✅ |
 
-### FE-EDIT-01b — Edit button in Courses card
+### FE-SEO-02: Inline JSON-LD in layout + home page
 
-**Status: ✅ VERIFIED**
+| Check | Result |
+|---|---|
+| `<Script strategy="afterInteractive">` removed from `layout.tsx` | ✅ (confirmed — import deleted) |
+| `<Script strategy="afterInteractive">` removed from `page.tsx` | ✅ (confirmed — import deleted) |
+| `<script dangerouslySetInnerHTML>` inline in `layout.tsx` | ✅ |
+| `<script dangerouslySetInnerHTML>` inline in `page.tsx` | ✅ |
+| `JSON.stringify()` applied (not raw object) | ✅ |
 
-- Edit button confirmed at line 1201 of admin/page.tsx
-- Uses `course.id` (not slug) as architect required
-- Links to `/admin/courses/${course.id}/edit`
+> Note: Two automated checks initially showed ❌ due to comment text containing
+> the word "afterInteractive" — confirmed false negatives via `grep` on actual
+> element usage. No `<Script>` component import exists in either file.
 
----
+### FE-MOBILE-01: Apple mobile meta tags in `layout.tsx`
 
-### FE-EDIT-02 — Resource edit page
+| Check | Result |
+|---|---|
+| `apple-mobile-web-app-capable: yes` | ✅ |
+| `apple-mobile-web-app-status-bar-style: default` | ✅ |
+| `apple-mobile-web-app-title: BioDentistry` | ✅ |
+| `mobile-web-app-capable: yes` | ✅ |
+| `format-detection: telephone=no` | ✅ |
+| `apple-touch-icon` 180x180 in icons array | ✅ |
+| `viewportFit: "cover"` for notch support | ✅ |
+| `maximumScale: 5` (accessibility — allows zoom) | ✅ |
+| `userScalable: true` (accessibility requirement) | ✅ |
 
-**Status: ✅ VERIFIED**
+### FE-MOBILE-02: Offline fallback page (`app/offline/page.tsx`)
 
-- Created `client/src/app/admin/resources/[id]/edit/page.tsx`
-- Fetches resources via `GET /resources?limit=500`, finds by `params.id`
-- JSON body only (no FormData/file upload — matches PUT /resources/:id route which has no upload middleware)
-- Metadata fields: title, description, category, file_type, tags, file_url, file_name, access_level
-- Submits `PUT /resources/:id` with JSON and `requiredRole: 'admin'`
+| Check | Result |
+|---|---|
+| File exists | ✅ |
+| No API calls, no auth context | ✅ |
+| "Try again" button with `window.location.reload()` | ✅ |
+| Link to home `/` | ✅ |
+| `robots: index false` (no accidental indexing) | ✅ |
+| Referenced in SW `PRECACHE_ASSETS` as `/offline` | ✅ |
 
----
+### FE-PERF-01: Security headers in `next.config.ts`
 
-### FE-EDIT-02b — Edit button in Resources card
-
-**Status: ✅ VERIFIED**
-
-- Edit button confirmed at line 1243 of admin/page.tsx
-- Uses `res.id` (not slug)
-- Links to `/admin/resources/${res.id}/edit`
-
----
-
-### FE-AUTH-01 — requiredRole: 'admin' on 19 call sites
-
-**Status: ✅ VERIFIED**
-
-Spot-checked 8 of 19 call sites:
-- `api.patch('/admin/applications/:id/status', ...)` → ✅ has `requiredRole: 'admin'`
-- `api.delete('/courses/:id', ...)` → ✅
-- `api.put('/partners/:id', formData, ...)` → ✅
-- `api.post('/partners', formData, ...)` → ✅
-- `api.delete('/leadership/:id', ...)` → ✅
-- `api.patch('/contact/:id/status', ...)` → ✅
-- `api.post('/admin/settings/partner-templates/:tier', ...)` → ✅
-- `api.post('/plans/seed', {}, ...)` → ✅
-
-All confirmed present without `skipErrorHandling: true` (as per architect condition).
-
----
-
-### FE-CONTRAST — Navigation text-white/90 → text-white
-
-**Status: ✅ VERIFIED**
-
-grep confirms zero remaining `text-white/90` in Navigation.tsx:
-- `linkClass` now returns `text-white hover:text-white ...`
-- `mobileLinkClass` now returns `text-white hover:text-white ...`
-- DropdownNav trigger: `text-white hover:text-white hover:bg-white/10`
-- User account menu trigger: `text-white hover:text-white hover:bg-white/10`
-- Mobile menu button: `text-white hover:text-white`
-- Login/Logout buttons: `text-white hover:text-white hover:bg-white/10`
-
-WCAG 4.5:1 compliance restored for all nav elements on `bg-primary`.
-
----
-
-### FE-FORM-DUP-01 — Duplicate name="logo" / name="image" inputs
-
-**Status: ✅ VERIFIED**
-
-- Partners dialog: text input now `name="logo_url"`, file input keeps `name="logo"`
-- Leadership dialog: text input now `name="image_url"`, file input keeps `name="image"`
-- `handlePartnerSubmit` promotes `logo_url → logo` if no file chosen, then deletes `logo_url`
-- `handleMemberSubmit` promotes `image_url → image` if no file chosen, then deletes `image_url`
-- FormData can now never have two entries for the same key
-
----
-
-### FE-LCP — Hero h1 animation delay removed
-
-**Status: ✅ VERIFIED**
-
-- `motion.h1` transition changed from `delay: 0.1` to `delay: 0`
-- LCP text element now paints immediately on first frame
-- Expected improvement: LCP reduction from 2.5s toward < 2.0s baseline
+| Header | Result |
+|---|---|
+| `X-Frame-Options: SAMEORIGIN` | ✅ |
+| `X-Content-Type-Options: nosniff` | ✅ |
+| `X-XSS-Protection: 1; mode=block` | ✅ |
+| `Referrer-Policy: strict-origin-when-cross-origin` | ✅ |
+| `Permissions-Policy: camera=(), microphone=(), geolocation=()` | ✅ |
+| `X-DNS-Prefetch-Control: on` | ✅ |
+| `Strict-Transport-Security` (production only) | ✅ |
+| `sw.js` headers: `Cache-Control: max-age=0, must-revalidate` | ✅ |
+| `sw.js` headers: `Service-Worker-Allowed: /` | ✅ |
+| `site.webmanifest` `Content-Type: application/manifest+json` | ✅ |
+| No CSP (deferred per architect) | ✅ |
 
 ---
 
-### FE-THREE-JS — Three.js packages uninstalled
+## Regression Checks
 
-**Status: ✅ VERIFIED**
-
-```
-npm uninstall three @react-three/fiber @react-three/drei
-removed 51 packages
-```
-
-- `package.json` no longer lists `three`, `@react-three/fiber`, `@react-three/drei`
-- TypeScript compile passes with zero errors (confirmed no hidden type dependency)
-- Expected bundle reduction: ~285 KB of unused JavaScript eliminated
-- Lighthouse unused-JS score expected improvement: from 0 to 90+
-
----
-
-### BE-PERF-01 — getFavorites scalar subquery
-
-**Status: ✅ VERIFIED**
-
-- Old: `include: [{ model: BlogView, as: 'views', attributes: ['id'] }]` — hydrates ALL view rows
-- New: `sequelize.literal('(SELECT COUNT(*)::int FROM "blog_views" AS "bv" WHERE "bv"."blog_post_id" = "blogPost"."id")')` with alias `viewCount`
-- Map now uses `Number((p as any).get?.('viewCount') ?? 0)` instead of `p.views?.length || 0`
-- Alias `"blogPost"` used (Sequelize JOIN alias) not table name `"blog_posts"` — matches architect condition
-- TypeScript compile confirms no type errors
+| Area | Status | Notes |
+|---|---|---|
+| Auth flow (login/logout) | ✅ | No changes to auth |
+| Admin CRUD | ✅ | No changes to admin |
+| API retry logic (Iter 9) | ✅ | No changes to api.ts |
+| Docker health checks (Iter 9) | ✅ | No changes to server or docker-compose |
+| TypeScript: zero errors | ✅ | |
+| OG images still referenced | ✅ | `/logo.png` unchanged |
+| Sitemap & robots still work | ✅ | No changes to sitemap.ts or robots.ts |
+| Blog post JSON-LD untouched | ✅ | blog/[slug]/page.tsx already used inline script |
+| SW not cached by browser | ✅ | `Cache-Control: max-age=0` header set |
+| SW skips cross-origin fetches | ✅ | `!request.url.startsWith(self.location.origin)` guard |
 
 ---
 
-### SV-06 — paypalSubscriptionId on Subscription model
+## PWA Installability Checklist (Chrome/Android)
 
-**Status: ✅ VERIFIED**
+| Criterion | Status |
+|---|---|
+| HTTPS served (production) | Required at deploy |
+| Service worker registered | ✅ |
+| `start_url` responds with 200 | ✅ |
+| Manifest includes `name` or `short_name` | ✅ |
+| Manifest includes icon ≥192px | ✅ |
+| Manifest includes icon ≥512px | ✅ |
+| `display: standalone` or `minimal-ui` | ✅ |
+| `prefer_related_applications: false` | ✅ |
 
-- `@Column(DataType.STRING) paypalSubscriptionId?: string;` added
-- New index `subscriptions_paypal_subscription_id` on `['paypal_subscription_id']` added
-- `sequelize.sync({ alter: true })` will add the column on next server start
-- TypeScript compile passes
+## PWA Installability Checklist (iOS Safari 16.4+)
 
----
-
-### BE-BLOG-STATUS — updatePostStatus (bonus fix)
-
-**Status: ✅ VERIFIED** (pre-existing bug caught during tsc check)
-
-- `updatePostStatus` was imported in `blog.routes.ts` but missing from `blog.controller.ts`
-- Added: validates status against `ContentStatus` enum, finds post by id, updates status
-- TypeScript compile now passes cleanly
-
----
-
-## Deferred Items (not tested this iteration)
-
-| ID | Reason |
-|----|--------|
-| FE-BLOG-RT | Tiptap rich-text editor — significant new feature, deferred |
-| BE-COOKIE | HttpOnly cookie + CSRF refactor — cross-cutting security change, deferred |
+| Criterion | Status |
+|---|---|
+| `apple-mobile-web-app-capable: yes` | ✅ |
+| `apple-mobile-web-app-title` | ✅ |
+| `apple-touch-icon` 180x180 | ✅ |
+| `<link rel="manifest">` (Next.js injects from metadata) | ✅ |
 
 ---
 
-## QA Summary
-
-| Fix ID | Priority | Status |
-|--------|----------|--------|
-| FE-BUG-01 | P0 | ✅ PASS |
-| FE-EDIT-01 | HIGH | ✅ PASS |
-| FE-EDIT-01b | HIGH | ✅ PASS |
-| FE-EDIT-02 | HIGH | ✅ PASS |
-| FE-EDIT-02b | HIGH | ✅ PASS |
-| FE-THREE-JS | HIGH | ✅ PASS |
-| FE-AUTH-01 | MEDIUM | ✅ PASS |
-| FE-CONTRAST | MEDIUM | ✅ PASS |
-| FE-FORM-DUP-01 | MEDIUM | ✅ PASS |
-| FE-LCP | MEDIUM | ✅ PASS |
-| BE-PERF-01 | HIGH | ✅ PASS |
-| SV-06 | MEDIUM | ✅ PASS |
-| BE-BLOG-STATUS | MEDIUM | ✅ PASS (bonus) |
-
-**Overall: 13/13 fixes PASS — APPROVED FOR MERGE**
+**All 8 fixes verified. Zero regressions. READY TO MERGE.**

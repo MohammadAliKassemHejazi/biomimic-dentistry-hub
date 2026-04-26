@@ -1,10 +1,11 @@
 {
   "name": "Biomimetic Dentistry Club",
-  "short_name": "Biomimetic",
-  "description": "Making Dentistry More Human and Accessible",
-  "start_url": "/",
+  "short_name": "BioDentistry",
+  "description": "Making Dentistry More Human and Accessible — global education for dental professionals.",
+  "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
   "background_color": "#F7F9F8",
   "theme_color": "#88C9A1",
   "orientation": "portrait-primary",
@@ -16,26 +17,79 @@
       "src": "/logo.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
     },
     {
       "src": "/logo.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "any"
     }
   ],
   "shortcuts": [
     {
       "name": "Blog",
+      "short_name": "Blog",
       "url": "/blog",
-      "description": "Read the latest articles"
+      "description": "Read the latest biomimetic dentistry articles",
+      "icons": [{ "src": "/logo.png", "sizes": "192x192" }]
     },
     {
       "name": "Courses",
+      "short_name": "Courses",
       "url": "/courses",
-      "description": "Browse our courses"
+      "description": "Browse our dental education courses",
+      "icons": [{ "src": "/logo.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Resources",
+      "short_name": "Resources",
+      "url": "/resources",
+      "description": "Access clinical resources and protocols",
+      "icons": [{ "src": "/logo.png", "sizes": "192x192" }]
     }
   ],
-  "categories": ["education", "health", "medical"]
+  "categories": ["education", "health", "medical"],
+  "screenshots": [
+    {
+      "src": "/logo.png",
+      "sizes": "540x720",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Biomimetic Dentistry Club — Home"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "720x540",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Biomimetic Dentistry Club — Dashboard"
+    }
+  ],
+  "related_applications": [],
+  "id": "/?source=pwa"
 }

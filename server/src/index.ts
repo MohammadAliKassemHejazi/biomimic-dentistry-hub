@@ -86,22 +86,6 @@ app.use(
   })
 );
 
-// SV-02: Database connection — exit hard on failure so Render/Docker restarts cleanly.
-sequelize.authenticate()
-  .then(async () => {
-    console.log('Database connected via Sequelize');
-    // Sync schema in development, or in production when SYNC_DB=true (first deploy only)
-    if (process.env.NODE_ENV !== 'production' || process.env.SYNC_DB === 'true') {
-      await sequelize.sync({ alter: true });
-      console.log('Database synced');
-    }
-    await seedDefaultAdmin();
-  })
-  .catch((err: any) => {
-    console.error('Unable to connect to the database:', err);
-    process.exit(1);
-  });
-
 // P-B3 (Iter 2): apply HTTP Cache-Control for public, frequently-read routes.
 const publicCache = publicCacheHeaders();
 
@@ -127,7 +111,13 @@ app.get('/', (req: Request, res: Response) => {
   res.send('Server is running');
 });
 
-app.get('/health', (req: Request, res: Response) => {
+// BE-DOCKER-01/02: /health is a SYNCHRONOUS handler — no DB query.
+// It is mounted BEFORE app.listen() is moved inside the DB chain.
+// When /health returns 200, it means app.listen() was called, which only
+// happens after DB connect + schema sync + seed (see startup sequence below).
+// Docker's healthcheck wget call will get ERR_CONNECTION_REFUSED until
+// app.listen() binds port 5000, then immediately get 200 — correct behaviour.
+app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', uptime: process.uptime() });
 });
 
@@ -168,6 +158,40 @@ app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
   res.status(status).json({ message });
 });
 
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
-});
+// ─── BE-DOCKER-02: Deferred startup ──────────────────────────────────────────
+//
+// app.listen() is called INSIDE the database init chain so that port 5000 is
+// only bound once the server is fully ready:
+//   1. Postgres connection established (sequelize.authenticate)
+//   2. Schema up to date (sequelize.sync)
+//   3. Seed data present (seedDefaultAdmin)
+//   4. Express starts listening → /health returns 200
+//
+// This makes the Docker health check naturally reflect true readiness.
+// Before this fix, app.listen() was called immediately (before DB was ready),
+// so port 5000 appeared bound but all DB-dependent routes threw errors during
+// the startup window — causing TypeError: Failed to fetch in the browser.
+//
+// If the DB connection permanently fails (wrong DATABASE_URL), process.exit(1)
+// fires and Docker's `restart: unless-stopped` policy retries the container.
+// ─────────────────────────────────────────────────────────────────────────────
+sequelize.authenticate()
+  .then(async () => {
+    console.log('Database connected via Sequelize');
+    // Sync schema in development, or in production when SYNC_DB=true (first deploy only)
+    if (process.env.NODE_ENV !== 'production' || process.env.SYNC_DB === 'true') {
+      await sequelize.sync({ alter: true });
+      console.log('Database synced');
+    }
+    await seedDefaultAdmin();
+
+    // Only bind the port AFTER DB is ready — this is the key change.
+    app.listen(port, () => {
+      console.log(`Server is running on port ${port}`);
+    });
+  })
+  .catch((err: any) => {
+    console.error('Unable to connect to the database:', err);
+    // SV-02: exit hard so Docker's restart policy retries the container.
+    process.exit(1);
+  });

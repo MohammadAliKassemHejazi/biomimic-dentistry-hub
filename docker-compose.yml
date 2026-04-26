@@ -1,7 +1,7 @@
 services:
   db:
     image: postgres:15
-    restart: always
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
@@ -16,10 +16,19 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    # BE-DOCKER-01: Postgres takes time to init on first run.
+    # pg_isready polls until the TCP port accepts connections AND the DB is ready
+    # to accept queries. Server container will not start until this passes.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-app_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
 
   redis:
     image: redis:7-alpine
-    restart: always
+    restart: unless-stopped
     ports:
       - "6379:6379"
 
@@ -27,6 +36,7 @@ services:
     build:
       context: ./server
       dockerfile: Dockerfile.dev
+    restart: unless-stopped
     ports:
       - "5000:5000"
     volumes:
@@ -48,9 +58,26 @@ services:
       - SEED_ADMIN_EMAIL=${SEED_ADMIN_EMAIL:-admin@admin.com}
       - SEED_ADMIN_PASSWORD=${SEED_ADMIN_PASSWORD:-12345543211234554321}
       - SYNC_DB=${SYNC_DB:-true}
+    # BE-DOCKER-01: Wait for Postgres to be fully ready before starting the server.
+    # Without this, the server tries to connect before Postgres accepts connections,
+    # hits a ECONNREFUSED, and calls process.exit(1).
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    # BE-DOCKER-01: HTTP health check on the /health endpoint.
+    # Because app.listen() is now called AFTER DB init (BE-DOCKER-02 fix in index.ts),
+    # this health check only passes once the server is fully initialised:
+    # DB connected + schema synced + seed done + Express listening.
+    # start_period gives sequelize.sync({ alter: true }) time to run on first boot
+    # before Docker starts counting failures.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:5000/health > /dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 60s
     # Use polling for file changes (better compatibility across OS)
     command: npm run dev
 
@@ -58,6 +85,7 @@ services:
     build:
       context: ./client
       dockerfile: Dockerfile.dev
+    restart: unless-stopped
     ports:
       - "3000:3000"
     volumes:
@@ -69,8 +97,12 @@ services:
       - NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
       - SERVER_INTERNAL_URL=http://server:5000
       - WATCHPACK_POLLING=true
+    # BE-DOCKER-01: Only start the client once the server is genuinely healthy
+    # (DB connected, schema synced, Express listening).  This prevents the browser
+    # from loading before the API is ready and getting ERR_CONNECTION_REFUSED.
     depends_on:
-      - server
+      server:
+        condition: service_healthy
 
 volumes:
   pgdata:

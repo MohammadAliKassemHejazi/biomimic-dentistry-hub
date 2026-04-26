@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import Cookies from 'js-cookie';
 import { api } from '@/lib/api';
 
@@ -46,7 +46,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-  const pathname = usePathname();
 
   useEffect(() => {
     checkUser();
@@ -69,9 +68,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       // Keep role cookie in sync so api.ts guards work correctly
       setRoleCookie(userData.role);
       setUser(userData);
-    } catch (error) {
-      Cookies.remove('token');
-      clearRoleCookie();
+    } catch (error: any) {
+      // FE-RETRY-03 (Iter 9): Only remove the token on explicit auth failures
+      // (401 Unauthorized / 403 Forbidden).  If the server was temporarily
+      // unreachable (network error — no .status), the token is still valid;
+      // removing it would silently log the user out on every server restart.
+      //
+      // By the time this catch fires, api.ts (FE-RETRY-01) has already retried
+      // up to 3 times with exponential backoff, so this is a genuine failure.
+      const isAuthFailure = error?.status === 401 || error?.status === 403;
+      if (isAuthFailure) {
+        Cookies.remove('token');
+        clearRoleCookie();
+      }
       setUser(null);
     } finally {
       setLoading(false);

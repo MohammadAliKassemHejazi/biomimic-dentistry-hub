@@ -1,180 +1,81 @@
-# Architect Report — Iteration 8
-Agent: architect · Iteration 8 · 2026-04-26
+# Architect Report — Iteration 10
 
-## Verdict: APPROVED WITH CONDITIONS
-
----
-
-## Cross-cutting review
-
-### P0 Bug: allResources.map crash (FE-BUG-01 / BE-RESOURCE-TYPE)
-
-Both agents correctly identified the root cause: `GET /resources` returns
-`{ data: [], meta: {} }` but admin/page.tsx types it as `Resource[]`.
-
-**Contract decision:** The paginated envelope is the correct server shape — do NOT
-change the backend. The admin page must handle the paginated format.
-
-**Approved fix (frontend only):**
-- Change fetch: `api.get<{ data: Resource[], meta: unknown }>('/resources?limit=500', ...)`
-- Change extraction: `.data ?? []`
-- The `?limit=500` is safe: admin needs all resources; 500 is a reasonable cap.
-
-APPROVED — no backend change required.
+**Agent:** architect  
+**Date:** 2026-04-27  
+**Status:** ✅ APPROVED WITH CONDITIONS
 
 ---
 
-### FE-THREE-JS — Remove three.js packages
+## Cross-Cutting Review
 
-No import of `three`, `@react-three/fiber`, or `@react-three/drei` exists in source files.
-Removing them is safe. This is a clean-up fix with zero functional risk.
-
-**Condition:** After uninstall, run `npx tsc --noEmit` in client to confirm zero errors
-(no hidden type dependency on these packages).
-
-APPROVED WITH CONDITION.
+No API contract changes. No conflicts between frontend and backend reports.
 
 ---
 
-### FE-EDIT-01 + FE-EDIT-02 — Course and Resource edit pages
+## Fix Approvals
 
-Backend `PUT /courses/:id` and `PUT /resources/:id` both exist, support file upload, and return the updated resource. The edit pages are purely additive.
+### ✅ FE-PWA-01 — Full caching service worker
 
-**Contract for course edit page:**
-- Fetch course data via `GET /courses` (returns array) → find by id
-- Submit via `PUT /courses/:id` with FormData (same fields as new page)
-- `requiredRole: 'admin'` on the PUT call
-- If new image uploaded → server overwrites `featured_image`. Show current image thumbnail.
-- Slug should be editable (unique constraint enforced server-side)
+APPROVED WITH CONDITIONS:
 
-**Contract for resource edit page:**
-- Fetch resource data — resource routes require auth, so fetch `GET /resources?limit=500`
-  and find by id, OR pass the course object as a URL search param (use fetch approach)
-- Submit via `PUT /resources/:id` (JSON body — no file upload middleware on PUT in resource.routes.ts)
+1. **Do NOT cache authenticated routes** (`/dashboard`, `/admin`, `/api/*`). A cached 401 page would permanently break the auth flow.
+2. **Do NOT cache the SW itself** — browsers handle SW versioning natively.
+3. **Use a version constant** at the top of sw.js so bumping it triggers a cache refresh on all clients.
+4. **Network-first for HTML** — critical for SSR/ISR freshness. Cache-first only for content-hashed static chunks.
+5. **Cache-first for `/_next/static/`** — these are already content-hashed by Next.js, safe to cache indefinitely.
+6. **Offline page** must be precached at install time (not on first visit) so it's available when offline.
 
-**IMPORTANT condition (FE-EDIT-02):** Check `resource.routes.ts` — the `PUT /:id` route does NOT have
-`upload.single('file')` middleware. The resource edit page should use a JSON body, NOT FormData.
-If file replacement is needed, that is a separate backend change (out of scope this iteration).
-For this iteration: edit metadata only (title, description, category, tags, access_level, file_url, file_name, file_type).
+### ✅ FE-PWA-02 — Manifest icon separation
 
-APPROVED WITH CONDITION.
+APPROVED. The `"any maskable"` combined purpose is deprecated per W3C Manifest spec. Separate entries are required for correct adaptive icon behaviour on Android 12+.
 
----
+### ✅ FE-PWA-03 — SW registration
 
-### FE-ADMIN-EDIT-BTNS — Add Edit buttons to admin content cards
-
-Simple additive UI change. No contract implications.
-
-**Condition:** The edit link must include the `id`, not the `slug` (course has both but
-the edit route uses `:id` for `PUT /courses/:id`). Use `course.id` not `course.slug`.
-
-APPROVED WITH CONDITION.
-
----
-
-### FE-AUTH-01 — Add requiredRole: 'admin' to 19 call sites
-
-Defence-in-depth fix. Since the admin page already guards rendering behind
-`user.role === 'admin'`, this is not a critical security hole but is good practice.
-
-**Condition:** The `api.patch('/contact/:id/status', ...)` and
-`api.patch('/admin/applications/:id/status', ...)` calls are ALREADY protected by
-server-side middleware (`isAdmin`). Adding client-side `requiredRole` is additive only.
-Do NOT add `skipErrorHandling: true` to these calls — they should still surface errors.
-
-APPROVED WITH CONDITION.
-
----
-
-### FE-FORM-DUP-01 — Duplicate name="logo" and name="image" inputs
-
-**Contract decision:** The simplest safe fix is to rename the text URL inputs to
-`logo_url` (partner) and `image_url` (leadership), then update the handlers:
-
+APPROVED WITH CONDITION: Register SW inside a `useEffect` in `Providers.tsx`. Wrap in `'serviceWorker' in navigator` guard for SSR safety. Only register in production to avoid dev caching issues:
 ```typescript
-// handlePartnerSubmit — before api.put/post:
-const logoFile = formData.get('logo'); // file input keeps name="logo"
-const logoUrl = formData.get('logo_url') as string;
-if (!logoFile && logoUrl) formData.set('logo', logoUrl); // promote text URL to logo
-formData.delete('logo_url');
+if (process.env.NODE_ENV === 'production' && 'serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js');
+}
 ```
 
-This ensures FormData always has at most ONE `logo` entry: either the uploaded file
-OR the text URL, but never both.
+### ✅ FE-SEO-01 — Ambassador metadata layout
 
-**Condition:** Apply the same pattern to leadership dialog (image_url → image).
+APPROVED. Simple metadata layout, low risk.
 
-APPROVED WITH CONDITION.
+### ✅ FE-SEO-02 — Inline JSON-LD
 
----
+APPROVED. Replacing `<Script strategy="afterInteractive">` with inline `<script type="application/ld+json" dangerouslySetInnerHTML>` is the canonical pattern for structured data. The `dangerouslySetInnerHTML` is safe here because the JSON is generated server-side from hardcoded constants — no user input is involved.
 
-### FE-CONTRAST — Navigation text-white/90 → text-white
+### ✅ FE-MOBILE-01 — Apple mobile meta tags
 
-Simple CSS opacity fix. `text-white` (rgba 255,255,255,1.0) on `bg-primary`
-provides the correct contrast ratio. The `/90` opacity suffix was cosmetic but
-unintentionally fails WCAG 4.5:1 for normal text.
+APPROVED. These are standard iOS PWA meta requirements. Use `metadata.other` in Next.js App Router layout. Do NOT add `apple-mobile-web-app-status-bar-style: black-translucent` — that overlaps the status bar and breaks layouts. Use `default` instead.
 
-APPROVED.
+### ✅ FE-MOBILE-02 — Offline page
 
----
+APPROVED. Keep it lightweight — no auth context, no API calls, just a static branded page.
 
-### FE-LCP — Hero animation delay causes late LCP
+### ✅ FE-PERF-01 — Security headers
 
-Changing `delay: 0.1 → 0` on the motion.h1 is safe and reduces paint time.
+APPROVED WITH CONDITIONS:
 
-**Condition:** Do NOT attempt to convert `heroBg` to a Next.js `<Image>` background
-in this iteration — that requires significant layout refactoring and is out of scope.
-Limit the fix to: (1) remove h1 animation delay, (2) add `fetchpriority="high"` hint
-via `<link rel="preload">` in the Next.js `<head>` if easily done with `next/head`.
-
-APPROVED WITH CONDITION.
-
----
-
-### BE-PERF-01 — getFavorites scalar subquery
-
-Same pattern as the main blog list (P-B1, Iter 2). The alias for the subquery
-must match the alias used in the `.get()` call in the map function. Use
-`"blogPost"."id"` (camelCase) because Sequelize maps `blogPost` as the
-association alias.
-
-**IMPORTANT condition:** Verify the SQL alias in the subquery matches the actual
-table name. The BlogPost model uses `tableName: 'blog_posts'` (underscored).
-The correct subquery is:
-```sql
-(SELECT COUNT(*)::int FROM "blog_views" AS "bv" WHERE "bv"."blog_post_id" = "blogPost"."id")
-```
-Note: `"blogPost"` is the Sequelize alias, NOT the table name.
-
-APPROVED WITH CONDITION.
+1. **No `Content-Security-Policy` this iteration** — CSP requires a complete audit of all script/style/image sources and is out of scope. Adding a wrong CSP breaks the entire site.
+2. **Add these headers safely:**
+   - `X-Frame-Options: SAMEORIGIN`
+   - `X-Content-Type-Options: nosniff`
+   - `X-XSS-Protection: 1; mode=block`
+   - `Referrer-Policy: strict-origin-when-cross-origin`
+   - `Permissions-Policy: camera=(), microphone=(), geolocation=()`
+   - `X-DNS-Prefetch-Control: on`
+3. **HSTS only in production** — `Strict-Transport-Security` should not be applied in dev (localhost has no TLS).
 
 ---
 
-### SV-06 — paypalSubscriptionId on Subscription model
+## Architecture Notes
 
-Safe additive column. `alter: true` sync will add it without data loss.
-
-APPROVED.
+- The SW + manifest together constitute the full PWA install criteria for both Android (Chrome/Edge) and iOS (Safari 16.4+).
+- Next.js 14+ automatically handles `<link rel="manifest">` injection when `manifest` is set in metadata. No manual `<link>` tag needed.
+- The JSON-LD inline change applies to `layout.tsx` (organization schema) and `page.tsx` (website schema). Blog post JSON-LD (`/blog/[slug]`) is already correctly using inline `<script>` tags — no change needed there.
 
 ---
 
-## Approval Matrix
-
-| Fix ID | Owner | Status | Condition |
-|--------|-------|--------|-----------|
-| FE-BUG-01 (allResources.map) | frontend-expert | ✅ APPROVED | Use ?limit=500 + extract .data |
-| FE-THREE-JS (uninstall) | frontend-expert | ✅ APPROVED | Run tsc after uninstall |
-| FE-EDIT-01 (course edit page) | frontend-expert | ✅ APPROVED | Use course.id; show current image thumbnail |
-| FE-EDIT-01b (edit btn in card) | frontend-expert | ✅ APPROVED | Link uses course.id |
-| FE-EDIT-02 (resource edit page) | frontend-expert | ✅ APPROVED | JSON body only (no file upload); metadata edit |
-| FE-EDIT-02b (edit btn in card) | frontend-expert | ✅ APPROVED | Link uses res.id |
-| FE-AUTH-01 (requiredRole) | frontend-expert | ✅ APPROVED | Don't add skipErrorHandling |
-| FE-CONTRAST (nav text) | frontend-expert | ✅ APPROVED | None |
-| FE-FORM-DUP-01 (duplicate names) | frontend-expert | ✅ APPROVED | logo_url pattern; same for image_url |
-| FE-LCP (animation delay) | frontend-expert | ✅ APPROVED | h1 delay only; no Image refactor |
-| BE-PERF-01 (getFavorites subquery) | backend-expert | ✅ APPROVED | Verify "blogPost" alias in SQL |
-| SV-06 (paypalSubscriptionId) | backend-expert | ✅ APPROVED | None |
-| FE-BLOG-RT (Tiptap) | — | ⏸️ DEFERRED | Significant feature; next iteration |
-| BE-COOKIE (HttpOnly) | — | ⏸️ DEFERRED | Security refactor; dedicated iteration |
-
-Status: **APPROVED WITH CONDITIONS**
+## APPROVED — proceed to PHASE 3 (Apply all 8 fixes)

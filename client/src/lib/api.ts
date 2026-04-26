@@ -61,6 +61,36 @@ function getClientRole(token: string | undefined): string | null {
   return null;
 }
 
+// ─── Retry helpers ─────────────────────────────────────────────────────────────
+
+/**
+ * FE-RETRY-01 (Iter 9): Retry configuration for transient network errors.
+ *
+ * WHY: When the server is still starting up (Docker race condition), the browser
+ * gets ERR_CONNECTION_REFUSED which manifests as `TypeError: Failed to fetch`
+ * with no HTTP status code.  Retrying with backoff allows the app to recover
+ * automatically once the server finishes initializing — without the user having
+ * to manually refresh.
+ *
+ * SAFETY: We ONLY retry on genuine network-level failures (TypeError with no
+ * `.status`).  HTTP errors (401, 403, 404, 500 …) have a status code and are
+ * NEVER retried — they are real errors that should surface to the UI immediately.
+ */
+const MAX_RETRIES = 3;
+const BASE_RETRY_DELAY_MS = 1_000; // 1 s → 2 s → 4 s (doubles each attempt)
+
+/** Returns true for transient network errors that are safe to retry. */
+function isNetworkError(error: unknown): boolean {
+  return (
+    error instanceof TypeError &&
+    !(error as any).status // no HTTP status = not a real HTTP response
+  );
+}
+
+/** Exponential back-off: 1 s on attempt 0, 2 s on 1, 4 s on 2 … */
+const retryDelay = (attempt: number): Promise<void> =>
+  new Promise(resolve => setTimeout(resolve, BASE_RETRY_DELAY_MS * 2 ** attempt));
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 /**
@@ -141,6 +171,7 @@ async function fetchWithAuth<T>(endpoint: string, options: FetchOptions): Promis
   // If the caller declared a requiredRole, resolve the current role and compare
   // against the hierarchy.  Block the request before it hits the wire so the
   // user sees instant feedback instead of a 403 round-trip.
+  // NOTE: role guard rejections are NOT network errors — they must never be retried.
   if (options.requiredRole) {
     const clientRole = getClientRole(token);
     const userRank = clientRole !== null ? (ROLE_RANK[clientRole] ?? 0) : 0;
@@ -185,44 +216,76 @@ async function fetchWithAuth<T>(endpoint: string, options: FetchOptions): Promis
     headers,
   };
 
-  try {
-    const response = await fetch(`${API_URL}${endpoint}`, config);
+  // ── FE-RETRY-01 (Iter 9): Retry loop for transient network errors ──────────
+  //
+  // Only `TypeError: Failed to fetch` (ERR_CONNECTION_REFUSED, DNS failure, etc.)
+  // is retried.  Any error with a `.status` property is a real HTTP response
+  // and is surfaced to the caller immediately without retrying.
+  //
+  // Retry schedule: attempt 0 → wait 1 s → attempt 1 → wait 2 s → attempt 2
+  //                 → wait 4 s → attempt 3 (final) → throw.
+  // Toast is suppressed during retry; only shown if all attempts fail.
+  // ─────────────────────────────────────────────────────────────────────────────
+  let lastError: unknown;
 
-    if (!response.ok) {
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const response = await fetch(`${API_URL}${endpoint}`, config);
+
+      if (!response.ok) {
         // Parse error message if available
         let errorMessage = 'An error occurred';
         try {
-            const errorData = await response.json();
-            errorMessage = errorData.message || errorData.error || errorMessage;
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorData.error || errorMessage;
         } catch {
-            errorMessage = response.statusText;
+          errorMessage = response.statusText;
         }
 
         const error = new Error(errorMessage) as any;
         error.status = response.status;
         throw error;
+      }
+
+      // Handle 204 No Content
+      if (response.status === 204) {
+        return {} as T;
+      }
+
+      return response.json();
+    } catch (error: unknown) {
+      lastError = error;
+
+      // Only retry genuine network errors (no status code).
+      if (isNetworkError(error) && attempt < MAX_RETRIES) {
+        const delayMs = BASE_RETRY_DELAY_MS * 2 ** attempt;
+        console.warn(
+          `[api] Network error on ${options.method} ${endpoint} — ` +
+          `retrying in ${delayMs}ms (attempt ${attempt + 1}/${MAX_RETRIES})`
+        );
+        await retryDelay(attempt);
+        continue; // next attempt
+      }
+
+      // Not a network error, OR we've exhausted retries — fall through to error handling.
+      break;
     }
-
-    // Handle 204 No Content
-    if (response.status === 204) {
-      return {} as T;
-    }
-
-    return response.json();
-  } catch (error: any) {
-    console.error(`API Error [${options.method} ${endpoint}]:`, error);
-
-    // Skip showing toast if unauthenticated access is generally expected to fail (401/403) unless overridden
-    const isAuthError = error.status === 401 || error.status === 403;
-
-    if (!skipErrorHandling && !isAuthError) {
-      toast({
-        title: "Request failed",
-        description: describeError(error),
-        variant: "destructive",
-      });
-    }
-
-    throw error;
   }
+
+  // ── Error handling after all retries exhausted ─────────────────────────────
+  const error = lastError as any;
+  console.error(`API Error [${options.method} ${endpoint}]:`, error);
+
+  // Skip showing toast if unauthenticated access is generally expected to fail (401/403) unless overridden
+  const isAuthError = error?.status === 401 || error?.status === 403;
+
+  if (!skipErrorHandling && !isAuthError) {
+    toast({
+      title: 'Request failed',
+      description: describeError(error),
+      variant: 'destructive',
+    });
+  }
+
+  throw error;
 }
