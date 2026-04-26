@@ -25,6 +25,23 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+/**
+ * Persist the user's role in a separate short-lived cookie so that
+ * api.ts can read it for client-side role guards WITHOUT needing React
+ * context (api.ts is a module, not a component).
+ *
+ * The cookie is secondary/redundant — the JWT now also carries the role
+ * claim.  It exists as a belt-and-suspenders fallback for sessions that
+ * were created before the JWT was updated to carry role.
+ */
+function setRoleCookie(role: string) {
+  Cookies.set('user_role', role, { expires: 7, sameSite: 'lax' });
+}
+
+function clearRoleCookie() {
+  Cookies.remove('user_role');
+}
+
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -38,20 +55,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const checkUser = async () => {
     const token = Cookies.get('token');
     if (!token) {
+      clearRoleCookie();
       setLoading(false);
       return;
     }
 
     try {
-      // Assuming backend returns user object with 'role'
       const userData = await api.get<User>('/users/profile');
       // Map potential 'gold' role to 'vip' if backend returns old data
       if (userData.role === 'gold' as any) {
          userData.role = 'vip';
       }
+      // Keep role cookie in sync so api.ts guards work correctly
+      setRoleCookie(userData.role);
       setUser(userData);
     } catch (error) {
       Cookies.remove('token');
+      clearRoleCookie();
       setUser(null);
     } finally {
       setLoading(false);
@@ -74,7 +94,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       // Store token in cookie
-      Cookies.set('token', token, { expires: 7 }); // Expires in 7 days
+      Cookies.set('token', token, { expires: 7 });
+      // Store role in cookie so api.ts guards work without decoding JWT
+      setRoleCookie(user.role);
+
       setUser(user);
       router.push('/dashboard');
     } catch (error) {
@@ -104,6 +127,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       Cookies.set('token', token, { expires: 7 });
+      setRoleCookie(user.role);
+
       setUser(user);
       router.push('/dashboard');
     } catch (error) {
@@ -120,6 +145,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         console.error("Logout error", error);
     } finally {
         Cookies.remove('token');
+        clearRoleCookie();
         setUser(null);
         router.push('/login');
     }

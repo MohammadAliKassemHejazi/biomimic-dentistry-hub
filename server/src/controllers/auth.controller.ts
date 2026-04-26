@@ -5,6 +5,7 @@ import { generateToken } from '../utils/jwt';
 import { sendEmail } from '../utils/email';
 import { logActivity } from '../utils/activity';
 import { isValidEmail, isValidPassword, isNonEmptyString, isString } from '../utils/validation';
+import { UserRole } from '../types/enums';
 
 export const register = async (req: Request, res: Response) => {
   try {
@@ -44,7 +45,8 @@ export const register = async (req: Request, res: Response) => {
       lastName,
     });
 
-    const token = generateToken(user.id);
+    // Include role in token so client-side role guards work immediately
+    const token = generateToken(user.id, user.role);
 
     await logActivity(user.id, 'register', 'User registered');
 
@@ -105,7 +107,8 @@ export const login = async (req: Request, res: Response) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    const token = generateToken(user.id);
+    // Include role in token so client-side role guards work immediately
+    const token = generateToken(user.id, user.role);
 
     await logActivity(user.id, 'login', 'User logged in');
 

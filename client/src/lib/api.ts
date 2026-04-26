@@ -15,30 +15,50 @@ const ROLE_RANK: Record<string, number> = {
 };
 
 /**
- * Decode the `role` claim from a JWT without verifying the signature.
- * Client-side only — we trust the server to have issued a valid token.
- * Never use this for authorization on the server side.
+ * Resolve the current user's role for client-side pre-flight guards.
+ *
+ * Priority order:
+ *  1. `user_role` cookie — set by AuthContext on every login / profile load.
+ *     This is the most reliable source because it is always current.
+ *  2. JWT payload `role` claim — set since Iter 8 when the server started
+ *     embedding role in the token.  Used as fallback for sessions that
+ *     pre-date the cookie or where the cookie is absent.
+ *  3. null — no role found; the guard will deny the request.
+ *
+ * NOTE: this is purely a UX optimization — the server always enforces
+ * its own middleware (isAdmin, authenticate).  A client-side spoof here
+ * cannot grant real access.
  */
-function getRoleFromToken(token: string): string | null {
-  try {
-    const payload = token.split('.')[1];
-    if (!payload) return null;
-    // Base64url → base64 standard, then decode
-    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
-    const json = atob(base64);
-    const parsed: unknown = JSON.parse(json);
-    if (
-      parsed !== null &&
-      typeof parsed === 'object' &&
-      'role' in parsed &&
-      typeof (parsed as Record<string, unknown>).role === 'string'
-    ) {
-      return (parsed as Record<string, string>).role;
-    }
-    return null;
-  } catch {
-    return null;
+function getClientRole(token: string | undefined): string | null {
+  // 1. Role cookie (preferred — always up-to-date)
+  const cookieRole = Cookies.get('user_role');
+  if (cookieRole && ROLE_RANK[cookieRole] !== undefined) {
+    return cookieRole;
   }
+
+  // 2. JWT payload fallback
+  if (token) {
+    try {
+      const payload = token.split('.')[1];
+      if (payload) {
+        const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+        const json = atob(base64);
+        const parsed: unknown = JSON.parse(json);
+        if (
+          parsed !== null &&
+          typeof parsed === 'object' &&
+          'role' in parsed &&
+          typeof (parsed as Record<string, unknown>).role === 'string'
+        ) {
+          return (parsed as Record<string, string>).role;
+        }
+      }
+    } catch {
+      // ignore malformed token
+    }
+  }
+
+  return null;
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -118,12 +138,12 @@ async function fetchWithAuth<T>(endpoint: string, options: FetchOptions): Promis
   }
 
   // ── Client-side role guard ──────────────────────────────────────────────────
-  // If the caller declared a requiredRole, decode the JWT role and compare
+  // If the caller declared a requiredRole, resolve the current role and compare
   // against the hierarchy.  Block the request before it hits the wire so the
   // user sees instant feedback instead of a 403 round-trip.
   if (options.requiredRole) {
-    const tokenRole = token ? getRoleFromToken(token) : null;
-    const userRank = tokenRole !== null ? (ROLE_RANK[tokenRole] ?? 0) : 0;
+    const clientRole = getClientRole(token);
+    const userRank = clientRole !== null ? (ROLE_RANK[clientRole] ?? 0) : 0;
     const requiredRank = ROLE_RANK[options.requiredRole] ?? 0;
 
     if (userRank < requiredRank) {
@@ -142,7 +162,7 @@ async function fetchWithAuth<T>(endpoint: string, options: FetchOptions): Promis
 
       console.warn(
         `[api] Blocked ${options.method} ${endpoint}: ` +
-        `user rank ${userRank} (${tokenRole ?? 'unauthenticated'}) < required rank ${requiredRank} (${options.requiredRole})`
+        `user rank ${userRank} (${clientRole ?? 'unauthenticated'}) < required rank ${requiredRank} (${options.requiredRole})`
       );
       throw err;
     }

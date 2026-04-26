@@ -9,6 +9,8 @@ import { SubscriptionStatus } from '../types/enums';
   indexes: [
     { name: 'subscriptions_user_id', fields: ['user_id'] },
     { name: 'subscriptions_stripe_subscription_id', fields: ['stripe_subscription_id'] },
+    // SV-06 (Iter 8): Added PayPal subscription ID index for webhook lookups
+    { name: 'subscriptions_paypal_subscription_id', fields: ['paypal_subscription_id'] },
     { name: 'subscriptions_status', fields: ['status'] }
   ],
 })
@@ -32,6 +34,12 @@ export class Subscription extends Model {
 
   @Column(DataType.STRING)
   stripePriceId!: string;
+
+  // SV-06 (Iter 8): PayPal subscription ID for webhook handler lookups.
+  // sequelize.sync({ alter: true }) will ADD this column on next server start.
+  // Format: "I-XXXXXXXXXXXXXXXX"
+  @Column(DataType.STRING)
+  paypalSubscriptionId?: string;
 
   @Column(DataType.ENUM(...Object.values(SubscriptionStatus)))
   status!: SubscriptionStatus;

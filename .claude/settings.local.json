@@ -50,7 +50,13 @@
       "Bash(python3 /tmp/fix_admin.py)",
       "Bash(python3 *)",
       "Bash(mkdir -p .claude/reports/archive/iter-7)",
-      "Bash(zip -j .claude/reports/archive/iter-7/reports-iter-7.zip .claude/reports/frontend-report.md .claude/reports/backend-report.md .claude/reports/architect-report.md .claude/reports/qa-report.md FINAL-REPORT.md)"
+      "Bash(zip -j .claude/reports/archive/iter-7/reports-iter-7.zip .claude/reports/frontend-report.md .claude/reports/backend-report.md .claude/reports/architect-report.md .claude/reports/qa-report.md FINAL-REPORT.md)",
+      "Bash(mkdir -p \"C:\\\\Users\\\\USER\\\\Desktop\\\\Projects\\\\biomimic-dentistry-hub\\\\client\\\\src\\\\app\\\\admin\\\\courses\\\\[id]\\\\edit\")",
+      "Bash(mkdir -p \"C:\\\\Users\\\\USER\\\\Desktop\\\\Projects\\\\biomimic-dentistry-hub\\\\client\\\\src\\\\app\\\\admin\\\\resources\\\\[id]\\\\edit\")",
+      "Bash(npm uninstall *)",
+      "Bash(dir C:\\\\Users\\\\USER\\\\Desktop\\\\Projects\\\\biomimic-dentistry-hub\\\\client\\\\src\\\\app\\\\admin\\\\courses *)",
+      "Bash(mkdir -p \"/c/Users/USER/Desktop/Projects/biomimic-dentistry-hub/.claude/reports/archive/iter-8\")",
+      "Bash(zip -j \"archive/iter-8/reports-iter-8.zip\" frontend-report.md backend-report.md architect-report.md qa-report.md FINAL-REPORT.md)"
     ]
   },
   "model": "claude-sonnet-4-6",

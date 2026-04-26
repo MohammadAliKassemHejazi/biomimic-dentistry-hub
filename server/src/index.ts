@@ -131,6 +131,32 @@ app.get('/health', (req: Request, res: Response) => {
   res.json({ status: 'ok', uptime: process.uptime() });
 });
 
+// ─── DEV-ONLY: database reset endpoint ───────────────────────────────────────
+// POST /api/dev/reset  →  drops & recreates all tables, then reseeds admin.
+// NEVER available in production.
+if (process.env.NODE_ENV !== 'production') {
+  app.post('/api/dev/reset', async (req: Request, res: Response) => {
+    try {
+      console.log('[dev/reset] Dropping and recreating all tables…');
+      await sequelize.sync({ force: true });
+      console.log('[dev/reset] Tables recreated. Seeding admin…');
+      await seedDefaultAdmin();
+      console.log('[dev/reset] Done.');
+      res.json({
+        success: true,
+        message: 'Database reset complete. Admin seeded.',
+        credentials: {
+          email: process.env.SEED_ADMIN_EMAIL || '(SEED_ADMIN_EMAIL not set)',
+          password: '(as configured in SEED_ADMIN_PASSWORD env var)',
+        },
+      });
+    } catch (err: any) {
+      console.error('[dev/reset] Error:', err);
+      res.status(500).json({ success: false, message: err?.message || 'Reset failed' });
+    }
+  });
+}
+
 // SV-04: Global error handler. Contract: { message: string } (frozen by architect).
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: any, req: Request, res: Response, _next: NextFunction) => {

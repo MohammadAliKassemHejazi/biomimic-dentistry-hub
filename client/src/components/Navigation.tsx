@@ -39,6 +39,7 @@ interface NavItem {
   href: string;
 }
 
+// FE-CONTRAST: All text-white/90 → text-white (WCAG 4.5:1 compliance on bg-primary)
 const DropdownNav = memo(({ title, items, className = "" }: { title: string, items: NavItem[], className?: string }) => {
   const pathname = usePathname();
   const isActive = useCallback((href: string) => pathname === href, [pathname]);
@@ -46,7 +47,7 @@ const DropdownNav = memo(({ title, items, className = "" }: { title: string, ite
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className={`text-white/90 hover:text-white hover:bg-white/10 ${className}`}>
+        <Button variant="ghost" className={`text-white hover:text-white hover:bg-white/10 ${className}`}>
           {title}
           <ChevronDown className="ml-1 h-4 w-4" aria-hidden="true" />
         </Button>
@@ -80,11 +81,12 @@ const Navigation = () => {
 
   const isActive = useCallback((href: string) => pathname === href, [pathname]);
 
-  const linkClass = useCallback((href: string) => `text-white/90 hover:text-white transition-colors font-medium px-3 py-2 rounded-md hover:bg-white/10 ${
+  // FE-CONTRAST: text-white/90 → text-white
+  const linkClass = useCallback((href: string) => `text-white hover:text-white transition-colors font-medium px-3 py-2 rounded-md hover:bg-white/10 ${
     isActive(href) ? 'text-secondary bg-white/5' : ''
   }`, [isActive]);
 
-  const mobileLinkClass = useCallback((href: string) => `block px-4 py-3 text-white/90 hover:text-white hover:bg-white/10 rounded-lg transition-colors ${
+  const mobileLinkClass = useCallback((href: string) => `block px-4 py-3 text-white hover:text-white hover:bg-white/10 rounded-lg transition-colors ${
     isActive(href) ? 'text-secondary bg-white/5' : ''
   }`, [isActive]);
 
@@ -153,7 +155,8 @@ const Navigation = () => {
               {user ? (
                 <DropdownMenu modal={false}>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="text-white/90 hover:text-white hover:bg-white/10" aria-label="Account menu">
+                    {/* FE-CONTRAST: text-white/90 → text-white */}
+                    <Button variant="ghost" className="text-white hover:text-white hover:bg-white/10" aria-label="Account menu">
                       <User className="mr-2 h-4 w-4" aria-hidden="true" />
                       {userName}
                       <ChevronDown className="ml-1 h-4 w-4" aria-hidden="true" />
@@ -208,7 +211,8 @@ const Navigation = () => {
               ) : (
                 <div className="flex gap-2">
                   <Link href="/login">
-                    <Button variant="ghost" size="sm" className="text-white/90 hover:text-white hover:bg-white/10">
+                    {/* FE-CONTRAST: text-white/90 → text-white */}
+                    <Button variant="ghost" size="sm" className="text-white hover:text-white hover:bg-white/10">
                       <User className="mr-2 h-4 w-4" aria-hidden="true" />
                       Login
                     </Button>
@@ -223,9 +227,10 @@ const Navigation = () => {
             </div>
 
             {/* Mobile Menu Button */}
+            {/* FE-CONTRAST: text-white/90 → text-white */}
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="md:hidden p-2 text-white/90 hover:text-white transition-colors"
+              className="md:hidden p-2 text-white hover:text-white transition-colors"
               aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
               aria-expanded={isMenuOpen}
               aria-controls="mobile-nav"
@@ -374,7 +379,7 @@ const Navigation = () => {
                       signOut();
                       setIsMenuOpen(false);
                     }}
-                    className="text-white/90 hover:text-white hover:bg-white/10"
+                    className="text-white hover:text-white hover:bg-white/10"
                   >
                     <LogOut className="h-4 w-4 mr-2" aria-hidden="true" />
                     Logout
@@ -382,7 +387,8 @@ const Navigation = () => {
                 ) : (
                   <div className="flex gap-2">
                     <Link href="/login" onClick={() => setIsMenuOpen(false)}>
-                      <Button variant="ghost" size="sm" className="text-white/90 hover:text-white hover:bg-white/10">
+                      {/* FE-CONTRAST: text-white/90 → text-white */}
+                      <Button variant="ghost" size="sm" className="text-white hover:text-white hover:bg-white/10">
                         <User className="mr-2 h-4 w-4" aria-hidden="true" />
                         Login
                       </Button>

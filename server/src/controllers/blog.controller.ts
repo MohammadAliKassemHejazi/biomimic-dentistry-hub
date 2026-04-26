@@ -255,6 +255,9 @@ export const toggleFavorite = async (req: Request, res: Response) => {
   }
 };
 
+// BE-PERF-01 (Iter 8): Replace BlogView JOIN with scalar subquery.
+// Previously included all BlogView rows (could be 500k rows for popular posts).
+// Now uses a single COUNT(*) subquery — O(1) per post regardless of view volume.
 export const getFavorites = async (req: Request, res: Response) => {
   try {
     const user = req.user;
@@ -266,12 +269,20 @@ export const getFavorites = async (req: Request, res: Response) => {
         {
           model: BlogPost,
           as: 'blogPost',
+          attributes: {
+            include: [[
+              sequelize.literal(
+                // "blogPost" is the Sequelize JOIN alias (not the table name "blog_posts")
+                '(SELECT COUNT(*)::int FROM "blog_views" AS "bv" WHERE "bv"."blog_post_id" = "blogPost"."id")'
+              ),
+              'viewCount',
+            ]],
+          },
           include: [
             { model: User, as: 'author', attributes: ['firstName', 'lastName'] },
-            { model: BlogView, as: 'views', attributes: ['id'] }
-          ]
-        }
-      ]
+          ],
+        },
+      ],
     });
 
     const posts = favorites
@@ -287,7 +298,7 @@ export const getFavorites = async (req: Request, res: Response) => {
         tags: p.tags ? p.tags.split(',') : [],
         read_time: p.readTime,
         created_at: p.createdAt,
-        view_count: p.views?.length || 0,
+        view_count: Number((p as any).get?.('viewCount') ?? 0),
         is_favorited: true,
         profiles: {
           first_name: p.author?.firstName,
@@ -332,33 +343,28 @@ export const recordView = async (req: Request, res: Response) => {
   }
 };
 
+// BE-BLOG-STATUS (Iter 8): Admin-only handler to approve / reject submitted blog posts.
+// Route: PATCH /blog/posts/:id/status  (isAdmin middleware enforced in blog.routes.ts)
 export const updatePostStatus = async (req: Request, res: Response) => {
   try {
     const { id } = req.params as { id: string };
-    const { status } = req.body;
-    const user = req.user;
+    const { status } = req.body as { status: string };
 
-    if (user?.role !== 'admin') {
-      return res.status(403).json({ message: 'Forbidden' });
+    const validStatuses = Object.values(ContentStatus);
+    if (!validStatuses.includes(status as ContentStatus)) {
+      return res.status(400).json({
+        message: `Invalid status. Must be one of: ${validStatuses.join(', ')}`,
+      });
     }
 
-    // SV-11: validate against ContentStatus enum so DB never sees a bad value.
-    if (typeof status !== 'string' || !Object.values(ContentStatus).includes(status as ContentStatus)) {
-        return res.status(400).json({
-            message: `Invalid status. Allowed values: ${Object.values(ContentStatus).join(', ')}`,
-        });
+    const post = await BlogPost.findByPk(id);
+    if (!post) {
+      return res.status(404).json({ message: 'Post not found' });
     }
 
-    const [affectedCount, affectedRows] = await BlogPost.update(
-      { status: status as ContentStatus },
-      { where: { id }, returning: true }
-    );
+    await post.update({ status: status as ContentStatus });
 
-    if (affectedCount === 0) {
-        return res.status(404).json({ message: 'Post not found' });
-    }
-
-    res.json(affectedRows[0]);
+    res.json({ success: true, status: post.status });
   } catch (error) {
     console.error('Error updating post status:', error);
     res.status(500).json({ message: 'Internal server error' });

@@ -122,13 +122,13 @@ const HeroSection = () => {
         <div className="text-center max-w-4xl mx-auto">
           {/* Main Content Container with Glass Effect */}
           <div className="glass-card p-8 md:p-12 mb-8">
-            {/* Main Headline with organic animation */}
+            {/* FE-LCP: delay: 0.1 → 0 to reduce time-to-first-paint on LCP element */}
             <motion.h1
               initial={{ opacity: 0, y: 60 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{
                 duration: 0.8,
-                delay: 0.1,
+                delay: 0,
                 type: "spring",
                 damping: 20
               }}

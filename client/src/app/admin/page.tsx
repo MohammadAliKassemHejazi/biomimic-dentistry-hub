@@ -84,6 +84,13 @@ interface Resource {
     createdAt: string;
 }
 
+// FE-BUG-01 (Iter 8): Resources endpoint returns a paginated envelope {data, meta}.
+// This type captures that shape so we can extract .data safely.
+interface ResourcePage {
+    data: Resource[];
+    meta: unknown;
+}
+
 interface Course {
     id: string;
     title: string;
@@ -212,7 +219,9 @@ export default function AdminDashboard() {
             api.get<PartnerTemplates>('/admin/settings/partner-templates', { skipErrorHandling: true }),
             api.get<NewsletterSubscriber[]>('/newsletter',                 { skipErrorHandling: true }),
             api.get<Course[]>('/courses',                                  { skipErrorHandling: true }),
-            api.get<Resource[]>('/resources',                              { skipErrorHandling: true }),
+            // FE-BUG-01 (Iter 8): GET /resources returns a paginated envelope {data, meta}.
+            // Use limit=500 to fetch all resources for the admin panel in one call.
+            api.get<ResourcePage>('/resources?limit=500',                  { skipErrorHandling: true }),
         ]);
 
         setUsers(take(usersRes, 'Users', { users: [] }, onPanelError).users ?? []);
@@ -227,7 +236,8 @@ export default function AdminDashboard() {
         setPartnerTemplates(take(templatesRes, 'Partner templates', { silver: null, gold: null, vip: null }, onPanelError));
         setNewsletterSubscribers(take(subscribersRes, 'Newsletter subscribers', [], onPanelError));
         setCourses(take(coursesRes, 'Courses', [], onPanelError));
-        setAllResources(take(resourcesRes, 'All resources', [], onPanelError));
+        // FE-BUG-01 (Iter 8): extract .data array from the paginated envelope.
+        setAllResources(take(resourcesRes, 'All resources', { data: [], meta: {} }, onPanelError).data ?? []);
 
         if (failures.length > 0) {
             toast({
@@ -250,9 +260,12 @@ export default function AdminDashboard() {
         }
     }, [user, authLoading, fetchData]);
 
+    // FE-AUTH-01 (Iter 8): All admin API mutations now include requiredRole: 'admin'
+    // for client-side defence-in-depth (server middleware still enforces server-side).
+
     const handleApproveApp = async (id: string) => {
         try {
-            await api.patch(`/admin/applications/${id}/status`, { status: 'approved' });
+            await api.patch(`/admin/applications/${id}/status`, { status: 'approved' }, { requiredRole: 'admin' });
             toast({ title: "Approved", description: "Application approved" });
             fetchData(true);
         } catch (error) {
@@ -262,7 +275,7 @@ export default function AdminDashboard() {
 
     const handleRejectApp = async (id: string) => {
         try {
-            await api.patch(`/admin/applications/${id}/status`, { status: 'rejected' });
+            await api.patch(`/admin/applications/${id}/status`, { status: 'rejected' }, { requiredRole: 'admin' });
             toast({ title: "Rejected", description: "Application rejected" });
             fetchData(true);
         } catch (error) {
@@ -276,9 +289,9 @@ export default function AdminDashboard() {
             const data = { status: 'approved' };
 
             if (type === 'post') {
-                 await api.patch(endpoint, data);
+                 await api.patch(endpoint, data, { requiredRole: 'admin' });
             } else {
-                 await api.put(endpoint, data);
+                 await api.put(endpoint, data, { requiredRole: 'admin' });
             }
 
             toast({ title: "Approved", description: "Content approved" });
@@ -290,17 +303,17 @@ export default function AdminDashboard() {
 
     const handleRoleChange = async (userId: string, newRole: string) => {
         try {
-            await api.patch(`/admin/users/${userId}/role`, { role: newRole });
+            await api.patch(`/admin/users/${userId}/role`, { role: newRole }, { requiredRole: 'admin' });
             toast({ title: "Role updated", description: `User role changed to ${newRole}` });
             fetchData(true);
         } catch (error) {
             toast({ title: "Could not update role", description: describeError(error), variant: "destructive" });
         }
-    }
+    };
 
     const handleDeleteSubscriber = async (id: string) => {
         try {
-            await api.delete(`/newsletter/${id}`);
+            await api.delete(`/newsletter/${id}`, { requiredRole: 'admin' });
             toast({ title: 'Subscriber removed', description: 'Newsletter subscriber deleted' });
             setNewsletterSubscribers(prev => prev.filter(s => s.id !== id));
         } catch (error) {
@@ -308,12 +321,10 @@ export default function AdminDashboard() {
         }
     };
 
-
-
     const handleDeleteCourse = async (id: string) => {
         if (!confirm('Delete this course?')) return;
         try {
-            await api.delete(`/courses/${id}`);
+            await api.delete(`/courses/${id}`, { requiredRole: 'admin' });
             toast({ title: 'Course deleted' });
             fetchData(true);
         } catch (error) {
@@ -324,7 +335,7 @@ export default function AdminDashboard() {
     const handleDeleteResource = async (id: string) => {
         if (!confirm('Delete this resource?')) return;
         try {
-            await api.delete(`/resources/${id}`);
+            await api.delete(`/resources/${id}`, { requiredRole: 'admin' });
             toast({ title: 'Resource deleted' });
             fetchData(true);
         } catch (error) {
@@ -336,12 +347,22 @@ export default function AdminDashboard() {
         e.preventDefault();
         const formData = new FormData(e.target as HTMLFormElement);
 
+        // FE-FORM-DUP-01 (Iter 8): The form has two name fields for logo:
+        // "logo_url" (text input) and "logo" (file input).
+        // If no file was chosen, promote the text URL to "logo".
+        const logoFile = formData.get('logo');
+        const logoUrl = formData.get('logo_url') as string;
+        if ((!logoFile || (logoFile instanceof File && logoFile.size === 0)) && logoUrl) {
+            formData.set('logo', logoUrl);
+        }
+        formData.delete('logo_url');
+
         try {
             if (editingItem) {
-                await api.put(`/partners/${editingItem.id}`, formData);
+                await api.put(`/partners/${editingItem.id}`, formData, { requiredRole: 'admin' });
                 toast({ title: "Partner updated", description: `${editingItem.name} saved` });
             } else {
-                await api.post('/partners', formData);
+                await api.post('/partners', formData, { requiredRole: 'admin' });
                 toast({ title: "Partner added", description: "New partner created" });
             }
             setPartnerDialogOpen(false);
@@ -355,7 +376,7 @@ export default function AdminDashboard() {
     const handleDeletePartner = async (id: string) => {
         if (!confirm("Are you sure?")) return;
         try {
-            await api.delete(`/partners/${id}`);
+            await api.delete(`/partners/${id}`, { requiredRole: 'admin' });
             toast({ title: "Partner deleted", description: "Partner removed from the site" });
             fetchData(true);
         } catch (error) {
@@ -367,12 +388,20 @@ export default function AdminDashboard() {
         e.preventDefault();
         const formData = new FormData(e.target as HTMLFormElement);
 
+        // FE-FORM-DUP-01 (Iter 8): Same pattern as logo — promote image_url if no file chosen.
+        const imageFile = formData.get('image');
+        const imageUrl = formData.get('image_url') as string;
+        if ((!imageFile || (imageFile instanceof File && imageFile.size === 0)) && imageUrl) {
+            formData.set('image', imageUrl);
+        }
+        formData.delete('image_url');
+
         try {
             if (editingItem) {
-                await api.put(`/leadership/${editingItem.id}`, formData);
+                await api.put(`/leadership/${editingItem.id}`, formData, { requiredRole: 'admin' });
                 toast({ title: "Member updated", description: `${editingItem.name} saved` });
             } else {
-                await api.post('/leadership', formData);
+                await api.post('/leadership', formData, { requiredRole: 'admin' });
                 toast({ title: "Member added", description: "New leadership profile created" });
             }
             setMemberDialogOpen(false);
@@ -386,7 +415,7 @@ export default function AdminDashboard() {
     const handleDeleteMember = async (id: string) => {
         if (!confirm("Are you sure?")) return;
         try {
-            await api.delete(`/leadership/${id}`);
+            await api.delete(`/leadership/${id}`, { requiredRole: 'admin' });
             toast({ title: "Member deleted", description: "Leadership profile removed" });
             fetchData(true);
         } catch (error) {
@@ -396,7 +425,7 @@ export default function AdminDashboard() {
 
     const handleMessageStatus = async (id: string, status: string) => {
         try {
-            await api.patch(`/contact/${id}/status`, { status });
+            await api.patch(`/contact/${id}/status`, { status }, { requiredRole: 'admin' });
             setMessages(prev => prev.map(m => m.id === id ? { ...m, status: status as ContactMessage['status'] } : m));
         } catch (error) {
             toast({ title: 'Could not update message', description: describeError(error), variant: 'destructive' });
@@ -407,7 +436,7 @@ export default function AdminDashboard() {
         try {
             const body: Record<string, string> = { status };
             if (tier) body.tier = tier;
-            await api.patch(`/admin/partner-applications/${id}/status`, body);
+            await api.patch(`/admin/partner-applications/${id}/status`, body, { requiredRole: 'admin' });
             toast({
                 title: status === 'approved' ? 'Approved' : 'Rejected',
                 description: status === 'approved'
@@ -431,7 +460,7 @@ export default function AdminDashboard() {
                 const formData = new FormData();
                 formData.append('file', file);
                 try {
-                    await api.post(`/admin/settings/partner-templates/${tier}`, formData);
+                    await api.post(`/admin/settings/partner-templates/${tier}`, formData, { requiredRole: 'admin' });
                     toast({ title: 'Template uploaded', description: `${tier} template saved` });
                     fetchData(true);
                 } catch (error) {
@@ -453,7 +482,7 @@ export default function AdminDashboard() {
         data.popular = formData.get('popular') === 'on';
 
         try {
-            await api.put(`/plans/${editingItem.id}`, data);
+            await api.put(`/plans/${editingItem.id}`, data, { requiredRole: 'admin' });
             toast({ title: "Plan updated", description: `${data.name} saved` });
             setPlanDialogOpen(false);
             setEditingItem(null);
@@ -808,7 +837,7 @@ export default function AdminDashboard() {
                                             const formData = new FormData();
                                             formData.append('file', file);
                                             try {
-                                                await api.post('/admin/settings/partnership-kit', formData);
+                                                await api.post('/admin/settings/partnership-kit', formData, { requiredRole: 'admin' });
                                                 toast({ title: 'Partnership kit updated', description: 'File saved' });
                                                 fetchData(true);
                                             } catch (error) {
@@ -849,14 +878,17 @@ export default function AdminDashboard() {
                                             <Label>Description</Label>
                                             <Textarea name="description" defaultValue={editingItem?.description} placeholder="Brief description of the partner..." required />
                                         </div>
+                                        {/* FE-FORM-DUP-01 (Iter 8): renamed text input to logo_url to avoid
+                                            FormData collision with the file upload input (name="logo").
+                                            handlePartnerSubmit promotes logo_url → logo if no file chosen. */}
                                         <div className="space-y-2">
                                             <Label>Logo (URL/Emoji)</Label>
-                                            <Input name="logo" defaultValue={editingItem?.logo} placeholder="https://... or 🦷" />
-                                            <p className="text-[0.8rem] text-muted-foreground">Provide a URL or an emoji.</p>
+                                            <Input name="logo_url" defaultValue={editingItem?.logo} placeholder="https://... or 🦷" />
+                                            <p className="text-[0.8rem] text-muted-foreground">Provide a URL or an emoji. Leave blank if uploading a file below.</p>
                                         </div>
                                         <div className="space-y-2">
-                                            <Label>Or Upload Logo</Label>
-                                            <Input name="logo" type="file" />
+                                            <Label>Or Upload Logo Image</Label>
+                                            <Input name="logo" type="file" accept="image/*" />
                                         </div>
                                         <div className="space-y-2">
                                             <Label>Tier</Label>
@@ -931,14 +963,15 @@ export default function AdminDashboard() {
                                             <Label>Bio</Label>
                                             <Textarea name="bio" defaultValue={editingItem?.bio} placeholder="Short professional biography..." required />
                                         </div>
+                                        {/* FE-FORM-DUP-01 (Iter 8): renamed text input to image_url. */}
                                         <div className="space-y-2">
                                             <Label>Image (Emoji or URL)</Label>
-                                            <Input name="image" defaultValue={editingItem?.image} placeholder="https://... or 👨‍⚕️" />
+                                            <Input name="image_url" defaultValue={editingItem?.image} placeholder="https://... or 👨‍⚕️" />
                                             <p className="text-[0.8rem] text-muted-foreground">Leave blank to auto-generate based on title.</p>
                                         </div>
                                         <div className="space-y-2">
                                             <Label>Or Upload Image</Label>
-                                            <Input name="image" type="file" />
+                                            <Input name="image" type="file" accept="image/*" />
                                         </div>
                                         <div className="space-y-2">
                                             <Label>Expertise</Label>
@@ -1009,7 +1042,7 @@ export default function AdminDashboard() {
                             {plans.length === 0 && (
                                 <Button onClick={async () => {
                                     try {
-                                        await api.post('/plans/seed', {});
+                                        await api.post('/plans/seed', {}, { requiredRole: 'admin' });
                                         toast({ title: 'Plans seeded', description: 'Default subscription plans created.' });
                                         fetchData(true);
                                     } catch (error) {
@@ -1159,15 +1192,23 @@ export default function AdminDashboard() {
                                         <div className="space-y-2">
                                             {courses.map(course => (
                                                 <div key={course.id} className="flex items-center justify-between border rounded-lg px-4 py-3 bg-card">
-                                                    <div>
-                                                        <p className="font-medium text-sm">{course.title}</p>
+                                                    <div className="min-w-0 flex-1 mr-3">
+                                                        <p className="font-medium text-sm truncate">{course.title}</p>
                                                         <p className="text-xs text-muted-foreground">
                                                             {course.coming_soon ? 'Coming Soon' : 'Available'} &middot; ${Number(course.price).toFixed(2)} &middot; {course.access_level}
                                                         </p>
                                                     </div>
-                                                    <Button size="sm" variant="destructive" onClick={() => handleDeleteCourse(course.id)}>
-                                                        <Trash className="h-4 w-4" />
-                                                    </Button>
+                                                    {/* FE-EDIT-01b (Iter 8): Edit button linking to /admin/courses/[id]/edit */}
+                                                    <div className="flex gap-1 shrink-0">
+                                                        <Button size="sm" variant="outline" asChild>
+                                                            <Link href={`/admin/courses/${course.id}/edit`} aria-label={`Edit ${course.title}`}>
+                                                                <Edit className="h-4 w-4" aria-hidden="true" />
+                                                            </Link>
+                                                        </Button>
+                                                        <Button size="sm" variant="destructive" onClick={() => handleDeleteCourse(course.id)} aria-label={`Delete ${course.title}`}>
+                                                            <Trash className="h-4 w-4" aria-hidden="true" />
+                                                        </Button>
+                                                    </div>
                                                 </div>
                                             ))}
                                         </div>
@@ -1195,13 +1236,21 @@ export default function AdminDashboard() {
                                         <div className="space-y-2">
                                             {allResources.map(res => (
                                                 <div key={res.id} className="flex items-center justify-between border rounded-lg px-4 py-3 bg-card">
-                                                    <div>
-                                                        <p className="font-medium text-sm">{res.title}</p>
+                                                    <div className="min-w-0 flex-1 mr-3">
+                                                        <p className="font-medium text-sm truncate">{res.title}</p>
                                                         <p className="text-xs text-muted-foreground">{new Date(res.createdAt).toLocaleDateString()}</p>
                                                     </div>
-                                                    <Button size="sm" variant="destructive" onClick={() => handleDeleteResource(res.id)}>
-                                                        <Trash className="h-4 w-4" />
-                                                    </Button>
+                                                    {/* FE-EDIT-02b (Iter 8): Edit button linking to /admin/resources/[id]/edit */}
+                                                    <div className="flex gap-1 shrink-0">
+                                                        <Button size="sm" variant="outline" asChild>
+                                                            <Link href={`/admin/resources/${res.id}/edit`} aria-label={`Edit ${res.title}`}>
+                                                                <Edit className="h-4 w-4" aria-hidden="true" />
+                                                            </Link>
+                                                        </Button>
+                                                        <Button size="sm" variant="destructive" onClick={() => handleDeleteResource(res.id)} aria-label={`Delete ${res.title}`}>
+                                                            <Trash className="h-4 w-4" aria-hidden="true" />
+                                                        </Button>
+                                                    </div>
                                                 </div>
                                             ))}
                                         </div>
