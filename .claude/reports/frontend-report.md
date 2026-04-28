@@ -1,4 +1,4 @@
-# Frontend Expert Report — Iteration 13
+# Frontend Expert Report — Iteration 14
 
 **Agent:** frontend-expert  
 **Date:** 2026-04-28  
@@ -6,41 +6,35 @@
 
 ---
 
-## Critical Issue Found
+## Issue Found
 
-### FE-13-01 — Event handler in Server Component on /offline page
-**Severity:** CRITICAL — Build-blocking  
-**File:** `client/src/app/offline/page.tsx` — line 63  
+### FE-14-01 — User appears logged out on page refresh when server returns 500
+**Severity:** HIGH — Poor UX caused by cascading BE error  
+**File:** `client/src/contexts/AuthContext.tsx` — line 84
 
-**Root Cause:**  
-`OfflinePage` is a **Server Component** (no `"use client"` directive). It exports
-`metadata`, which correctly requires server context. However, it contains a
-`<button>` with `onClick={() => window.location.reload()}` — event handlers
-cannot be serialized and sent to the browser from a Server Component. Next.js
-throws during static generation:
+**Root cause:**
+`checkUser()` catch block has correct logic for NOT clearing the token on 500
+(lines 79–83), but line 84 calls `setUser(null)` unconditionally for ALL errors:
 
+```tsx
+} catch (error: any) {
+  const isAuthFailure = error?.status === 401 || error?.status === 403;
+  if (isAuthFailure) {
+    Cookies.remove('token');
+    clearRoleCookie();
+  }
+  setUser(null);  // ← runs even on 500 / network error → user appears logged out
+}
 ```
-Error: Event handlers cannot be passed to Client Component props.
-  {onClick: function onClick, className: ..., children: ...}
-```
 
-**Why we cannot simply add `"use client"` to the page:**  
-The file exports `metadata` — Next.js only allows `metadata` exports from Server
-Components. Adding `"use client"` would break the metadata export.
+`isAuthenticated` is computed as `!!user`, so `setUser(null)` → `isAuthenticated = false`
+→ every route guard and conditional render treats the user as anonymous, even though
+their token cookie is still valid and the server will recover.
 
-**Required fix:**  
-Extract the retry `<button>` (the only interactive element) into a separate
-`"use client"` component: `RetryButton.tsx` in the same directory.
-Import it into `page.tsx`. The page stays a Server Component; the button
-becomes a Client Component island.
-
----
-
-## Full Scan Results
-
-- All other `app/` pages with event handlers already have `"use client"` ✅
-- `error.tsx` — has `"use client"`, correctly handles `onClick` and `useEffect` ✅
-- No other Server Components with event handlers or browser-only APIs found
+**Required fix:**
+Move `setUser(null)` inside the `if (isAuthFailure)` block. On 5xx or network
+errors, preserve the existing user state — null on first load (same UX as now),
+but correctly preserves user identity on mid-session transient errors.
 
 ---
 
@@ -48,5 +42,4 @@ becomes a Client Component island.
 
 | ID | File | Change | Risk |
 |---|---|---|---|
-| FE-13-01a | `client/src/app/offline/RetryButton.tsx` | Create new `"use client"` component with retry button | None (new file) |
-| FE-13-01b | `client/src/app/offline/page.tsx` | Replace inline button with `<RetryButton />` import | Low |
+| FE-14-01 | `client/src/contexts/AuthContext.tsx` | Move `setUser(null)` inside `isAuthFailure` guard | Low |

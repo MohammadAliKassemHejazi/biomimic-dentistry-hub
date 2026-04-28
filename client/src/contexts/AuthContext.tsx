@@ -76,12 +76,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       //
       // By the time this catch fires, api.ts (FE-RETRY-01) has already retried
       // up to 3 times with exponential backoff, so this is a genuine failure.
+      //
+      // FE-14-01 (Iter 14): setUser(null) is also now guarded to auth failures
+      // only.  A 500 (e.g. transient DB error) must not evict the user's session
+      // state — the token is still valid and the server will recover.
+      // On first load user is already null, so this is behaviorally identical
+      // for that case; on mid-session errors it correctly preserves the session.
       const isAuthFailure = error?.status === 401 || error?.status === 403;
       if (isAuthFailure) {
         Cookies.remove('token');
         clearRoleCookie();
+        setUser(null);
       }
-      setUser(null);
+      // Non-auth errors (5xx, network): leave user state as-is.
+      // loading is still resolved to false in finally below.
     } finally {
       setLoading(false);
     }

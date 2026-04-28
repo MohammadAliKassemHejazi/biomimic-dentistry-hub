@@ -34,6 +34,7 @@ import settingsRoutes from './routes/settings.routes';
 // SV-16 (Iter 3): webhook routes (Stripe + PayPal)
 import webhookRoutes from './routes/webhook.routes';
 import { seedDefaultAdmin } from './utils/seed';
+import { runMigrations } from './utils/migrate';
 import { publicCacheHeaders } from './middleware/cache';
 
 const app = express();
@@ -160,24 +161,26 @@ app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
 
 // ─── BE-DOCKER-02: Deferred startup ──────────────────────────────────────────
 //
-// app.listen() is called INSIDE the database init chain so that port 5000 is
-// only bound once the server is fully ready:
-//   1. Postgres connection established (sequelize.authenticate)
-//   2. Schema up to date (sequelize.sync)
-//   3. Seed data present (seedDefaultAdmin)
-//   4. Express starts listening → /health returns 200
+// Startup sequence (runs in order, all must succeed before port is bound):
+//   1. Postgres connection established   (sequelize.authenticate)
+//   2. Idempotent column migrations run  (runMigrations) ← BE-14-01
+//   3. Schema synced in dev / SYNC_DB    (sequelize.sync)
+//   4. Seed data present                 (seedDefaultAdmin)
+//   5. Express starts listening          → /health returns 200
 //
-// This makes the Docker health check naturally reflect true readiness.
-// Before this fix, app.listen() was called immediately (before DB was ready),
-// so port 5000 appeared bound but all DB-dependent routes threw errors during
-// the startup window — causing TypeError: Failed to fetch in the browser.
-//
-// If the DB connection permanently fails (wrong DATABASE_URL), process.exit(1)
-// fires and Docker's `restart: unless-stopped` policy retries the container.
+// runMigrations() uses ADD COLUMN IF NOT EXISTS so it is safe on every
+// startup and adds any columns the production DB is missing without touching
+// existing data or running the full (potentially destructive) Sequelize sync.
 // ─────────────────────────────────────────────────────────────────────────────
 sequelize.authenticate()
   .then(async () => {
     console.log('Database connected via Sequelize');
+
+    // BE-14-01: Run idempotent SQL migrations first — adds any missing columns
+    // that were added to models after the initial production deployment.
+    // Safe to run every startup (IF NOT EXISTS guard on every statement).
+    await runMigrations();
+
     // Sync schema in development, or in production when SYNC_DB=true (first deploy only)
     if (process.env.NODE_ENV !== 'production' || process.env.SYNC_DB === 'true') {
       await sequelize.sync({ alter: true });
