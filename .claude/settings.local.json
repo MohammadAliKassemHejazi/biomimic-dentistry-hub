@@ -58,7 +58,9 @@
       "Bash(mkdir -p \"/c/Users/USER/Desktop/Projects/biomimic-dentistry-hub/.claude/reports/archive/iter-8\")",
       "Bash(zip -j \"archive/iter-8/reports-iter-8.zip\" frontend-report.md backend-report.md architect-report.md qa-report.md FINAL-REPORT.md)",
       "Bash(npx --prefix client tsc --noEmit)",
-      "Bash(rm *)"
+      "Bash(rm *)",
+      "Bash(mkdir -p .claude/reports/archive/iter-11)",
+      "Bash(zip -j .claude/reports/archive/iter-11/reports-iter-11.zip .claude/reports/frontend-report.md .claude/reports/backend-report.md .claude/reports/architect-report.md .claude/reports/qa-report.md .claude/reports/FINAL-REPORT.md)"
     ]
   },
   "model": "claude-sonnet-4-6",

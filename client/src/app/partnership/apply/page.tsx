@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Download, Upload, Send, Shield, Award, Zap, FileText } from 'lucide-react';
@@ -44,7 +44,9 @@ interface Templates {
   vip: string | null;
 }
 
-export default function PartnerApplyPage() {
+// ─── Content component — uses useSearchParams() at runtime ───────────────────
+// Must be rendered inside a <Suspense> boundary (see PartnerApplyPage below).
+function PartnerApplyContent() {
   const searchParams = useSearchParams();
   const rawTier = searchParams.get('tier') ?? 'silver';
   const tier: Tier = rawTier in TIER_CONFIG ? (rawTier as Tier) : 'silver';
@@ -262,5 +264,22 @@ export default function PartnerApplyPage() {
 
       <Footer />
     </div>
+  );
+}
+
+// ─── Page shell — statically renderable ──────────────────────────────────────
+// Wraps the content component in <Suspense> so Next.js can pre-render this
+// page without resolving search params at build time.
+export default function PartnerApplyPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-background flex items-center justify-center">
+          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+        </div>
+      }
+    >
+      <PartnerApplyContent />
+    </Suspense>
   );
 }

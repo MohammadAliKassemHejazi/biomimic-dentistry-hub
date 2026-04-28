@@ -1,100 +1,67 @@
-# Frontend Expert Report — Iteration 11
+# Frontend Expert Report — Iteration 12
 
 **Agent:** frontend-expert  
-**Date:** 2026-04-27  
-**Scope:** Site-wide Framer Motion interactivity, scroll reveals, page transitions, scroll progress
+**Date:** 2026-04-28  
+**Status:** ANALYSIS COMPLETE
 
 ---
 
-## Summary
+## Critical Issues Found (2 files)
 
-Files scanned: all `/client/src` pages + components. framer-motion `^12.34.0` installed — full `whileInView`, `AnimatePresence`, `useScroll`, `useSpring`, `useTransform` API available.
+### FE-12-01 — useSearchParams() not wrapped in Suspense — /partnership/apply
+**Severity:** CRITICAL — Build-blocking  
+**File:** `client/src/app/partnership/apply/page.tsx` — line 48
 
-| Severity | Count |
-|---|---|
-| HIGH | 2 (no scroll reveals, no page transitions) |
-| MEDIUM | 3 (no scroll progress, no scroll-aware nav, no footer entrance) |
-| LOW | 0 |
+`useSearchParams()` is called directly at the top level of the default export
+`PartnerApplyPage`. During static page generation (`next build`), Next.js cannot
+resolve search-param values; with no `<Suspense>` boundary present, the SSR
+runtime throws and the entire build exits with code 1.
 
----
+**Root cause pattern:**
+```tsx
+export default function PartnerApplyPage() {
+  const searchParams = useSearchParams();  // ← unguarded
+  ...
+}
+```
 
-## Findings
-
-### [HIGH] FE-FRAMER-01 — No scroll-triggered reveal animations site-wide
-
-**Root cause:** `SponsorsSection` and `VIPSection` use static CSS classes `fade-in-up stagger-N`. These have no IntersectionObserver — all elements render fully immediately on load. No progressive reveal = low perceived interactivity.
-
-**Fix:**
-- New shared hook `useReducedMotion.ts`
-- New reusable `ScrollReveal.tsx` component using `whileInView` + stagger variants
-- `SponsorsSection`: section header + sponsor cards + CTA staggered reveal
-- `VIPSection`: leadership cards + pricing cards + benefit tiles staggered reveal
-- Footer: fade-in from bottom
-
-**Status:** ✅ Applied.
+**Required fix:** Extract all useSearchParams-dependent logic into a child
+component (`PartnerApplyContent`) and render it inside `<Suspense>` in the
+thin shell default export.
 
 ---
 
-### [HIGH] FE-FRAMER-02 — No page transition animations
+### FE-12-02 — useSearchParams() not wrapped in Suspense — /subscription
+**Severity:** CRITICAL — Build-blocking (would surface on next deploy if FE-12-01 alone is fixed)  
+**File:** `client/src/app/subscription/page.tsx` — line 132
 
-**Root cause:** Next.js App Router route changes are instant — hard cuts with no animation. Users experience jarring flashes between pages.
+Same anti-pattern. The `Subscription` component calls `useSearchParams()` at
+its top level; it is the default export — no Suspense boundary exists above it.
 
-**Fix:** New `MotionLayout.tsx` client component wrapping `children` in `AnimatePresence` keyed by `usePathname()`. Slide + fade: page exits left, next page enters from right. 300ms. Integrated in `layout.tsx`.
+**Root cause pattern:**
+```tsx
+const Subscription = () => {
+  const searchParams = useSearchParams();  // ← unguarded
+  ...
+}
+export default Subscription;
+```
 
-**Status:** ✅ Applied.
-
----
-
-### [MEDIUM] FE-FRAMER-03 — No scroll progress indicator
-
-**Root cause:** Long-form pages (courses, blog) have no reading progress cue.
-
-**Fix:** New `ScrollProgress.tsx` — `motion.div` with `scaleX` driven by `useSpring(scrollYProgress)`. Gradient: `from-primary via-secondary to-accent`. Fixed at top of viewport, z-index above navigation. `prefers-reduced-motion` guard (returns null if reduced).
-
-**Status:** ✅ Applied.
-
----
-
-### [MEDIUM] FE-FRAMER-04 — Navigation scroll-state has no visual change
-
-**Root cause:** Navigation renders identically at top and when scrolled. No depth cue for "user has scrolled" state.
-
-**Fix:** `useScroll` + `scrollY.on('change')` listener in Navigation. Adds `border-b border-white/20 bg-primary/98 backdrop-blur-md` class when `scrollY > 10`. Smooth CSS transition.
-
-**Status:** ✅ Applied.
+**Required fix:** Extract `Subscription` body into `SubscriptionContent`,
+wrap with `<Suspense>` in a new thin default export.
 
 ---
 
-### [MEDIUM] FE-FRAMER-05 — Footer has no entrance animation
+## Full Scan Results
 
-**Root cause:** Footer appears immediately when scrolled to. No reveal animation.
-
-**Fix:** `motion.footer` with `whileInView={{ opacity: 1 }}` fade from 0 → 1 over 0.8s. `once: true`.
-
-**Status:** ✅ Applied.
+All other pages/components scanned — no additional `useSearchParams` calls found
+outside these two files.
 
 ---
 
-## New Files
+## Fix Plan
 
-| File | Purpose |
-|---|---|
-| `client/src/hooks/useReducedMotion.ts` | SSR-safe `prefers-reduced-motion` hook |
-| `client/src/components/ScrollProgress.tsx` | Scroll progress bar |
-| `client/src/components/ScrollReveal.tsx` | Reusable scroll-reveal wrapper |
-| `client/src/components/MotionLayout.tsx` | Page transition AnimatePresence wrapper |
-
-## Modified Files
-
-| File | What changed |
-|---|---|
-| `client/src/components/SponsorsSection.tsx` | Framer Motion stagger reveal + card hover lift |
-| `client/src/components/VIPSection.tsx` | Framer Motion stagger reveal + pricing card pop |
-| `client/src/components/Footer.tsx` | motion.footer whileInView fade |
-| `client/src/components/Navigation.tsx` | scroll-aware border + backdrop-blur |
-| `client/src/components/HeroSection.tsx` | scroll parallax + ToothAnimation entrance |
-| `client/src/app/layout.tsx` | ScrollProgress + MotionLayout integration |
-
-## Dependencies
-
-No new npm packages. All features use `framer-motion ^12.34.0` which is already installed.
+| ID | File | Change | Risk |
+|---|---|---|---|
+| FE-12-01 | `client/src/app/partnership/apply/page.tsx` | Split into `PartnerApplyContent` + Suspense shell | Low |
+| FE-12-02 | `client/src/app/subscription/page.tsx` | Split into `SubscriptionContent` + Suspense shell | Low |

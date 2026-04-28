@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
@@ -121,7 +121,40 @@ const PaymentModal = ({ tier, onClose, onStripe, onPayPal, loadingMethod }: Paym
   </div>
 );
 
-const Subscription = () => {
+// ─── Skeleton fallback — matches the tier-card grid visual weight ─────────────
+function SubscriptionSkeleton() {
+  return (
+    <div className="min-h-screen bg-background">
+      <main className="pt-16">
+        <div className="container mx-auto px-4 py-8">
+          <div className="mb-12 text-center">
+            <Skeleton className="h-10 w-64 mx-auto mb-4" />
+            <Skeleton className="h-6 w-96 mx-auto" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto" aria-busy="true" aria-live="polite">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="bg-card rounded-2xl p-8 shadow-medium">
+                <Skeleton className="h-16 w-16 rounded-2xl mx-auto mb-4" />
+                <Skeleton className="h-6 w-24 mx-auto mb-2" />
+                <Skeleton className="h-8 w-32 mx-auto mb-6" />
+                <div className="space-y-3 mb-8">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-5/6" />
+                  <Skeleton className="h-4 w-4/6" />
+                </div>
+                <Skeleton className="h-10 w-full" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+// ─── Content component — uses useSearchParams() at runtime ───────────────────
+// Must be rendered inside a <Suspense> boundary (see default export below).
+const SubscriptionContent = () => {
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [subscriptionTiers, setSubscriptionTiers] = useState<SubscriptionTier[]>([]);
   const [loadingTiers, setLoadingTiers] = useState(true);
@@ -465,4 +498,15 @@ const Subscription = () => {
   );
 };
 
-export default Subscription;
+// ─── Page shell — statically renderable ──────────────────────────────────────
+// Wraps the content component in <Suspense> so Next.js can pre-render this
+// page without resolving search params at build time.
+// The SubscriptionSkeleton fallback matches the page's visual weight so there
+// is no layout shift when the client hydrates.
+export default function SubscriptionPage() {
+  return (
+    <Suspense fallback={<SubscriptionSkeleton />}>
+      <SubscriptionContent />
+    </Suspense>
+  );
+}
