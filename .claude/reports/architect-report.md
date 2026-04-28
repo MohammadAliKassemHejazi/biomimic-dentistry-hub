@@ -1,4 +1,4 @@
-# Architect Report — Iteration 10
+# Architect Report — Iteration 11
 
 **Agent:** architect  
 **Date:** 2026-04-27  
@@ -8,74 +8,40 @@
 
 ## Cross-Cutting Review
 
-No API contract changes. No conflicts between frontend and backend reports.
+No API contract changes. Backend untouched. All changes are client-side only.
 
 ---
 
-## Fix Approvals
+## Approvals
 
-### ✅ FE-PWA-01 — Full caching service worker
+### ✅ ANIM-GPU-01 — IntersectionObserver GPU cache
+APPROVED. IntersectionObserver must disconnect on component unmount (memory leak prevention). Must check `prefers-reduced-motion` before overriding `animationPlayState` so the reduced-motion CSS is not overridden by JS.
 
-APPROVED WITH CONDITIONS:
+### ✅ FE-FRAMER-01 — Scroll reveals
+APPROVED WITH CONDITION: `whileInView` must use `viewport={{ once: true }}` — never re-trigger on scroll-up (causes jitter). All stagger parents must use `initial="hidden"` + `whileInView="visible"` pattern to avoid FOUC.
 
-1. **Do NOT cache authenticated routes** (`/dashboard`, `/admin`, `/api/*`). A cached 401 page would permanently break the auth flow.
-2. **Do NOT cache the SW itself** — browsers handle SW versioning natively.
-3. **Use a version constant** at the top of sw.js so bumping it triggers a cache refresh on all clients.
-4. **Network-first for HTML** — critical for SSR/ISR freshness. Cache-first only for content-hashed static chunks.
-5. **Cache-first for `/_next/static/`** — these are already content-hashed by Next.js, safe to cache indefinitely.
-6. **Offline page** must be precached at install time (not on first visit) so it's available when offline.
+### ✅ FE-FRAMER-02 — Page transitions
+APPROVED WITH CONDITION: AnimatePresence must be `mode="wait"` to prevent old and new pages rendering simultaneously. Keep transition short (≤ 300ms) — longer transitions feel slow on navigating between data-heavy pages.
 
-### ✅ FE-PWA-02 — Manifest icon separation
+### ✅ FE-FRAMER-03 — Scroll progress
+APPROVED. Must be `aria-hidden="true"` — purely decorative.
 
-APPROVED. The `"any maskable"` combined purpose is deprecated per W3C Manifest spec. Separate entries are required for correct adaptive icon behaviour on Android 12+.
+### ✅ FE-FRAMER-04 — Nav scroll-awareness
+APPROVED. Use `scrollY.on('change')` (framer-motion reactive value) not `window.addEventListener('scroll')` — avoids double listener + auto-unsubscribes.
 
-### ✅ FE-PWA-03 — SW registration
-
-APPROVED WITH CONDITION: Register SW inside a `useEffect` in `Providers.tsx`. Wrap in `'serviceWorker' in navigator` guard for SSR safety. Only register in production to avoid dev caching issues:
-```typescript
-if (process.env.NODE_ENV === 'production' && 'serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js');
-}
-```
-
-### ✅ FE-SEO-01 — Ambassador metadata layout
-
-APPROVED. Simple metadata layout, low risk.
-
-### ✅ FE-SEO-02 — Inline JSON-LD
-
-APPROVED. Replacing `<Script strategy="afterInteractive">` with inline `<script type="application/ld+json" dangerouslySetInnerHTML>` is the canonical pattern for structured data. The `dangerouslySetInnerHTML` is safe here because the JSON is generated server-side from hardcoded constants — no user input is involved.
-
-### ✅ FE-MOBILE-01 — Apple mobile meta tags
-
-APPROVED. These are standard iOS PWA meta requirements. Use `metadata.other` in Next.js App Router layout. Do NOT add `apple-mobile-web-app-status-bar-style: black-translucent` — that overlaps the status bar and breaks layouts. Use `default` instead.
-
-### ✅ FE-MOBILE-02 — Offline page
-
-APPROVED. Keep it lightweight — no auth context, no API calls, just a static branded page.
-
-### ✅ FE-PERF-01 — Security headers
-
-APPROVED WITH CONDITIONS:
-
-1. **No `Content-Security-Policy` this iteration** — CSP requires a complete audit of all script/style/image sources and is out of scope. Adding a wrong CSP breaks the entire site.
-2. **Add these headers safely:**
-   - `X-Frame-Options: SAMEORIGIN`
-   - `X-Content-Type-Options: nosniff`
-   - `X-XSS-Protection: 1; mode=block`
-   - `Referrer-Policy: strict-origin-when-cross-origin`
-   - `Permissions-Policy: camera=(), microphone=(), geolocation=()`
-   - `X-DNS-Prefetch-Control: on`
-3. **HSTS only in production** — `Strict-Transport-Security` should not be applied in dev (localhost has no TLS).
+### ✅ ANIM-FRAMER-01 + ANIM-PARALLAX-01 — HeroSection parallax
+APPROVED WITH CONDITION: Parallax must use `useTransform` (not direct state updates in scroll listener) to stay on compositor thread. ToothAnimation parallax wrapper must NOT have `will-change: transform` set permanently — only via CSS class inside the component.
 
 ---
 
 ## Architecture Notes
 
-- The SW + manifest together constitute the full PWA install criteria for both Android (Chrome/Edge) and iOS (Safari 16.4+).
-- Next.js 14+ automatically handles `<link rel="manifest">` injection when `manifest` is set in metadata. No manual `<link>` tag needed.
-- The JSON-LD inline change applies to `layout.tsx` (organization schema) and `page.tsx` (website schema). Blog post JSON-LD (`/blog/[slug]`) is already correctly using inline `<script>` tags — no change needed there.
+1. **`useReducedMotion.ts` is the single source of truth** — no inline `window.matchMedia` calls elsewhere.
+2. **`ScrollReveal.tsx` renders a plain `<div>` when reduced motion is active** — no motion wrapper, no opacity change, children are always visible.
+3. **Page transitions**: `MotionLayout` is a client component — layout.tsx (server) imports it fine. The `key={pathname}` pattern is correct for App Router.
+4. **No new dependencies** — all features use installed framer-motion v12.
 
 ---
 
-## APPROVED — proceed to PHASE 3 (Apply all 8 fixes)
+## Conflicts
+None between frontend-expert and 3d-animation-expert scope.

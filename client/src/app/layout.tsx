@@ -4,6 +4,8 @@ import "./globals.css";
 import Providers from "@/components/Providers";
 import Navigation from "@/components/Navigation";
 import PWAInstallBanner from "@/components/PWAInstallBanner";
+import ScrollProgress from "@/components/ScrollProgress";
+import MotionLayout from "@/components/MotionLayout";
 import { SITE_URL } from "@/lib/env";
 
 const geistSans = Geist({
@@ -80,7 +82,6 @@ export const metadata: Metadata = {
       { url: "/logo.png",     sizes: "512x512", type: "image/png" },
     ],
     apple: [
-      // Sizes that iOS Safari selects for the Home Screen icon
       { url: "/logo.png", sizes: "180x180", type: "image/png" },
       { url: "/logo.png", sizes: "152x152", type: "image/png" },
       { url: "/logo.png", sizes: "120x120", type: "image/png" },
@@ -100,29 +101,17 @@ export const metadata: Metadata = {
     },
   },
   category: "education",
-  // ── FE-MOBILE-01 (Iter 10): Apple + mobile PWA meta tags ──────────────────
-  // These unlock true standalone / home-screen-app behaviour on iOS Safari
-  // and are the standard mobile PWA web standards tags.
   other: {
-    // iOS Safari: add to home screen acts as a standalone app
     "apple-mobile-web-app-capable":           "yes",
-    // "default" keeps the iOS status bar visible with the system color
     "apple-mobile-web-app-status-bar-style":  "default",
-    // Name shown below the icon on the iOS home screen
     "apple-mobile-web-app-title":             "BioDentistry",
-    // Android legacy compatibility (pre-Manifest spec browsers)
     "mobile-web-app-capable":                 "yes",
-    // Prevent iOS from converting phone-like numbers into tel: links
     "format-detection":                       "telephone=no",
-    // Allow DNS prefetching for faster third-party resource loads
     "x-dns-prefetch-control":                 "on",
   },
 };
 
 // ── Structured data: Organization schema ──────────────────────────────────────
-// FE-SEO-02 (Iter 10): Rendered inline in the HTML <body> (not via
-// <Script strategy="afterInteractive">) so crawlers see it immediately
-// without needing to execute deferred JavaScript.
 const organizationJsonLd = JSON.stringify({
   "@context": "https://schema.org",
   "@type": "Organization",
@@ -146,15 +135,36 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} antialiased`}>
+        {/* Skip to main content — accessibility */}
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-md focus:shadow-medium"
         >
           Skip to main content
         </a>
+
+        {/*
+          ScrollProgress — fixed gradient bar tracking page scroll.
+          Lives outside Providers so it renders on every page.
+          z-[200] places it above Navigation (z-50).
+          aria-hidden: purely decorative.
+        */}
+        <ScrollProgress />
+
         <Providers>
           <Navigation />
-          <main id="main-content">{children}</main>
+
+          {/*
+            MotionLayout — AnimatePresence wrapper keyed by pathname.
+            Provides smooth fade+slide transition between page navigations.
+            Falls back to plain render when prefers-reduced-motion is active.
+          */}
+          <main id="main-content">
+            <MotionLayout>
+              {children}
+            </MotionLayout>
+          </main>
+
           {/* FE-08 (Iter 4): PWA install prompt — must be inside Providers for toast context */}
           <PWAInstallBanner />
         </Providers>

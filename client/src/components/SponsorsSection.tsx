@@ -1,12 +1,15 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { Building2, Award, HandHeart } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { resolveUploadUrl } from '@/lib/env';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ScrollReveal, staggerContainer, staggerItem } from '@/components/ScrollReveal';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 interface TrustedPartner {
     id: string;
@@ -24,12 +27,24 @@ const isImageExtension = (url: string): boolean => {
   return ['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg', 'avif', 'ico'].includes(ext);
 };
 
+/* ── Animation variants ───────────────────────────────────────────────── */
+const EASE = [0.22, 1, 0.36, 1] as const;
+
+const cardVariants = {
+  hidden:  { opacity: 0, y: 40 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.6, ease: EASE },
+  },
+};
+
 const SponsorsSection = () => {
   const [sponsors, setSponsors] = useState<TrustedPartner[]>([]);
   const [loading, setLoading] = useState(true);
   const [partnershipKitUrl, setPartnershipKitUrl] = useState<string | null>(null);
+  const prefersReduced = useReducedMotion();
 
-  // Load partners list (public, no auth needed)
   useEffect(() => {
     api
       .get<TrustedPartner[]>('/partners', { skipErrorHandling: true, requiresAuth: false })
@@ -38,9 +53,6 @@ const SponsorsSection = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  // Load partnership kit URL from the PUBLIC endpoint — no admin auth required.
-  // The admin writes via POST /api/admin/settings/partnership-kit;
-  // anyone can read the URL via GET /api/settings/partnership-kit.
   useEffect(() => {
     api
       .get<{ url: string | null }>('/settings/partnership-kit', {
@@ -54,16 +66,15 @@ const SponsorsSection = () => {
   const getTierColor = (tier: string) => {
     switch (tier) {
       case 'Platinum': return 'from-slate-400 to-slate-600';
-      case 'Gold': return 'from-secondary to-secondary-light';
-      case 'Silver': return 'from-gray-300 to-gray-500';
-      case 'Bronze': return 'from-accent-light to-accent';
-      default: return 'from-muted to-muted-foreground';
+      case 'Gold':     return 'from-secondary to-secondary-light';
+      case 'Silver':   return 'from-gray-300 to-gray-500';
+      case 'Bronze':   return 'from-accent-light to-accent';
+      default:         return 'from-muted to-muted-foreground';
     }
   };
 
   const getLogoContent = (partner: TrustedPartner) => {
     if (partner.logo) {
-      // Only use <Image> for actual image URLs (not PDFs, docs, etc.)
       if (partner.logo.startsWith('http') || partner.logo.startsWith('/')) {
         const logoUrl = resolveUploadUrl(partner.logo);
         if (logoUrl && isImageExtension(logoUrl)) {
@@ -78,43 +89,40 @@ const SponsorsSection = () => {
             />
           );
         }
-        // File exists but isn't an image (e.g. a PDF was mistakenly uploaded) —
-        // fall through to emoji fallback below.
       }
-      // If logo is an emoji or short text, render it directly
       if (!partner.logo.startsWith('/') && !partner.logo.startsWith('http')) {
         return <div className="text-4xl" aria-hidden="true">{partner.logo}</div>;
       }
     }
-
-    // Auto-assign emoji based on role/tier
     const role = (partner.role || '').toLowerCase();
     let emoji = '🏢';
     if (role.includes('tech') || role.includes('equipment')) emoji = '⚙️';
-    else if (role.includes('research')) emoji = '🔬';
+    else if (role.includes('research'))  emoji = '🔬';
     else if (role.includes('education')) emoji = '🎓';
-    else if (role.includes('material')) emoji = '🧪';
+    else if (role.includes('material'))  emoji = '🧪';
     else if (role.includes('community')) emoji = '🤝';
-
     return <div className="text-4xl" aria-hidden="true">{emoji}</div>;
   };
 
   return (
     <section className="section-padding bg-background" aria-labelledby="partners-heading">
       <div className="section-container">
-        {/* Section Header */}
-        <div className="text-center mb-16">
+
+        {/* ── Section Header — scroll reveal ─────────────────────────────── */}
+        <ScrollReveal direction="up" duration={0.7} className="text-center mb-16">
           <div className="flex items-center justify-center gap-3 mb-4">
             <HandHeart className="w-8 h-8 text-primary" aria-hidden="true" />
-            <h2 id="partners-heading" className="text-3xl md:text-4xl font-bold text-foreground">Our Trusted Partners</h2>
+            <h2 id="partners-heading" className="text-3xl md:text-4xl font-bold text-foreground">
+              Our Trusted Partners
+            </h2>
           </div>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
             Working together with leading organizations to advance biomimetic dentistry
             and make quality education accessible to students worldwide.
           </p>
-        </div>
+        </ScrollReveal>
 
-        {/* Sponsors Grid */}
+        {/* ── Sponsors Grid — staggered card reveals ─────────────────────── */}
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8" aria-busy="true" aria-live="polite">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -130,11 +138,24 @@ const SponsorsSection = () => {
         ) : sponsors.length === 0 ? (
           <p className="text-center text-muted-foreground">No partners to display yet.</p>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {sponsors.map((sponsor, index) => (
-              <div
+          /* Stagger parent — viewport={{ once: true }} prevents re-trigger on scroll-up */
+          <motion.div
+            variants={prefersReduced ? {} : staggerContainer(0.1)}
+            initial={prefersReduced ? false : 'hidden'}
+            whileInView="visible"
+            viewport={{ once: true, margin: '-80px' }}
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+          >
+            {sponsors.map((sponsor) => (
+              <motion.div
                 key={sponsor.id}
-                className={`card-hover glass-card rounded-2xl p-6 fade-in-up stagger-${index % 4 + 1}`}
+                variants={prefersReduced ? {} : cardVariants}
+                whileHover={prefersReduced ? {} : {
+                  y: -8,
+                  boxShadow: '0 20px 40px rgba(136,201,161,0.18)',
+                  transition: { type: 'spring', stiffness: 300, damping: 20 },
+                }}
+                className="glass-card rounded-2xl p-6 cursor-default"
               >
                 {/* Tier Badge */}
                 <div className="flex items-center justify-between mb-4">
@@ -162,14 +183,20 @@ const SponsorsSection = () => {
                 <div className="flex justify-center mt-4">
                   <Building2 className="w-6 h-6 text-accent" aria-hidden="true" />
                 </div>
-              </div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         )}
 
-        {/* Partnership CTA */}
-        <div className="mt-16 text-center">
-          <div className="bg-gradient-card rounded-2xl p-8 shadow-medium">
+        {/* ── Partnership CTA — scroll reveal ────────────────────────────── */}
+        <ScrollReveal direction="up" delay={0.2} duration={0.7} className="mt-16 text-center">
+          <motion.div
+            whileHover={prefersReduced ? {} : {
+              scale: 1.01,
+              transition: { type: 'spring', stiffness: 200, damping: 20 },
+            }}
+            className="bg-gradient-card rounded-2xl p-8 shadow-medium"
+          >
             <h3 className="text-2xl font-bold text-foreground mb-4">
               Become a Partner
             </h3>
@@ -179,18 +206,29 @@ const SponsorsSection = () => {
             </p>
             <div className="flex flex-col md:flex-row gap-4 justify-center">
               <Link href="/partnership" passHref>
-                <button className="btn-primary">
+                <motion.button
+                  whileHover={prefersReduced ? {} : { scale: 1.04, y: -2 }}
+                  whileTap={prefersReduced ? {} : { scale: 0.97 }}
+                  className="btn-primary"
+                >
                   Partnership Opportunities
-                </button>
+                </motion.button>
               </Link>
               {partnershipKitUrl && (
-                <a href={partnershipKitUrl} target="_blank" rel="noopener noreferrer" className="btn-outline inline-flex items-center justify-center">
+                <motion.a
+                  href={partnershipKitUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  whileHover={prefersReduced ? {} : { scale: 1.04, y: -2 }}
+                  whileTap={prefersReduced ? {} : { scale: 0.97 }}
+                  className="btn-outline inline-flex items-center justify-center"
+                >
                   Download Partnership Kit
-                </a>
+                </motion.a>
               )}
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </ScrollReveal>
       </div>
     </section>
   );

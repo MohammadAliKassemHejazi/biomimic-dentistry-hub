@@ -1,11 +1,14 @@
 "use client"
 
 import React, { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 import { Crown, Star, Zap, MessageCircle, BookOpen, Calendar, Trophy, Instagram, Facebook } from 'lucide-react';
 import Image from 'next/image';
 import { api } from '@/lib/api';
 import { resolveUploadUrl } from '@/lib/env';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ScrollReveal, staggerContainer, staggerItem } from '@/components/ScrollReveal';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 interface LeadershipMember {
   id: string;
@@ -33,11 +36,30 @@ interface SubscriptionTier {
   key: string;
 }
 
+/* ── Animation variants ───────────────────────────────────────────────── */
+const EASE = [0.22, 1, 0.36, 1] as const;
+
+const memberCard = {
+  hidden:  { opacity: 0, y: 40 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: EASE } },
+};
+
+const pricingCard = {
+  hidden:  { opacity: 0, y: 50, scale: 0.97 },
+  visible: { opacity: 1, y: 0,  scale: 1,   transition: { duration: 0.7, ease: EASE } },
+};
+
+const benefitCard = {
+  hidden:  { opacity: 0, y: 30 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: EASE } },
+};
+
 const VIPSection = () => {
   const [members, setMembers] = useState<LeadershipMember[]>([]);
   const [plans, setPlans] = useState<SubscriptionTier[]>([]);
   const [loadingMembers, setLoadingMembers] = useState(true);
   const [loadingPlans, setLoadingPlans] = useState(true);
+  const prefersReduced = useReducedMotion();
 
   const getProfileContent = (member: LeadershipMember) => {
     if (member.image) {
@@ -58,61 +80,55 @@ const VIPSection = () => {
       }
       return <div className="text-6xl" aria-hidden="true">{member.image}</div>;
     }
-
-    // Auto-assign emoji based on title/role
     const title = (member.role || '').toLowerCase();
-    const name = (member.name || '').toLowerCase();
-
+    const name  = (member.name || '').toLowerCase();
     let emoji = '👤';
-    if (title.includes('founder')) emoji = '👩‍⚕️';
+    if (title.includes('founder'))                              emoji = '👩‍⚕️';
     else if (title.includes('education') || title.includes('professor') || name.includes('prof')) emoji = '👨‍🏫';
-    else if (title.includes('ambassador')) emoji = '👩‍💼';
-    else if (title.includes('research')) emoji = '👨‍🔬';
-    else if (name.includes('dr')) emoji = '👨‍⚕️';
-
+    else if (title.includes('ambassador'))                      emoji = '👩‍💼';
+    else if (title.includes('research'))                        emoji = '👨‍🔬';
+    else if (name.includes('dr'))                               emoji = '👨‍⚕️';
     return <div className="text-6xl" aria-hidden="true">{emoji}</div>;
   };
 
   const getIconForKey = (key: string) => {
-    switch(key) {
-        case 'bronze': return Trophy;
-        case 'silver': return Star;
-        case 'gold': return Crown;
-        default: return Star;
+    switch (key) {
+      case 'bronze': return Trophy;
+      case 'silver': return Star;
+      case 'gold':   return Crown;
+      default:       return Star;
     }
   };
 
   const getColorForKey = (key: string) => {
-      switch(key) {
-          case 'bronze': return 'from-accent-light to-accent';
-          case 'silver': return 'from-gray-300 to-gray-500';
-          case 'gold': return 'from-secondary to-secondary-light';
-          default: return 'from-primary to-primary-light';
-      }
+    switch (key) {
+      case 'bronze': return 'from-accent-light to-accent';
+      case 'silver': return 'from-gray-300 to-gray-500';
+      case 'gold':   return 'from-secondary to-secondary-light';
+      default:       return 'from-primary to-primary-light';
+    }
   };
 
   useEffect(() => {
-    // Fetch Leadership Members
     api
       .get<LeadershipMember[]>('/leadership', { skipErrorHandling: true, requiresAuth: false })
       .then((data) => setMembers(Array.isArray(data) ? data : []))
       .catch((err) => console.error('Leadership fetch failed', err))
       .finally(() => setLoadingMembers(false));
 
-    // Fetch Subscription Plans
     api
       .get<any[]>('/plans', { skipErrorHandling: true, requiresAuth: false })
       .then((data) => {
         if (data && data.length > 0) {
           const mappedPlans = data.map((p) => ({
-            name: p.name,
-            price: parseFloat(p.price),
+            name:     p.name,
+            price:    parseFloat(p.price),
             interval: p.interval,
             features: p.features,
-            popular: p.popular,
-            key: p.key,
-            icon: getIconForKey(p.key),
-            color: getColorForKey(p.key),
+            popular:  p.popular,
+            key:      p.key,
+            icon:     getIconForKey(p.key),
+            color:    getColorForKey(p.key),
           }));
           mappedPlans.sort((a, b) => a.price - b.price);
           setPlans(mappedPlans);
@@ -124,32 +140,39 @@ const VIPSection = () => {
 
   const getStatusColor = (status: string) => {
     if (!status) return 'from-muted to-muted-foreground';
-
     switch (status) {
-      case 'Founder': return 'from-secondary to-secondary-light';
-      case 'Advisor': return 'from-primary to-primary-light';
-      case 'Director': return 'from-accent to-accent-light';
+      case 'Founder':     return 'from-secondary to-secondary-light';
+      case 'Advisor':     return 'from-primary to-primary-light';
+      case 'Director':    return 'from-accent to-accent-light';
       case 'Coordinator': return 'from-blue-400 to-blue-600';
-      default: return 'from-muted to-muted-foreground';
+      default:            return 'from-muted to-muted-foreground';
     }
   };
 
   return (
     <section id="vip" className="section-padding bg-muted/30" aria-labelledby="leadership-heading">
       <div className="section-container">
-        {/* VIP People Section */}
+
+        {/* ══════════════════════════════════════════════════════════════════
+            VIP PEOPLE SECTION
+        ══════════════════════════════════════════════════════════════════ */}
         <div className="mb-20">
-          <div className="text-center mb-16">
+
+          {/* Section header */}
+          <ScrollReveal direction="up" duration={0.7} className="text-center mb-16">
             <div className="flex items-center justify-center gap-3 mb-4">
               <Crown className="w-8 h-8 text-secondary" aria-hidden="true" />
-              <h2 id="leadership-heading" className="text-3xl md:text-4xl font-bold text-foreground">Leadership Team</h2>
+              <h2 id="leadership-heading" className="text-3xl md:text-4xl font-bold text-foreground">
+                Leadership Team
+              </h2>
             </div>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
               Meet the visionaries and experts driving our mission to revolutionize dental education
               and make biomimetic techniques accessible worldwide.
             </p>
-          </div>
+          </ScrollReveal>
 
+          {/* Leadership cards */}
           {loadingMembers ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8" aria-busy="true" aria-live="polite">
               {Array.from({ length: 4 }).map((_, i) => (
@@ -163,11 +186,23 @@ const VIPSection = () => {
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-              {members.map((member, index) => (
-                <div
+            <motion.div
+              variants={prefersReduced ? {} : staggerContainer(0.1)}
+              initial={prefersReduced ? false : 'hidden'}
+              whileInView="visible"
+              viewport={{ once: true, margin: '-80px' }}
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8"
+            >
+              {members.map((member) => (
+                <motion.div
                   key={member.id}
-                  className={`card-hover bg-card rounded-2xl p-6 shadow-soft fade-in-up stagger-${index % 4 + 1}`}
+                  variants={prefersReduced ? {} : memberCard}
+                  whileHover={prefersReduced ? {} : {
+                    y: -8,
+                    boxShadow: '0 20px 40px rgba(136,201,161,0.15)',
+                    transition: { type: 'spring', stiffness: 300, damping: 20 },
+                  }}
+                  className="bg-card rounded-2xl p-6 shadow-soft cursor-default"
                 >
                   {/* Status Badge */}
                   {member.status && (
@@ -216,30 +251,34 @@ const VIPSection = () => {
                     </p>
                   )}
 
-                  {/* Expertise */}
+                  {/* Expertise + Achievements */}
                   <div className="space-y-3">
                     {member.expertise && (
                       <div>
-                          <h4 className="text-sm font-semibold text-foreground mb-1">Expertise</h4>
-                          <p className="text-muted-foreground text-sm">{member.expertise}</p>
+                        <h4 className="text-sm font-semibold text-foreground mb-1">Expertise</h4>
+                        <p className="text-muted-foreground text-sm">{member.expertise}</p>
                       </div>
                     )}
                     {member.achievements && (
                       <div>
-                          <h4 className="text-sm font-semibold text-foreground mb-1">Achievements</h4>
-                          <p className="text-muted-foreground text-sm">{member.achievements}</p>
+                        <h4 className="text-sm font-semibold text-foreground mb-1">Achievements</h4>
+                        <p className="text-muted-foreground text-sm">{member.achievements}</p>
                       </div>
                     )}
                   </div>
-                </div>
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           )}
         </div>
 
-        {/* VIP Program Section */}
+        {/* ══════════════════════════════════════════════════════════════════
+            VIP PROGRAM SECTION
+        ══════════════════════════════════════════════════════════════════ */}
         <div>
-          <div className="text-center mb-16">
+
+          {/* Section header */}
+          <ScrollReveal direction="up" duration={0.7} className="text-center mb-16">
             <div className="flex items-center justify-center gap-3 mb-4">
               <Zap className="w-8 h-8 text-accent" aria-hidden="true" />
               <h2 className="text-3xl md:text-4xl font-bold text-foreground">VIP Membership Program</h2>
@@ -248,8 +287,9 @@ const VIPSection = () => {
               Get direct access to our experts, exclusive courses, and personalized mentorship
               to accelerate your journey in biomimetic techniques.
             </p>
-          </div>
+          </ScrollReveal>
 
+          {/* Pricing cards */}
           {loadingPlans ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8" aria-busy="true" aria-live="polite">
               {Array.from({ length: 3 }).map((_, i) => (
@@ -266,22 +306,42 @@ const VIPSection = () => {
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {plans.map((tier, index) => {
+            <motion.div
+              variants={prefersReduced ? {} : staggerContainer(0.15)}
+              initial={prefersReduced ? false : 'hidden'}
+              whileInView="visible"
+              viewport={{ once: true, margin: '-80px' }}
+              className="grid grid-cols-1 md:grid-cols-3 gap-8"
+            >
+              {plans.map((tier) => {
                 const IconComponent = tier.icon;
                 return (
-                  <div
+                  <motion.div
                     key={tier.name}
-                    className={`relative card-hover bg-card rounded-2xl p-8 shadow-medium fade-in-up stagger-${index + 1} ${
+                    variants={prefersReduced ? {} : pricingCard}
+                    whileHover={prefersReduced ? {} : {
+                      y: tier.popular ? -10 : -6,
+                      scale: tier.popular ? 1.03 : 1.02,
+                      boxShadow: tier.popular
+                        ? '0 30px 60px rgba(136,201,161,0.25)'
+                        : '0 20px 40px rgba(136,201,161,0.15)',
+                      transition: { type: 'spring', stiffness: 280, damping: 22 },
+                    }}
+                    className={`relative bg-card rounded-2xl p-8 shadow-medium ${
                       tier.popular ? 'ring-2 ring-secondary scale-105' : ''
                     }`}
                   >
                     {/* Popular Badge */}
                     {tier.popular && (
                       <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                        <div className="bg-gradient-to-r from-secondary to-secondary-light text-secondary-foreground px-4 py-1 rounded-full text-sm font-semibold">
+                        <motion.div
+                          initial={prefersReduced ? false : { scale: 0, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          transition={{ type: 'spring', stiffness: 400, damping: 20, delay: 0.4 }}
+                          className="bg-gradient-to-r from-secondary to-secondary-light text-secondary-foreground px-4 py-1 rounded-full text-sm font-semibold"
+                        >
                           Most Popular
-                        </div>
+                        </motion.div>
                       </div>
                     )}
 
@@ -299,47 +359,80 @@ const VIPSection = () => {
                       {tier.features.map((feature, featureIndex) => (
                         <li key={featureIndex} className="flex items-start gap-3">
                           <div className="w-5 h-5 bg-secondary/20 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" aria-hidden="true">
-                            <div className="w-2 h-2 bg-secondary rounded-full"></div>
+                            <div className="w-2 h-2 bg-secondary rounded-full" />
                           </div>
                           <span className="text-muted-foreground">{feature}</span>
                         </li>
                       ))}
                     </ul>
 
-                    {/* CTA Button */}
-                    <a href="/subscription" className={`block w-full text-center font-semibold py-3 rounded-lg transition-smooth ${
-                      tier.popular
-                        ? 'bg-secondary text-secondary-foreground hover:bg-secondary/90'
-                        : 'bg-primary text-primary-foreground hover:bg-primary/90'
-                    }`} aria-label={`Choose ${tier.name} plan`}>
+                    {/* CTA */}
+                    <motion.a
+                      href="/subscription"
+                      whileHover={prefersReduced ? {} : { scale: 1.03 }}
+                      whileTap={prefersReduced ? {} : { scale: 0.97 }}
+                      className={`block w-full text-center font-semibold py-3 rounded-lg transition-smooth ${
+                        tier.popular
+                          ? 'bg-secondary text-secondary-foreground hover:bg-secondary/90'
+                          : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                      }`}
+                      aria-label={`Choose ${tier.name} plan`}
+                    >
                       Choose {tier.name}
-                    </a>
-                  </div>
+                    </motion.a>
+                  </motion.div>
                 );
               })}
-            </div>
+            </motion.div>
           )}
 
           {/* Additional Benefits */}
-          <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="text-center p-6 bg-gradient-card rounded-2xl shadow-soft">
-              <MessageCircle className="w-12 h-12 text-primary mx-auto mb-4" aria-hidden="true" />
-              <h3 className="text-lg font-semibold text-foreground mb-2">Direct Expert Access</h3>
-              <p className="text-muted-foreground">Connect directly with leading biomimetic dentistry experts and researchers.</p>
-            </div>
-
-            <div className="text-center p-6 bg-gradient-card rounded-2xl shadow-soft">
-              <BookOpen className="w-12 h-12 text-secondary mx-auto mb-4" aria-hidden="true" />
-              <h3 className="text-lg font-semibold text-foreground mb-2">Exclusive Content</h3>
-              <p className="text-muted-foreground">Access premium courses, case studies, and research materials not available elsewhere.</p>
-            </div>
-
-            <div className="text-center p-6 bg-gradient-card rounded-2xl shadow-soft">
-              <Calendar className="w-12 h-12 text-accent mx-auto mb-4" aria-hidden="true" />
-              <h3 className="text-lg font-semibold text-foreground mb-2">Flexible Scheduling</h3>
-              <p className="text-muted-foreground">Schedule mentorship sessions and Q&As at times that work for your busy schedule.</p>
-            </div>
-          </div>
+          <motion.div
+            variants={prefersReduced ? {} : staggerContainer(0.12)}
+            initial={prefersReduced ? false : 'hidden'}
+            whileInView="visible"
+            viewport={{ once: true, margin: '-60px' }}
+            className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8"
+          >
+            {[
+              {
+                icon: MessageCircle,
+                color: 'text-primary',
+                title: 'Direct Expert Access',
+                desc: 'Connect directly with leading biomimetic dentistry experts and researchers.',
+              },
+              {
+                icon: BookOpen,
+                color: 'text-secondary',
+                title: 'Exclusive Content',
+                desc: 'Access premium courses, case studies, and research materials not available elsewhere.',
+              },
+              {
+                icon: Calendar,
+                color: 'text-accent',
+                title: 'Flexible Scheduling',
+                desc: 'Schedule mentorship sessions and Q&As at times that work for your busy schedule.',
+              },
+            ].map((benefit) => {
+              const Icon = benefit.icon;
+              return (
+                <motion.div
+                  key={benefit.title}
+                  variants={prefersReduced ? {} : benefitCard}
+                  whileHover={prefersReduced ? {} : {
+                    y: -6,
+                    boxShadow: '0 16px 32px rgba(136,201,161,0.12)',
+                    transition: { type: 'spring', stiffness: 300, damping: 20 },
+                  }}
+                  className="text-center p-6 bg-gradient-card rounded-2xl shadow-soft cursor-default"
+                >
+                  <Icon className={`w-12 h-12 ${benefit.color} mx-auto mb-4`} aria-hidden="true" />
+                  <h3 className="text-lg font-semibold text-foreground mb-2">{benefit.title}</h3>
+                  <p className="text-muted-foreground">{benefit.desc}</p>
+                </motion.div>
+              );
+            })}
+          </motion.div>
         </div>
       </div>
     </section>
