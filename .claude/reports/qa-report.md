@@ -1,4 +1,4 @@
-# QA Report — Iteration 12
+# QA Report — Iteration 13
 
 **Agent:** qa-tester  
 **Date:** 2026-04-28  
@@ -12,57 +12,42 @@
 npx tsc --noEmit  →  0 errors, 0 warnings
 ```
 
-Both modified files compile cleanly under strict mode.
-
 ---
 
-## Fix Verification
-
-### FE-12-01 — /partnership/apply
+## Fix Verification — FE-13-01
 
 | Check | Result |
 |---|---|
-| `useSearchParams()` now inside child component (`PartnerApplyContent`) | ✅ |
-| Default export (`PartnerApplyPage`) renders `<Suspense>` | ✅ |
-| `Suspense` imported from `react` | ✅ |
-| Fallback UI provided (centered spinner) | ✅ |
-| All existing logic (form, file upload, template download, API calls) preserved | ✅ |
-| `"use client"` directive retained | ✅ |
-| No prop interface changes | ✅ |
-
-### FE-12-02 — /subscription
-
-| Check | Result |
-|---|---|
-| `useSearchParams()` now inside child component (`SubscriptionContent`) | ✅ |
-| Default export (`SubscriptionPage`) renders `<Suspense>` | ✅ |
-| `Suspense` imported from `react` | ✅ |
-| Fallback UI provided (`SubscriptionSkeleton` — matches visual weight) | ✅ |
-| All existing logic (Stripe, PayPal, manage billing, payment modal) preserved | ✅ |
-| `"use client"` directive retained | ✅ |
-| Payment redirect param handling (`?success`, `?paypal_success`, `?canceled`) unchanged | ✅ |
+| `page.tsx` has NO `"use client"` directive (stays Server Component) | ✅ |
+| `metadata` export intact and unchanged in `page.tsx` | ✅ |
+| `RetryButton.tsx` has `"use client"` at top | ✅ |
+| `onClick` and `window.location.reload()` moved into `RetryButton.tsx` | ✅ |
+| `RetryButton` imported and rendered in `page.tsx` | ✅ |
+| All static content (logo, icon, heading, paragraph, Link) remains server-rendered | ✅ |
+| Button visual appearance (classes, SVG icon, text) unchanged | ✅ |
+| `RetryButton` NOT added to shared `/components/ui/` (correct per architect) | ✅ |
 
 ---
 
 ## Regression Scan
 
-- No other `useSearchParams` calls found outside these two files
 - No shared components modified
 - No API contracts changed
-- No env vars added or removed
-- Backend untouched
+- No env vars added
+- No other pages touched
+- `error.tsx` already had `"use client"` — unaffected
 
 ---
 
 ## Build Risk Assessment
 
-**Before fix:** Build exits with code 1 — deployment impossible.  
-**After fix:** Both pages are statically renderable. Next.js will pre-render
-the Suspense shell; `useSearchParams()` resolves client-side after hydration.
-The Render deployment should now complete successfully.
+**Before fix:** Build exits code 1 — Render deployment blocked.  
+**After fix:** `OfflinePage` is a static Server Component + one client island.
+Next.js can pre-render the page at build time; the button hydrates in the
+browser. Build should complete successfully.
 
 ---
 
 ## Verdict
 
-**PASS — Safe to merge. Both fixes are correct, complete, and non-regressive.**
+**PASS — Safe to merge.**

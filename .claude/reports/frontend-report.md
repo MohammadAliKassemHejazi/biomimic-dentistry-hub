@@ -1,4 +1,4 @@
-# Frontend Expert Report — Iteration 12
+# Frontend Expert Report — Iteration 13
 
 **Agent:** frontend-expert  
 **Date:** 2026-04-28  
@@ -6,56 +6,41 @@
 
 ---
 
-## Critical Issues Found (2 files)
+## Critical Issue Found
 
-### FE-12-01 — useSearchParams() not wrapped in Suspense — /partnership/apply
+### FE-13-01 — Event handler in Server Component on /offline page
 **Severity:** CRITICAL — Build-blocking  
-**File:** `client/src/app/partnership/apply/page.tsx` — line 48
+**File:** `client/src/app/offline/page.tsx` — line 63  
 
-`useSearchParams()` is called directly at the top level of the default export
-`PartnerApplyPage`. During static page generation (`next build`), Next.js cannot
-resolve search-param values; with no `<Suspense>` boundary present, the SSR
-runtime throws and the entire build exits with code 1.
+**Root Cause:**  
+`OfflinePage` is a **Server Component** (no `"use client"` directive). It exports
+`metadata`, which correctly requires server context. However, it contains a
+`<button>` with `onClick={() => window.location.reload()}` — event handlers
+cannot be serialized and sent to the browser from a Server Component. Next.js
+throws during static generation:
 
-**Root cause pattern:**
-```tsx
-export default function PartnerApplyPage() {
-  const searchParams = useSearchParams();  // ← unguarded
-  ...
-}
+```
+Error: Event handlers cannot be passed to Client Component props.
+  {onClick: function onClick, className: ..., children: ...}
 ```
 
-**Required fix:** Extract all useSearchParams-dependent logic into a child
-component (`PartnerApplyContent`) and render it inside `<Suspense>` in the
-thin shell default export.
+**Why we cannot simply add `"use client"` to the page:**  
+The file exports `metadata` — Next.js only allows `metadata` exports from Server
+Components. Adding `"use client"` would break the metadata export.
 
----
-
-### FE-12-02 — useSearchParams() not wrapped in Suspense — /subscription
-**Severity:** CRITICAL — Build-blocking (would surface on next deploy if FE-12-01 alone is fixed)  
-**File:** `client/src/app/subscription/page.tsx` — line 132
-
-Same anti-pattern. The `Subscription` component calls `useSearchParams()` at
-its top level; it is the default export — no Suspense boundary exists above it.
-
-**Root cause pattern:**
-```tsx
-const Subscription = () => {
-  const searchParams = useSearchParams();  // ← unguarded
-  ...
-}
-export default Subscription;
-```
-
-**Required fix:** Extract `Subscription` body into `SubscriptionContent`,
-wrap with `<Suspense>` in a new thin default export.
+**Required fix:**  
+Extract the retry `<button>` (the only interactive element) into a separate
+`"use client"` component: `RetryButton.tsx` in the same directory.
+Import it into `page.tsx`. The page stays a Server Component; the button
+becomes a Client Component island.
 
 ---
 
 ## Full Scan Results
 
-All other pages/components scanned — no additional `useSearchParams` calls found
-outside these two files.
+- All other `app/` pages with event handlers already have `"use client"` ✅
+- `error.tsx` — has `"use client"`, correctly handles `onClick` and `useEffect` ✅
+- No other Server Components with event handlers or browser-only APIs found
 
 ---
 
@@ -63,5 +48,5 @@ outside these two files.
 
 | ID | File | Change | Risk |
 |---|---|---|---|
-| FE-12-01 | `client/src/app/partnership/apply/page.tsx` | Split into `PartnerApplyContent` + Suspense shell | Low |
-| FE-12-02 | `client/src/app/subscription/page.tsx` | Split into `SubscriptionContent` + Suspense shell | Low |
+| FE-13-01a | `client/src/app/offline/RetryButton.tsx` | Create new `"use client"` component with retry button | None (new file) |
+| FE-13-01b | `client/src/app/offline/page.tsx` | Replace inline button with `<RetryButton />` import | Low |

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
+import RetryButton from './RetryButton';
 
 export const metadata: Metadata = {
   title: 'You are offline',
@@ -16,6 +17,10 @@ export const metadata: Metadata = {
  *  - Completely static (no API calls, no auth context)
  *  - Precached by the service worker at install time
  *  - Lightweight — loads from cache even on very slow connections
+ *
+ * The retry button is extracted to RetryButton.tsx (a "use client" component)
+ * because event handlers cannot live in Server Components, and this page must
+ * remain a Server Component to export `metadata`.
  */
 export default function OfflinePage() {
   return (
@@ -58,16 +63,8 @@ export default function OfflinePage() {
         mobile data, then try again.
       </p>
 
-      {/* Retry button — reloads the page */}
-      <button
-        onClick={() => window.location.reload()}
-        className="inline-flex items-center gap-2 bg-primary text-primary-foreground font-semibold px-6 py-3 rounded-xl shadow-sm hover:bg-primary/90 active:scale-95 transition-all mb-4"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-        </svg>
-        Try again
-      </button>
+      {/* RetryButton is a "use client" island — event handlers require it */}
+      <RetryButton />
 
       <Link
         href="/"

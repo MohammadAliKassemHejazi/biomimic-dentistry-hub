@@ -60,7 +60,9 @@
       "Bash(npx --prefix client tsc --noEmit)",
       "Bash(rm *)",
       "Bash(mkdir -p .claude/reports/archive/iter-11)",
-      "Bash(zip -j .claude/reports/archive/iter-11/reports-iter-11.zip .claude/reports/frontend-report.md .claude/reports/backend-report.md .claude/reports/architect-report.md .claude/reports/qa-report.md .claude/reports/FINAL-REPORT.md)"
+      "Bash(zip -j .claude/reports/archive/iter-11/reports-iter-11.zip .claude/reports/frontend-report.md .claude/reports/backend-report.md .claude/reports/architect-report.md .claude/reports/qa-report.md .claude/reports/FINAL-REPORT.md)",
+      "Bash(mkdir -p .claude/reports/archive/iter-12)",
+      "Bash(zip -j .claude/reports/archive/iter-12/reports-iter-12.zip .claude/reports/frontend-report.md .claude/reports/backend-report.md .claude/reports/architect-report.md .claude/reports/qa-report.md .claude/reports/FINAL-REPORT.md)"
     ]
   },
   "model": "claude-sonnet-4-6",

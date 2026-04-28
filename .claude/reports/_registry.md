@@ -1,19 +1,18 @@
 # Report Registry
 
-iteration: 12
-status: merged
-started: 2026-04-28T00:00:00Z
-completed: 2026-04-28T00:30:00Z
-scope: Critical build failure — useSearchParams() missing Suspense boundary on /partnership/apply and /subscription pages
+iteration: 13
+status: in_progress
+started: 2026-04-28T01:00:00Z
+scope: Critical build failure — event handler passed to Client Component props on /offline page (blocks Render deployment)
 
 ## Agent Status
-- frontend-expert: complete
+- frontend-expert: in_progress
 - backend-expert: not_required
-- architect: approved
-- qa-tester: pass
+- architect: pending
+- qa-tester: pending
 
 ## Current Phase
-MERGED ✅
+INVESTIGATE
 
 ## Archive
 - iter-3:  .claude/reports/archive/iter-3/reports-iter-3.zip
@@ -22,8 +21,9 @@ MERGED ✅
 - iter-9:  .claude/reports/archive/iter-9/reports-iter-9.zip
 - iter-10: .claude/reports/archive/iter-10/reports-iter-10.zip
 - iter-11: .claude/reports/archive/iter-11/reports-iter-11.zip
+- iter-12: .claude/reports/archive/iter-12/reports-iter-12.zip
 
-## Deferred to Iteration 13
+## Deferred from iteration 12
 - SEC-CSP: Content-Security-Policy header (requires full inline-script audit)
 - PWA-ICONS: Dedicated maskable icon with safe-zone padding
 - FE-BLOG-RT: Tiptap rich-text editor for blog create/edit

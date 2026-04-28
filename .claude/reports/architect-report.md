@@ -1,4 +1,4 @@
-# Architect Report — Iteration 12
+# Architect Report — Iteration 13
 
 **Agent:** architect  
 **Date:** 2026-04-28  
@@ -8,36 +8,31 @@
 
 ## Review of frontend-report.md
 
-Both FE-12-01 and FE-12-02 are correctly diagnosed. The fix pattern is
-well-established in the Next.js App Router docs:
+FE-13-01 is correctly diagnosed. The constraint is clear:
 
-> Any component using `useSearchParams()` must be wrapped in a `<Suspense>`
-> boundary, otherwise Next.js cannot statically pre-render the page.
+- `metadata` export → Server Component required → cannot add `"use client"` to the page
+- `onClick` handler → Client Component required → cannot stay in the server component
 
-### Architectural guidance for both fixes
+### Architectural guidance
 
-1. **Split pattern** — The "thin shell + content child" split is the canonical
-   Next.js solution. The shell only renders `<Suspense>`, making the page
-   statically renderable. The content component holds all runtime logic.
+1. **Client island pattern** — Extracting only the interactive element into a
+   `"use client"` component is the correct App Router pattern for this case.
+   The server component renders static HTML; the button hydrates as a client
+   island. This is minimal, correct, and follows the principle of pushing
+   `"use client"` as deep as possible.
 
-2. **Fallback UI** — The Suspense `fallback` should be visually consistent
-   with the page's initial load state:
-   - `/partnership/apply` → simple centered spinner (page is form-heavy,
-     full skeleton not required)
-   - `/subscription` → re-use the existing `Skeleton` loader pattern already
-     in the file (already renders skeletons for `loadingTiers`)
+2. **File co-location** — `RetryButton.tsx` belongs in
+   `client/src/app/offline/` alongside `page.tsx`. It is a page-scoped
+   component, not a shared UI component.
 
-3. **No contract changes** — Neither fix touches any API call, prop interface,
-   or shared component. Backend is not impacted.
+3. **`window.location.reload()` safety** — Inside a `"use client"` component
+   this call is safe; it only executes in the browser. No SSR guard needed.
 
-4. **`"use client"` directive** — Must remain on BOTH the content component
-   AND (optionally) the shell. Since the shell renders a client component as
-   its only child, placing `"use client"` on the shell is fine and maintains
-   the same bundle boundary.
+4. **No new shared components** — This is intentionally scoped. Do not add
+   `RetryButton` to `/components/ui/` — it has no reuse outside this page.
 
-5. **Import of `Suspense`** — Must import `Suspense` from `react` (not from
-   next/navigation). `import React, { Suspense } from 'react'` or
-   `import { Suspense } from 'react'`.
+5. **`metadata` is untouched** — The server component shell must not change
+   its `metadata` export in any way.
 
 ---
 
@@ -45,7 +40,7 @@ well-established in the Next.js App Router docs:
 
 | Fix | Decision | Condition |
 |---|---|---|
-| FE-12-01 | ✅ APPROVED | Suspense fallback: centered spinner |
-| FE-12-02 | ✅ APPROVED | Suspense fallback: same skeleton grid already in the component |
+| FE-13-01a | ✅ APPROVED | New file: `client/src/app/offline/RetryButton.tsx` |
+| FE-13-01b | ✅ APPROVED | Import `RetryButton` in `page.tsx`; no other changes |
 
-**No conflicts found. No deferred items. Proceed to PHASE 3.**
+**No conflicts. Proceed to PHASE 3.**
